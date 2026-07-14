@@ -17,18 +17,36 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Ana Sayfa',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="envanter"
         options={{
-          title: 'Explore',
+          title: 'Envanter',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'code-slash' : 'code-slash-outline'} color={color} />
+            <TabBarIcon name={focused ? 'shirt' : 'shirt-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="kombinlerim"
+        options={{
+          title: 'Kombinlerim',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'heart' : 'heart-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profil"
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'person' : 'person-outline'} color={color} />
           ),
         }}
       />
