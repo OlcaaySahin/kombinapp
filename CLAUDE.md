@@ -28,7 +28,7 @@ Seçim gerekçesi: kullanıcı mobil geliştirmede sıfırdan başlıyor, solo/d
 - Envanterden ürün silme (uzun bas + onayla)
 - Giydim işaretleme: Beğenilenler'de her kart altında "Giydim olarak işaretle" → `app/mark-worn.tsx` (foto opsiyonel + not) → `outfit_wears`'a kayıt, kombin otomatik olarak Geçmiş'e geçer
 
-**MVP kapsamı artık tamamlandı** (2026-07-15 gece oturumu) — kalan iş: Edge Function deploy + Storage migration çalıştırma (sabah listesi) ve foto akışlarının cihazda ilk kez denenmesi.
+**MVP kapsamı artık tamamlandı ve AI ucu gerçekten canlı** (2026-07-15 gece oturumu) — Edge Function'lar deploy edildi ve uçtan uca test edildi (gerçek Claude yanıtı alındı). Kalan tek iş: Storage migration'ın çalıştırılması ve foto akışlarının cihazda ilk kez denenmesi (sabah listesi).
 
 **Sonraya bırakıldı:** Partner eşleştirme, marka marketplace/alışveriş önerisi, sosyal challenge/paylaşım, görsel kolaj veya sanal deneme (try-on), Premium/RevenueCat entegrasyonu, günlük 5 alışveriş önerisi limiti (marketplace ile birlikte gelecek).
 
@@ -80,18 +80,19 @@ Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, 
 - **Profil** (`app/(tabs)/profil.tsx`) — hâlâ statik placeholder (anonim kullanıcının gösterecek bir adı/emaili yok, gerçek login gelince doldurulacak)
 - Veri hook'ları: `lib/hooks/useItems.ts`, `lib/hooks/useOutfits.ts` — TanStack Query, RLS sayesinde client tarafında `user_id` filtresi gerekmez (sadece INSERT'te gönderilir)
 
-## Edge Functions (yazıldı, henüz deploy edilmedi)
-- `supabase/functions/generate-outfit` — kullanıcının JWT'siyle kimlik doğrular, envanterini çeker, Claude'a (varsayılan model: `claude-haiku-4-5-20251001`, maliyet-etkin) tool-use ile zorunlu JSON çıktı aldırır, seçilen `itemIds` + `reasoning` döner.
-- `supabase/functions/tag-item-photo` — base64 foto alır, Claude vision ile `slot/name/color/colorName/pattern/season` etiketleri döner. `lib/aiTagging.ts`'teki `suggestTagsForPhoto()` üzerinden `app/add-item.tsx`'te çağrılıyor (fallback'li: function deploy edilmediyse form manuel kalır).
-- İkisi de `ANTHROPIC_API_KEY`'i `Deno.env.get()` ile okuyor — deploy sırasında `supabase secrets set --env-file supabase/.env` ile Supabase'e taşınmalı.
-- Deploy için gereken: `supabase login` (Personal Access Token ile, bkz. sabah listesi) → `supabase link --project-ref tvjjwpotqeybtkkvvwox` → `supabase functions deploy generate-outfit tag-item-photo` → `supabase secrets set --env-file supabase/.env`.
-- Client tarafı zaten hazır (`lib/aiOutfit.ts`) — deploy edilince ekstra kod değişikliği gerekmez, `supabase.functions.invoke()` otomatik çalışmaya başlar.
+## Edge Functions — DEPLOY EDİLDİ VE CANLI DOĞRULANDI (2026-07-15)
+- `supabase/functions/generate-outfit` — kullanıcının JWT'siyle kimlik doğrular, envanterini çeker, Claude'a (varsayılan model: `claude-haiku-4-5-20251001`, maliyet-etkin) tool-use ile zorunlu JSON çıktı aldırır, seçilen `itemIds` + `reasoning` döner. **Uçtan uca test edildi**: gerçek anonim kullanıcı + test ürünleriyle çağrıldı, Claude gerçek ve tutarlı bir kombin + Türkçe gerekçe döndürdü.
+- `supabase/functions/tag-item-photo` — base64 foto alır, Claude vision ile `slot/name/color/colorName/pattern/season` etiketleri döner. `lib/aiTagging.ts`'teki `suggestTagsForPhoto()` üzerinden `app/add-item.tsx`'te çağrılıyor. **Deploy sonrası test edildi** (1x1 piksel test görseliyle — pipeline çalışıyor, gerçek bir kıyafet fotoğrafıyla henüz denenmedi).
+- Deploy yöntemi: `supabase functions deploy <ad> --project-ref tvjjwpotqeybtkkvvwox` (Personal Access Token `SUPABASE_ACCESS_TOKEN` env var olarak set edilerek, `supabase link` **kullanılmadı** — bu, olası DB şifresi promptunu atlamak için bilinçli bir tercih, `--project-ref` flag'i link olmadan da çalışıyor). Docker kurulu değildi, CLI otomatik olarak Docker'sız API-tabanlı bundling'e düştü — sorun çıkarmadı.
+- `ANTHROPIC_API_KEY`, `supabase secrets set --project-ref tvjjwpotqeybtkkvvwox --env-file supabase/.env` ile Supabase'e taşındı (doğrulandı, gerçek Claude çağrıları çalışıyor).
+- Client tarafı (`lib/aiOutfit.ts`, `lib/aiTagging.ts`) hiçbir değişiklik gerektirmedi — fallback mekanizması zaten deploy-sonrası durumu otomatik olarak yakalıyor.
+- Kontrol paneli: `https://supabase.com/dashboard/project/tvjjwpotqeybtkkvvwox/functions`
 
 ## Ortam Değişkenleri / Secrets (gitignore'da, repo'da yok)
 İki ayrı dosya, iki ayrı güven seviyesi — birbirine karıştırılmamalı:
 
 - **`.env`** (repo kökü) — Expo/client tarafı, `EXPO_PUBLIC_*` prefix'li, **uygulama paketine gömülür, gizli değildir**. İçinde: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Şablon: `.env.example`. Proje: `OlcaaySahin's Project`, ref `tvjjwpotqeybtkkvvwox`, bölge Tokyo (ap-northeast-1).
-- **`supabase/.env`** — sunucu-taraf secret, **asla client'a girmemeli**. İçinde: `ANTHROPIC_API_KEY` (console.anthropic.com, Claude Code aboneliğinden ayrı, kullanım bazlı ücretli). Edge Function kodu bunu okumaya hazır (`Deno.env.get('ANTHROPIC_API_KEY')`) — deploy anında `supabase secrets set --env-file supabase/.env` ile Supabase'e taşınması gerekiyor (henüz taşınmadı, bkz. sabah listesi).
+- **`supabase/.env`** — sunucu-taraf secret, **asla client'a girmemeli**. İçinde: `ANTHROPIC_API_KEY` (console.anthropic.com, Claude Code aboneliğinden ayrı, kullanım bazlı ücretli). `supabase secrets set` ile Supabase'e taşındı ve doğrulandı — hem yerel dosya hem Supabase secret olarak iki yerde duruyor (senkron kalması için ileride key rotasyonu yaparsan ikisini de güncelle).
 
 Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı** (gitignore'da olduğu için repo'yu klonlayan biri bunları göremez).
 
@@ -112,13 +113,14 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 
 ## Sabah İçin Gerekenler (kullanıcıdan beklenen aksiyonlar)
 
+**~~1. Supabase Personal Access Token~~ — TAMAMLANDI (2026-07-15).** Token verildi, Edge Function'lar deploy edildi, secret set edildi, ikisi de gerçek Claude çağrılarıyla test edildi. Token bu oturumda sadece geçici env var olarak kullanıldı, hiçbir dosyaya yazılmadı.
+
 **Şimdi ilerlemek için gerekli:**
-1. **Supabase Personal Access Token** — CLI'yi non-interactive login edip (`SUPABASE_ACCESS_TOKEN` env var ile) `generate-outfit` ve `tag-item-photo` Edge Function'larını deploy etmek için gerekiyor. Konum: Supabase Dashboard → sağ üst hesap menüsü → **Access Tokens** → yeni token oluştur (proje ayarı değil, hesap ayarı). Bu, anon key veya service_role key'den **farklı** bir şey.
-2. **Storage migration'ı çalıştır** — `supabase/migrations/20260715010000_storage_setup.sql` dosyasının tamamını SQL Editor'a yapıştırıp çalıştırman yeterli (ilk migration'da yaptığın gibi). Bucket oluşturma + RLS için token/manuel dashboard işlemi gerekmiyor, bu SQL hepsini yapıyor.
-3. **Foto ekleme akışını bir kez dene** — `app/add-item.tsx`'teki foto seçme + yükleme akışını hiçbir cihazda test edemedim (bu ortamda kamera/galeri yok). İlk fırsatta bir ürün eklerken foto seçmeyi dene, bir sorun çıkarsa bildir.
+1. **Storage migration'ı çalıştır** — `supabase/migrations/20260715010000_storage_setup.sql` dosyasının tamamını SQL Editor'a yapıştırıp çalıştırman yeterli (ilk migration'da yaptığın gibi). Bucket oluşturma + RLS için token/manuel dashboard işlemi gerekmiyor, bu SQL hepsini yapıyor.
+2. **Foto akışlarını bir kez dene** — `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme + yükleme akışlarını hiçbir cihazda test edemedim (bu ortamda kamera/galeri yok). İlk fırsatta bir ürün eklerken/kombin giyerken foto seçmeyi dene, bir sorun çıkarsa bildir. (AI kombin üretimi ve foto etiketleme Edge Function'ları zaten canlı test edildi — bunlar çalışır durumda.)
 
 **Yakın gelecek (bugün acil değil, ama bilgin olsun):**
-4. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
-5. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
-6. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
-7. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
+3. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
+4. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
+5. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
+6. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
