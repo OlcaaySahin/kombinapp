@@ -20,14 +20,14 @@ Seçim gerekçesi: kullanıcı mobil geliştirmede sıfırdan başlıyor, solo/d
 ## MVP (v1) Kapsamı
 **İçinde:**
 - Giriş: **Supabase anonymous sign-in** ile başlandı (bkz. "Auth Stratejisi" notu) — Google/email ekranı bilerek ertelendi
-- Envanter: manuel ürün ekleme (isim, kategori, renk) — foto yükle + AI otomatik etiketleme henüz yok (bkz. sabah listesi)
+- Envanter: foto seç (galeri) → AI otomatik etiketleme dener (Edge Function deploy edilmediyse sessizce atlanır) → manuel düzelt → Storage'a yükle → kaydet. **Kod tamam ama fiziksel cihazda hiç çalıştırılmadı** (bkz. Notlar).
 - AI kombin önerisi: bağlamsal sorular → Edge Function (Claude) dener, deploy edilmediyse/başarısız olursa yerel kural tabanlı seçime sessizce düşer
 - Zar butonu: envanterden her zaman yerel rastgele-uyumlu seçim (AI'ya hiç gitmez, bilinçli tasarım kararı)
 - Günlük 3 kombin limiti — artık gerçek: `generation_events` tablosundan sayılıyor, state'te değil
 - Kombinlerim: Geçmiş (`outfit_wears` ile inner join) / Beğenilenler (`is_liked=true`) — gerçek Supabase sorguları
 - Envanterden ürün silme (uzun bas + onayla)
 
-**Henüz yok**: Giydim işaretleme + dış mekan fotoğrafı ekleme (kombin albümü) — Storage bucket gerektiriyor, bkz. sabah listesi.
+**Henüz yok**: Giydim işaretleme + dış mekan fotoğrafı ekleme (kombin albümü) — `outfit-wear-photos` bucket'ı ve `uploadPhoto()` helper'ı hazır ama bu ekran/akış henüz kodlanmadı.
 
 **Sonraya bırakıldı:** Partner eşleştirme, marka marketplace/alışveriş önerisi, sosyal challenge/paylaşım, görsel kolaj veya sanal deneme (try-on), Premium/RevenueCat entegrasyonu, günlük 5 alışveriş önerisi limiti (marketplace ile birlikte gelecek).
 
@@ -74,14 +74,14 @@ Neden bu yaklaşım: sahte/hardcoded bir `user_id` ile ilerleseydik, gerçek gir
 ## Gerçek Veri Durumu (mock kaldırıldı, `lib/mockData.ts` silindi)
 Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz):
 - **Ana Sayfa** (`app/(tabs)/index.tsx`) — bağlamsal soru akışı → `lib/aiOutfit.ts`'teki `requestAiOutfit()` (Edge Function dener, fallback'li) · Zar At → `lib/outfitGenerator.ts`'teki `generateRandomOutfit()` (her zaman lokal) · günlük limit `useDailyOutfitCount` ile DB'den · "Beğen" → `useCreateOutfit` ile `outfits`+`outfit_items`'a yazar
-- **Envanter** (`app/(tabs)/envanter.tsx`) — `useItems()` ile gerçek liste, "+" → `app/add-item.tsx` (modal, manuel form: isim/kategori/renk), uzun bas → silme
+- **Envanter** (`app/(tabs)/envanter.tsx`) — `useItems()` ile gerçek liste, "+" → `app/add-item.tsx` (modal: foto seç → AI etiketleme dener → manuel form: isim/kategori/renk → Storage'a yükle → kaydet), uzun bas → silme
 - **Kombinlerim** (`app/(tabs)/kombinlerim.tsx`) — `useLikedOutfits()` / `useWornOutfits()` (gerçek join sorguları)
 - **Profil** (`app/(tabs)/profil.tsx`) — hâlâ statik placeholder (anonim kullanıcının gösterecek bir adı/emaili yok, gerçek login gelince doldurulacak)
 - Veri hook'ları: `lib/hooks/useItems.ts`, `lib/hooks/useOutfits.ts` — TanStack Query, RLS sayesinde client tarafında `user_id` filtresi gerekmez (sadece INSERT'te gönderilir)
 
 ## Edge Functions (yazıldı, henüz deploy edilmedi)
 - `supabase/functions/generate-outfit` — kullanıcının JWT'siyle kimlik doğrular, envanterini çeker, Claude'a (varsayılan model: `claude-haiku-4-5-20251001`, maliyet-etkin) tool-use ile zorunlu JSON çıktı aldırır, seçilen `itemIds` + `reasoning` döner.
-- `supabase/functions/tag-item-photo` — base64 foto alır, Claude vision ile `slot/name/color/colorName/pattern/season` etiketleri döner. **Henüz hiçbir ekrandan çağrılmıyor** (foto yükleme UI'ı yok, bkz. sabah listesi).
+- `supabase/functions/tag-item-photo` — base64 foto alır, Claude vision ile `slot/name/color/colorName/pattern/season` etiketleri döner. `lib/aiTagging.ts`'teki `suggestTagsForPhoto()` üzerinden `app/add-item.tsx`'te çağrılıyor (fallback'li: function deploy edilmediyse form manuel kalır).
 - İkisi de `ANTHROPIC_API_KEY`'i `Deno.env.get()` ile okuyor — deploy sırasında `supabase secrets set --env-file supabase/.env` ile Supabase'e taşınmalı.
 - Deploy için gereken: `supabase login` (Personal Access Token ile, bkz. sabah listesi) → `supabase link --project-ref tvjjwpotqeybtkkvvwox` → `supabase functions deploy generate-outfit tag-item-photo` → `supabase secrets set --env-file supabase/.env`.
 - Client tarafı zaten hazır (`lib/aiOutfit.ts`) — deploy edilince ekstra kod değişikliği gerekmez, `supabase.functions.invoke()` otomatik çalışmaya başlar.
@@ -94,7 +94,9 @@ Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, 
 
 Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı** (gitignore'da olduğu için repo'yu klonlayan biri bunları göremez).
 
-**Supabase şema durumu**: `supabase/migrations/20260715000000_init_schema.sql`, kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi — 2026-07-15). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
+**Supabase şema durumu**:
+- `supabase/migrations/20260715000000_init_schema.sql` — kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
+- `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Henüz SQL Editor'da çalıştırılmadı/doğrulanmadı** — foto yükleme akışının çalışması için bunun da çalıştırılması gerekiyor (bkz. sabah listesi, madde 2).
 
 ## Notlar
 - **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Aktif olması için VS Code workspace kökünün bu klasör olması ve yeni bir Claude Code oturumu gerekiyor.
@@ -105,15 +107,17 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - **TypeScript garipliği**: Bu projede zaman zaman `useQuery<T>({...})` gibi açık generic verilmesine rağmen, o hook'un sonucunu tüketen `.filter()/.map()` callback'lerinde parametre "implicit any" oluyor (TS7006). Kesin kök nedeni netleştirilemedi (muhtemelen tsconfig/expo base config + TS 5.3.3 kombinasyonuna özgü bir çıkarım sınırlaması). **Çözüm**: hook sonucunu tüketen yerde değişkeni/parametreyi açıkça tipleyin (`const list: DbItem[] = ...`, `(item: DbItem) => ...`) — hook tanımının kendisini değiştirmeye gerek yok. Örnekler: `app/(tabs)/envanter.tsx`, `app/(tabs)/index.tsx`, `app/(tabs)/kombinlerim.tsx`.
 - `npx tsc --noEmit` "Unterminated template literal" gibi tuhaf hatalar verirse (`.expo/types/router.d.ts` içinde), `.expo` klasörünü silin — bozuk/eski bir route-tipi cache'iydi, otomatik yeniden üretiliyor.
 - Doğrulama disiplini: her önemli değişiklikten sonra sırasıyla `npx tsc --noEmit` → `npx jest --watchAll=false` → `npx expo export -p web` (gerçek Metro/Babel bundling hatalarını yakalar) çalıştırıldı, hepsi geçmeden commit atılmadı. `dist/` klasörü her export sonrası silinir (gitignore'da zaten var, ekstra önlem).
+- **Dürüstlük notu**: `app/add-item.tsx`'teki foto seçme/yükleme akışı (`expo-image-picker` + `lib/storage.ts` + `lib/aiTagging.ts`) sadece bundling/tip seviyesinde doğrulandı — bu ortamda kamera/galeri/fiziksel cihaz olmadığı için interaktif olarak hiç çalıştırılamadı. Kodu iyi bilinen, standart Expo+Supabase kalıplarını takip ediyor ama gecenin geri kalanındaki (auth, veri katmanı, ekranlar) gibi uçtan uca test edilmiş değil. İlk denemeyi kullanıcı yapmalı.
 
 ## Sabah İçin Gerekenler (kullanıcıdan beklenen aksiyonlar)
 
 **Şimdi ilerlemek için gerekli:**
 1. **Supabase Personal Access Token** — CLI'yi non-interactive login edip (`SUPABASE_ACCESS_TOKEN` env var ile) `generate-outfit` ve `tag-item-photo` Edge Function'larını deploy etmek için gerekiyor. Konum: Supabase Dashboard → sağ üst hesap menüsü → **Access Tokens** → yeni token oluştur (proje ayarı değil, hesap ayarı). Bu, anon key veya service_role key'den **farklı** bir şey.
-2. **Supabase Storage bucket** — envanter ürün fotoğrafları ve kombin albümü (`outfit_wears.photo_url`) için gerekiyor. Personal Access Token verilirse CLI/Management API üzerinden ben de deneyebilirim; olmazsa Dashboard → Storage → New bucket (örn. `item-photos`) ile manuel oluşturman gerekir.
+2. **Storage migration'ı çalıştır** — `supabase/migrations/20260715010000_storage_setup.sql` dosyasının tamamını SQL Editor'a yapıştırıp çalıştırman yeterli (ilk migration'da yaptığın gibi). Bucket oluşturma + RLS için token/manuel dashboard işlemi gerekmiyor, bu SQL hepsini yapıyor.
+3. **Foto ekleme akışını bir kez dene** — `app/add-item.tsx`'teki foto seçme + yükleme akışını hiçbir cihazda test edemedim (bu ortamda kamera/galeri yok). İlk fırsatta bir ürün eklerken foto seçmeyi dene, bir sorun çıkarsa bildir.
 
 **Yakın gelecek (bugün acil değil, ama bilgin olsun):**
-3. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
-4. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
-5. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
-6. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
+4. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
+5. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
+6. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
+7. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
