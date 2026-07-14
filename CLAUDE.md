@@ -80,7 +80,7 @@ Bottom tab: **Ana Sayfa** (kombin oluştur) · **Envanter** · **Kombinlerim** (
 
 Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı** (gitignore'da olduğu için repo'yu klonlayan biri bunları göremez).
 
-**Supabase şema durumu**: `supabase/migrations/20260715000000_init_schema.sql` yazıldı ve commit'lendi, ama gerçek Supabase projesinde **çalıştırılıp çalıştırılmadığı teyit edilmedi** — kullanıcıya SQL Editor'da manuel çalıştırması söylendi. Yeni oturum başlarsa önce bunu doğrula (örn. `categories` tablosu dolu mu diye bak).
+**Supabase şema durumu**: `supabase/migrations/20260715000000_init_schema.sql`, kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi — 2026-07-15). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
 
 ## Notlar
 - **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Aktif olması için VS Code workspace kökünün bu klasör olması ve yeni bir Claude Code oturumu gerekiyor.
