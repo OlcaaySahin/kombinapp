@@ -6,6 +6,20 @@ const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 // Maliyet-etkin varsayılan; kalite yetersiz kalırsa 'claude-sonnet-5' ile değiştir.
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 
+// Web (npm run web) dahil her client'tan çağrılabilmesi için CORS gerekli.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, 'content-type': 'application/json' },
+  });
+}
+
 const TAG_ITEM_TOOL = {
   name: 'tag_item',
   description: 'Bir kıyafet/aksesuar fotoğrafını analiz edip envanter etiketleri üret.',
@@ -39,8 +53,12 @@ const TAG_ITEM_TOOL = {
 };
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS });
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   const { imageBase64, mediaType } = (await req.json()) as {
@@ -49,7 +67,7 @@ Deno.serve(async (req: Request) => {
   };
 
   if (!imageBase64) {
-    return new Response(JSON.stringify({ error: 'imageBase64 gerekli' }), { status: 400 });
+    return jsonResponse({ error: 'imageBase64 gerekli' }, 400);
   }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -78,17 +96,15 @@ Deno.serve(async (req: Request) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    return new Response(JSON.stringify({ error: `Claude API hatası: ${errorText}` }), { status: 502 });
+    return jsonResponse({ error: `Claude API hatası: ${errorText}` }, 502);
   }
 
   const result = await response.json();
   const toolUse = result.content?.find((block: { type: string }) => block.type === 'tool_use');
 
   if (!toolUse) {
-    return new Response(JSON.stringify({ error: 'AI yanıtı ayrıştırılamadı' }), { status: 502 });
+    return jsonResponse({ error: 'AI yanıtı ayrıştırılamadı' }, 502);
   }
 
-  return new Response(JSON.stringify(toolUse.input), {
-    headers: { 'content-type': 'application/json' },
-  });
+  return jsonResponse(toolUse.input);
 });

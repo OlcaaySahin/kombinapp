@@ -10,6 +10,20 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 // Maliyet-etkin varsayılan; kalite yetersiz kalırsa 'claude-sonnet-5' ile değiştir.
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 
+// Web (npm run web) dahil her client'tan çağrılabilmesi için CORS gerekli.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, 'content-type': 'application/json' },
+  });
+}
+
 type OutfitContext = { mevsim: string; mekan: string; saat: string; konsept: string };
 
 const SUGGEST_OUTFIT_TOOL = {
@@ -34,13 +48,17 @@ const SUGGEST_OUTFIT_TOOL = {
 };
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS });
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Missing Authorization header' }), { status: 401 });
+    return jsonResponse({ error: 'Missing Authorization header' }, 401);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -53,7 +71,7 @@ Deno.serve(async (req: Request) => {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
   const { context } = (await req.json()) as { context: OutfitContext };
@@ -64,11 +82,11 @@ Deno.serve(async (req: Request) => {
     .eq('user_id', user.id);
 
   if (itemsError) {
-    return new Response(JSON.stringify({ error: itemsError.message }), { status: 500 });
+    return jsonResponse({ error: itemsError.message }, 500);
   }
 
   if (!items || items.length === 0) {
-    return new Response(JSON.stringify({ error: 'Envanterde ürün yok' }), { status: 422 });
+    return jsonResponse({ error: 'Envanterde ürün yok' }, 422);
   }
 
   const systemPrompt =
@@ -95,17 +113,15 @@ Deno.serve(async (req: Request) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    return new Response(JSON.stringify({ error: `Claude API hatası: ${errorText}` }), { status: 502 });
+    return jsonResponse({ error: `Claude API hatası: ${errorText}` }, 502);
   }
 
   const result = await response.json();
   const toolUse = result.content?.find((block: { type: string }) => block.type === 'tool_use');
 
   if (!toolUse) {
-    return new Response(JSON.stringify({ error: 'AI yanıtı ayrıştırılamadı' }), { status: 502 });
+    return jsonResponse({ error: 'AI yanıtı ayrıştırılamadı' }, 502);
   }
 
-  return new Response(JSON.stringify(toolUse.input), {
-    headers: { 'content-type': 'application/json' },
-  });
+  return jsonResponse(toolUse.input);
 });
