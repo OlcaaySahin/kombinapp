@@ -40,6 +40,8 @@ export type NewItemInput = {
   name: string;
   color: string;
   season?: string[];
+  imageUrl?: string;
+  sourceType?: 'user_photo' | 'web_photo';
 };
 
 export function useAddItem() {
@@ -54,6 +56,8 @@ export function useAddItem() {
           name: input.name,
           color: input.color,
           season: input.season ?? [],
+          image_url: input.imageUrl,
+          source_type: input.sourceType ?? 'user_photo',
         })
         .select()
         .single();
