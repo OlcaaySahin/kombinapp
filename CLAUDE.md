@@ -53,6 +53,26 @@ Bottom tab: **Ana Sayfa** (kombin oluştur) · **Envanter** · **Kombinlerim** (
 - Giydim işaretleme: Kombin detay → "Giydim" → dış mekan foto + not → `outfit_wears`'a kayıt
 - Limit doldu: 3. kombin denemesinde Premium modalı (şimdilik pasif placeholder)
 
+## Marka Paleti (Figma moodboard referansından çıkarıldı)
+- Ana renk: `#3461FD` (primary, `tailwind.config.js` + `constants/Colors.ts` → tint)
+- Vurgu renkleri: mor `#8B3FE8`, hardal `#E8B923`, mercan `#FF4757` (`constants/Colors.ts` → `Accent`)
+- Tipografi: başlıklar Poppins (SemiBold/Bold), gövde metni Inter (Regular/Medium/SemiBold) — `@expo-google-fonts/*`, `tailwind.config.js` → `fontFamily.heading` / `fontFamily.body`
+- Kaynak: kullanıcının paylaştığı "Shoppe" tarzı genel e-ticaret UI kiti — birebir şablon değil, mood/stil referansı olarak kullanıldı (bkz. pin/etiket kartı, görsel tarama akışı, filtre paneli fikirleri).
+
+## Önemli: NativeWind sürüm kısıtı
+`nativewind` **4.1.23**'e sabitlendi (`^4` değil). Neden: `nativewind@4.2.x`, `react-native-css-interop@0.2.x`'i getiriyor ve bu paket babel preset'inde koşulsuz olarak `react-native-worklets/plugin`'i talep ediyor — bu paket sadece **Reanimated 4** ile birlikte gelir. Biz Expo SDK 51'in pinlediği **Reanimated 3.10.1**'i kullanıyoruz, bu yüzden `expo export -p web` babel hatasıyla patlıyordu. Reanimated 4'e geçmeden (büyük, riskli bir yükseltme) `nativewind`'i `^4.2`'ye yükseltme — önce bu notu güncelle.
+
+## Prototip Durumu (mock veriyle)
+Çekirdek 4 ekran, gerçek backend olmadan, `lib/mockData.ts` içindeki sahte verilerle kodlandı ve çalışır durumda (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz geçiyor):
+- **Ana Sayfa** (`app/(tabs)/index.tsx`) — bağlamsal soru akışı (mevsim/mekan/saat/konsept çipleri) + Zar At butonu + sonuç kartı, günlük 3 limit sayacı (state'te, kalıcı değil)
+- **Envanter** (`app/(tabs)/envanter.tsx`) — kategori filtre çipleri + 2 kolonlu ürün grid'i
+- **Kombinlerim** (`app/(tabs)/kombinlerim.tsx`) — Geçmiş/Beğenilenler segmented tab
+- **Profil** (`app/(tabs)/profil.tsx`) — hesap özeti + menü listesi
+- Ortak bileşenler `components/ui/` altında: `CategoryChip`, `ItemCard`, `OutfitCard`, `PrimaryButton`, `OptionChipRow`
+
+**Henüz gerçek değil**: auth, veri kalıcılığı, AI kombin üretimi — hepsi `lib/mockData.ts`'ten geliyor. Gerçek işlevsellik için kullanıcının sağlaması gereken iki şey: (1) Supabase proje URL + anon key (`.env`, bkz. `.env.example`), (2) uygulamanın kendi Anthropic API key'i (Claude Code aboneliğinden ayrı, console.anthropic.com üzerinden).
+
 ## Notlar
-- **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Kullanıcı Figma'dan tasarım paylaşacak, tasarım verisine doğrudan erişim için kullanılacak. Görsel/marka teması MVP akışları çalışana kadar bilerek ertelendi.
-- Geliştirme ortamı Windows; Git kurulumu proje başında ayrıca yapıldı (winget).
+- **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Aktif olması için VS Code workspace kökünün bu klasör olması ve yeni bir Claude Code oturumu gerekiyor.
+- Geliştirme ortamı Windows; Git kurulumu proje başında ayrıca yapıldı (winget). PowerShell oturumları PATH'i cache'lediği için her komutta `$env:Path` yenilemesi gerekiyor (bkz. git geçmişi).
+- Test/doğrulama: `npx tsc --noEmit`, `npm test`, `npx expo export -p web` (gerçek bundling hatalarını yakalar, sadece tip kontrolü yetmez).
