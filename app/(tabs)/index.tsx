@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { requestAiOutfit } from '@/lib/aiOutfit';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useCreateOutfit,
@@ -22,14 +23,18 @@ const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
 
 const DAILY_LIMIT = 3;
-const DEFAULT_CONTEXT: OutfitContext = {
+const DICE_CONTEXT: OutfitContext = {
   mevsim: 'İlkbahar',
   mekan: 'Şehir içi',
   saat: 'Gündüz',
   konsept: 'Günlük',
 };
 
+const NOT_ENOUGH_ITEMS_MESSAGE =
+  'Kombin oluşturmak için envanterine en az bir üst, bir alt giyim ve bir ayakkabı eklemelisin.';
+
 type Screen = 'idle' | 'questions' | 'result';
+type Source = 'ai_generated' | 'dice';
 
 export default function AnaSayfaScreen() {
   const userId = useAuthStore((state) => state.userId);
@@ -43,39 +48,62 @@ export default function AnaSayfaScreen() {
   const [mekan, setMekan] = useState<string | null>(null);
   const [saat, setSaat] = useState<string | null>(null);
   const [konsept, setKonsept] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [generatedItems, setGeneratedItems] = useState<DbItem[] | null>(null);
-  const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DEFAULT_CONTEXT);
+  const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
+  const [generatedSource, setGeneratedSource] = useState<Source>('dice');
   const [saved, setSaved] = useState(false);
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept);
   const count = dailyCount.data ?? 0;
   const limitReached = count >= DAILY_LIMIT;
 
-  function generate(context: OutfitContext) {
-    if (limitReached || !userId) return;
+  function showResult(picked: DbItem[], context: OutfitContext, source: Source) {
+    setGeneratedItems(picked);
+    setGeneratedContext(context);
+    setGeneratedSource(source);
+    setSaved(false);
+    setScreen('result');
+    if (userId) logEvent.mutate({ userId, type: 'outfit' });
+  }
+
+  function rollDice() {
+    if (limitReached) return;
     const pool: DbItem[] = items ?? [];
     const picked = generateRandomOutfit<DbItem>(pool);
     if (!picked) {
-      Alert.alert(
-        'Envanterin yeterli değil',
-        'Kombin oluşturmak için envanterine en az bir üst, bir alt giyim ve bir ayakkabı eklemelisin.'
-      );
+      Alert.alert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
       return;
     }
-    setGeneratedItems(picked);
-    setGeneratedContext(context);
-    setSaved(false);
-    setScreen('result');
-    logEvent.mutate({ userId, type: 'outfit' });
+    showResult(picked, DICE_CONTEXT, 'dice');
+  }
+
+  async function generateViaAi(context: OutfitContext) {
+    if (limitReached) return;
+    setGenerating(true);
+    try {
+      const suggestion = await requestAiOutfit(items ?? [], context);
+      if (!suggestion) {
+        Alert.alert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
+        return;
+      }
+      showResult(suggestion.items, context, suggestion.source);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function generateFromQuestions() {
     if (!allAnswered) return;
-    generate({ mevsim: mevsim!, mekan: mekan!, saat: saat!, konsept: konsept! });
+    generateViaAi({ mevsim: mevsim!, mekan: mekan!, saat: saat!, konsept: konsept! });
   }
 
-  function rollDice() {
-    generate(DEFAULT_CONTEXT);
+  function retry() {
+    if (generatedSource === 'ai_generated') {
+      generateViaAi(generatedContext);
+    } else {
+      rollDice();
+    }
   }
 
   async function handleLike() {
@@ -85,7 +113,7 @@ export default function AnaSayfaScreen() {
         userId,
         itemIds: generatedItems.map((item) => item.id),
         context: generatedContext,
-        source: screen === 'questions' ? 'ai_generated' : 'dice',
+        source: generatedSource,
         isLiked: true,
       });
       setSaved(true);
@@ -149,7 +177,11 @@ export default function AnaSayfaScreen() {
             <OptionChipRow label="Mekan" options={MEKAN} value={mekan} onChange={setMekan} />
             <OptionChipRow label="Saat" options={SAAT} value={saat} onChange={setSaat} />
             <OptionChipRow label="Konsept" options={KONSEPT} value={konsept} onChange={setKonsept} />
-            <PrimaryButton label="Kombini Oluştur" disabled={!allAnswered} onPress={generateFromQuestions} />
+            <PrimaryButton
+              label={generating ? 'Oluşturuluyor...' : 'Kombini Oluştur'}
+              disabled={!allAnswered || generating}
+              onPress={generateFromQuestions}
+            />
           </View>
         )}
 
@@ -172,10 +204,10 @@ export default function AnaSayfaScreen() {
                 </View>
                 <View className="flex-1">
                   <PrimaryButton
-                    label="Tekrar Dene"
+                    label={generating ? 'Oluşturuluyor...' : 'Tekrar Dene'}
                     variant="secondary"
-                    disabled={limitReached}
-                    onPress={() => generate(generatedContext)}
+                    disabled={limitReached || generating}
+                    onPress={retry}
                   />
                 </View>
               </View>

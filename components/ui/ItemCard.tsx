@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { getCategory, type CategorySlot } from '@/constants/categories';
 
@@ -18,13 +18,13 @@ function isLightColor(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
 }
 
-export function ItemCard({ item }: { item: ItemCardData }) {
+export function ItemCard({ item, onLongPress }: { item: ItemCardData; onLongPress?: () => void }) {
   const category = getCategory(item.slot);
   const color = item.color ?? '#8E8E93';
   const iconColor = isLightColor(color) ? '#1C1C1E' : '#FFFFFF';
 
   return (
-    <View className="mb-4 w-[47%]">
+    <Pressable onLongPress={onLongPress} className="mb-4 w-[47%]">
       <View
         className="aspect-square w-full items-center justify-center rounded-2xl"
         style={{ backgroundColor: color }}>
@@ -34,6 +34,6 @@ export function ItemCard({ item }: { item: ItemCardData }) {
         {item.name ?? 'İsimsiz ürün'}
       </Text>
       <Text className="font-body text-xs text-gray-500 dark:text-gray-400">{category.label}</Text>
-    </View>
+    </Pressable>
   );
 }

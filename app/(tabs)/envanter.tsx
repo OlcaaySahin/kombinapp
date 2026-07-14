@@ -1,17 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
-import { useItems, type DbItem } from '@/lib/hooks/useItems';
+import { useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
 
 export default function EnvanterScreen() {
   const [selected, setSelected] = useState<CategorySlot | null>(null);
   const { data: allItems, isLoading, isError } = useItems();
+  const deleteItem = useDeleteItem();
+
+  function confirmDelete(item: DbItem) {
+    Alert.alert('Ürünü sil', `"${item.name ?? 'Bu ürün'}" envanterden silinsin mi?`, [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: () => deleteItem.mutate(item.id) },
+    ]);
+  }
 
   const items = useMemo(() => {
     const list: DbItem[] = allItems ?? [];
@@ -24,7 +32,7 @@ export default function EnvanterScreen() {
         <View>
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Envanter</Text>
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
-            {allItems ? `${allItems.length} ürün` : ' '}
+            {allItems ? `${allItems.length} ürün · silmek için basılı tut` : ' '}
           </Text>
         </View>
         <Pressable
@@ -85,7 +93,7 @@ export default function EnvanterScreen() {
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between' }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
-          renderItem={({ item }) => <ItemCard item={item} />}
+          renderItem={({ item }) => <ItemCard item={item} onLongPress={() => confirmDelete(item)} />}
         />
       )}
     </SafeAreaView>
