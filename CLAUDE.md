@@ -26,8 +26,9 @@ Seçim gerekçesi: kullanıcı mobil geliştirmede sıfırdan başlıyor, solo/d
 - Günlük 3 kombin limiti — artık gerçek: `generation_events` tablosundan sayılıyor, state'te değil
 - Kombinlerim: Geçmiş (`outfit_wears` ile inner join) / Beğenilenler (`is_liked=true`) — gerçek Supabase sorguları
 - Envanterden ürün silme (uzun bas + onayla)
+- Giydim işaretleme: Beğenilenler'de her kart altında "Giydim olarak işaretle" → `app/mark-worn.tsx` (foto opsiyonel + not) → `outfit_wears`'a kayıt, kombin otomatik olarak Geçmiş'e geçer
 
-**Henüz yok**: Giydim işaretleme + dış mekan fotoğrafı ekleme (kombin albümü) — `outfit-wear-photos` bucket'ı ve `uploadPhoto()` helper'ı hazır ama bu ekran/akış henüz kodlanmadı.
+**MVP kapsamı artık tamamlandı** (2026-07-15 gece oturumu) — kalan iş: Edge Function deploy + Storage migration çalıştırma (sabah listesi) ve foto akışlarının cihazda ilk kez denenmesi.
 
 **Sonraya bırakıldı:** Partner eşleştirme, marka marketplace/alışveriş önerisi, sosyal challenge/paylaşım, görsel kolaj veya sanal deneme (try-on), Premium/RevenueCat entegrasyonu, günlük 5 alışveriş önerisi limiti (marketplace ile birlikte gelecek).
 
@@ -107,7 +108,7 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - **TypeScript garipliği**: Bu projede zaman zaman `useQuery<T>({...})` gibi açık generic verilmesine rağmen, o hook'un sonucunu tüketen `.filter()/.map()` callback'lerinde parametre "implicit any" oluyor (TS7006). Kesin kök nedeni netleştirilemedi (muhtemelen tsconfig/expo base config + TS 5.3.3 kombinasyonuna özgü bir çıkarım sınırlaması). **Çözüm**: hook sonucunu tüketen yerde değişkeni/parametreyi açıkça tipleyin (`const list: DbItem[] = ...`, `(item: DbItem) => ...`) — hook tanımının kendisini değiştirmeye gerek yok. Örnekler: `app/(tabs)/envanter.tsx`, `app/(tabs)/index.tsx`, `app/(tabs)/kombinlerim.tsx`.
 - `npx tsc --noEmit` "Unterminated template literal" gibi tuhaf hatalar verirse (`.expo/types/router.d.ts` içinde), `.expo` klasörünü silin — bozuk/eski bir route-tipi cache'iydi, otomatik yeniden üretiliyor.
 - Doğrulama disiplini: her önemli değişiklikten sonra sırasıyla `npx tsc --noEmit` → `npx jest --watchAll=false` → `npx expo export -p web` (gerçek Metro/Babel bundling hatalarını yakalar) çalıştırıldı, hepsi geçmeden commit atılmadı. `dist/` klasörü her export sonrası silinir (gitignore'da zaten var, ekstra önlem).
-- **Dürüstlük notu**: `app/add-item.tsx`'teki foto seçme/yükleme akışı (`expo-image-picker` + `lib/storage.ts` + `lib/aiTagging.ts`) sadece bundling/tip seviyesinde doğrulandı — bu ortamda kamera/galeri/fiziksel cihaz olmadığı için interaktif olarak hiç çalıştırılamadı. Kodu iyi bilinen, standart Expo+Supabase kalıplarını takip ediyor ama gecenin geri kalanındaki (auth, veri katmanı, ekranlar) gibi uçtan uca test edilmiş değil. İlk denemeyi kullanıcı yapmalı.
+- **Dürüstlük notu**: `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme/yükleme akışları (`expo-image-picker` + `lib/storage.ts` + `lib/aiTagging.ts`) sadece bundling/tip seviyesinde doğrulandı — bu ortamda kamera/galeri/fiziksel cihaz olmadığı için interaktif olarak hiç çalıştırılamadı. Kodu iyi bilinen, standart Expo+Supabase kalıplarını takip ediyor ama gecenin geri kalanındaki (auth, veri katmanı, ekranlar) gibi uçtan uca test edilmiş değil. İlk denemeyi kullanıcı yapmalı.
 
 ## Sabah İçin Gerekenler (kullanıcıdan beklenen aksiyonlar)
 
