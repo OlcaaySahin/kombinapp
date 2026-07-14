@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -48,10 +49,17 @@ export default function KombinlerimScreen() {
       {!active.isLoading && outfits.length > 0 && (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
           {outfits.map((outfit: OutfitWithItems) => (
-            <OutfitCard
-              key={outfit.id}
-              outfit={{ id: outfit.id, context: outfit.generation_context, items: outfit.items }}
-            />
+            <View key={outfit.id}>
+              <OutfitCard outfit={{ id: outfit.id, context: outfit.generation_context, items: outfit.items }} />
+              {tab === 'begenilen' && (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
+                  className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#3461FD" />
+                  <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
+                </Pressable>
+              )}
+            </View>
           ))}
         </ScrollView>
       )}
