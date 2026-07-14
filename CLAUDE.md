@@ -19,13 +19,15 @@ Seçim gerekçesi: kullanıcı mobil geliştirmede sıfırdan başlıyor, solo/d
 
 ## MVP (v1) Kapsamı
 **İçinde:**
-- Kayıt/giriş (Google + email)
-- Envanter: foto yükle (kamera/galeri/web) + AI otomatik etiketleme + manuel düzeltme
-- AI kombin önerisi: bağlamsal sorular → metin+kart listesi çıktı
-- Zar butonu: envanterden rastgele-uyumlu kombin
-- Günlük 3 kombin limiti (ücretsiz tier, tamamlayıcı önerisi sınırsız)
-- Kombinlerim: Geçmiş (giyilen) / Beğenilenler (oluşturulmuş+beğenilmiş ama giyilmemiş) sekmeleri
-- Giydim işaretleme + dış mekan fotoğrafı ekleme (kombin albümü)
+- Giriş: **Supabase anonymous sign-in** ile başlandı (bkz. "Auth Stratejisi" notu) — Google/email ekranı bilerek ertelendi
+- Envanter: manuel ürün ekleme (isim, kategori, renk) — foto yükle + AI otomatik etiketleme henüz yok (bkz. sabah listesi)
+- AI kombin önerisi: bağlamsal sorular → Edge Function (Claude) dener, deploy edilmediyse/başarısız olursa yerel kural tabanlı seçime sessizce düşer
+- Zar butonu: envanterden her zaman yerel rastgele-uyumlu seçim (AI'ya hiç gitmez, bilinçli tasarım kararı)
+- Günlük 3 kombin limiti — artık gerçek: `generation_events` tablosundan sayılıyor, state'te değil
+- Kombinlerim: Geçmiş (`outfit_wears` ile inner join) / Beğenilenler (`is_liked=true`) — gerçek Supabase sorguları
+- Envanterden ürün silme (uzun bas + onayla)
+
+**Henüz yok**: Giydim işaretleme + dış mekan fotoğrafı ekleme (kombin albümü) — Storage bucket gerektiriyor, bkz. sabah listesi.
 
 **Sonraya bırakıldı:** Partner eşleştirme, marka marketplace/alışveriş önerisi, sosyal challenge/paylaşım, görsel kolaj veya sanal deneme (try-on), Premium/RevenueCat entegrasyonu, günlük 5 alışveriş önerisi limiti (marketplace ile birlikte gelecek).
 
@@ -62,21 +64,33 @@ Bottom tab: **Ana Sayfa** (kombin oluştur) · **Envanter** · **Kombinlerim** (
 ## Önemli: NativeWind sürüm kısıtı
 `nativewind` **4.1.23**'e sabitlendi (`^4` değil). Neden: `nativewind@4.2.x`, `react-native-css-interop@0.2.x`'i getiriyor ve bu paket babel preset'inde koşulsuz olarak `react-native-worklets/plugin`'i talep ediyor — bu paket sadece **Reanimated 4** ile birlikte gelir. Biz Expo SDK 51'in pinlediği **Reanimated 3.10.1**'i kullanıyoruz, bu yüzden `expo export -p web` babel hatasıyla patlıyordu. Reanimated 4'e geçmeden (büyük, riskli bir yükseltme) `nativewind`'i `^4.2`'ye yükseltme — önce bu notu güncelle.
 
-## Prototip Durumu (mock veriyle)
-Çekirdek 4 ekran, gerçek backend olmadan, `lib/mockData.ts` içindeki sahte verilerle kodlandı ve çalışır durumda (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz geçiyor):
-- **Ana Sayfa** (`app/(tabs)/index.tsx`) — bağlamsal soru akışı (mevsim/mekan/saat/konsept çipleri) + Zar At butonu + sonuç kartı, günlük 3 limit sayacı (state'te, kalıcı değil)
-- **Envanter** (`app/(tabs)/envanter.tsx`) — kategori filtre çipleri + 2 kolonlu ürün grid'i
-- **Kombinlerim** (`app/(tabs)/kombinlerim.tsx`) — Geçmiş/Beğenilenler segmented tab
-- **Profil** (`app/(tabs)/profil.tsx`) — hesap özeti + menü listesi
-- Ortak bileşenler `components/ui/` altında: `CategoryChip`, `ItemCard`, `OutfitCard`, `PrimaryButton`, `OptionChipRow`
+## Auth Stratejisi: Anonymous Sign-In
+Gerçek giriş/kayıt EKRANI bilerek ertelendi ama auth'un kendisi ertelenmedi — `lib/auth.ts`'teki `bootstrapSession()`, uygulama açılışında (`app/_layout.tsx`) otomatik olarak Supabase'in **anonymous sign-in**'ini çağırıyor. Kullanıcı hiçbir ekran görmüyor ama gerçek bir `auth.uid()` alıyor, bu yüzden RLS politikaları (`auth.uid() = user_id`) baştan itibaren gerçek ve test edilmiş durumda. `lib/stores/authStore.ts` (Zustand) `userId`'yi tüm ekranlara açıyor.
 
-**Henüz gerçek değil**: auth, veri kalıcılığı, AI kombin üretimi — hepsi `lib/mockData.ts`'ten geliyor.
+Neden bu yaklaşım: sahte/hardcoded bir `user_id` ile ilerleseydik, gerçek girişi eklerken RLS uyuşmazlığı yüzünden ciddi rework gerekirdi. İleride gerçek login eklendiğinde, Supabase'in native "anonymous → gerçek hesaba yükseltme" (`linkIdentity` vb.) akışıyla veri kaybı olmadan geçiş yapılabilir.
+
+**Önemli**: Supabase Dashboard'da Authentication → Sign In/Providers → "Allow anonymous sign-ins" **açık olmalı** (2026-07-15'te kullanıcı tarafından açıldı ve doğrulandı). Kapatılırsa uygulama açılışta patlar.
+
+## Gerçek Veri Durumu (mock kaldırıldı, `lib/mockData.ts` silindi)
+Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz):
+- **Ana Sayfa** (`app/(tabs)/index.tsx`) — bağlamsal soru akışı → `lib/aiOutfit.ts`'teki `requestAiOutfit()` (Edge Function dener, fallback'li) · Zar At → `lib/outfitGenerator.ts`'teki `generateRandomOutfit()` (her zaman lokal) · günlük limit `useDailyOutfitCount` ile DB'den · "Beğen" → `useCreateOutfit` ile `outfits`+`outfit_items`'a yazar
+- **Envanter** (`app/(tabs)/envanter.tsx`) — `useItems()` ile gerçek liste, "+" → `app/add-item.tsx` (modal, manuel form: isim/kategori/renk), uzun bas → silme
+- **Kombinlerim** (`app/(tabs)/kombinlerim.tsx`) — `useLikedOutfits()` / `useWornOutfits()` (gerçek join sorguları)
+- **Profil** (`app/(tabs)/profil.tsx`) — hâlâ statik placeholder (anonim kullanıcının gösterecek bir adı/emaili yok, gerçek login gelince doldurulacak)
+- Veri hook'ları: `lib/hooks/useItems.ts`, `lib/hooks/useOutfits.ts` — TanStack Query, RLS sayesinde client tarafında `user_id` filtresi gerekmez (sadece INSERT'te gönderilir)
+
+## Edge Functions (yazıldı, henüz deploy edilmedi)
+- `supabase/functions/generate-outfit` — kullanıcının JWT'siyle kimlik doğrular, envanterini çeker, Claude'a (varsayılan model: `claude-haiku-4-5-20251001`, maliyet-etkin) tool-use ile zorunlu JSON çıktı aldırır, seçilen `itemIds` + `reasoning` döner.
+- `supabase/functions/tag-item-photo` — base64 foto alır, Claude vision ile `slot/name/color/colorName/pattern/season` etiketleri döner. **Henüz hiçbir ekrandan çağrılmıyor** (foto yükleme UI'ı yok, bkz. sabah listesi).
+- İkisi de `ANTHROPIC_API_KEY`'i `Deno.env.get()` ile okuyor — deploy sırasında `supabase secrets set --env-file supabase/.env` ile Supabase'e taşınmalı.
+- Deploy için gereken: `supabase login` (Personal Access Token ile, bkz. sabah listesi) → `supabase link --project-ref tvjjwpotqeybtkkvvwox` → `supabase functions deploy generate-outfit tag-item-photo` → `supabase secrets set --env-file supabase/.env`.
+- Client tarafı zaten hazır (`lib/aiOutfit.ts`) — deploy edilince ekstra kod değişikliği gerekmez, `supabase.functions.invoke()` otomatik çalışmaya başlar.
 
 ## Ortam Değişkenleri / Secrets (gitignore'da, repo'da yok)
 İki ayrı dosya, iki ayrı güven seviyesi — birbirine karıştırılmamalı:
 
 - **`.env`** (repo kökü) — Expo/client tarafı, `EXPO_PUBLIC_*` prefix'li, **uygulama paketine gömülür, gizli değildir**. İçinde: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Şablon: `.env.example`. Proje: `OlcaaySahin's Project`, ref `tvjjwpotqeybtkkvvwox`, bölge Tokyo (ap-northeast-1).
-- **`supabase/.env`** — sunucu-taraf secret, **asla client'a girmemeli**. İçinde: `ANTHROPIC_API_KEY` (console.anthropic.com, Claude Code aboneliğinden ayrı, kullanım bazlı ücretli). Henüz kullanılmıyor — AI kombin üretimi Edge Function'ı yazıldığında `supabase secrets set` ile Supabase'e taşınacak.
+- **`supabase/.env`** — sunucu-taraf secret, **asla client'a girmemeli**. İçinde: `ANTHROPIC_API_KEY` (console.anthropic.com, Claude Code aboneliğinden ayrı, kullanım bazlı ücretli). Edge Function kodu bunu okumaya hazır (`Deno.env.get('ANTHROPIC_API_KEY')`) — deploy anında `supabase secrets set --env-file supabase/.env` ile Supabase'e taşınması gerekiyor (henüz taşınmadı, bkz. sabah listesi).
 
 Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı** (gitignore'da olduğu için repo'yu klonlayan biri bunları göremez).
 
@@ -86,3 +100,20 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Aktif olması için VS Code workspace kökünün bu klasör olması ve yeni bir Claude Code oturumu gerekiyor.
 - Geliştirme ortamı Windows; Git kurulumu proje başında ayrıca yapıldı (winget). PowerShell oturumları PATH'i cache'lediği için her komutta `$env:Path` yenilemesi gerekiyor (bkz. git geçmişi).
 - Test/doğrulama: `npx tsc --noEmit`, `npm test`, `npx expo export -p web` (gerçek bundling hatalarını yakalar, sadece tip kontrolü yetmez).
+- `app.json` → `web.output` bilinçli olarak `"single"` (SPA), `"static"` **değil**. Neden: Expo Router'ın "static rendering" özelliği route'ları Node.js'te önceden render etmeye çalışıyor, bu da Supabase client'ının (AsyncStorage → `window.localStorage`) tarayıcı-only API'lere Node ortamında erişmeye çalışıp `window is not defined` ile patlamasına yol açıyor. Biz SEO'ya önem veren statik bir site değiliz, SPA modu doğru ve kalıcı çözüm.
+- `@opentelemetry/api` gerçek bir bağımlılık olarak eklendi (kullanılmıyor, hiç import edilmiyor) — `@supabase/supabase-js`'nin dahili, opsiyonel bir tracing importu Metro tarafından statik çözülemediği için build patlıyordu. Bu paketi silme.
+- **TypeScript garipliği**: Bu projede zaman zaman `useQuery<T>({...})` gibi açık generic verilmesine rağmen, o hook'un sonucunu tüketen `.filter()/.map()` callback'lerinde parametre "implicit any" oluyor (TS7006). Kesin kök nedeni netleştirilemedi (muhtemelen tsconfig/expo base config + TS 5.3.3 kombinasyonuna özgü bir çıkarım sınırlaması). **Çözüm**: hook sonucunu tüketen yerde değişkeni/parametreyi açıkça tipleyin (`const list: DbItem[] = ...`, `(item: DbItem) => ...`) — hook tanımının kendisini değiştirmeye gerek yok. Örnekler: `app/(tabs)/envanter.tsx`, `app/(tabs)/index.tsx`, `app/(tabs)/kombinlerim.tsx`.
+- `npx tsc --noEmit` "Unterminated template literal" gibi tuhaf hatalar verirse (`.expo/types/router.d.ts` içinde), `.expo` klasörünü silin — bozuk/eski bir route-tipi cache'iydi, otomatik yeniden üretiliyor.
+- Doğrulama disiplini: her önemli değişiklikten sonra sırasıyla `npx tsc --noEmit` → `npx jest --watchAll=false` → `npx expo export -p web` (gerçek Metro/Babel bundling hatalarını yakalar) çalıştırıldı, hepsi geçmeden commit atılmadı. `dist/` klasörü her export sonrası silinir (gitignore'da zaten var, ekstra önlem).
+
+## Sabah İçin Gerekenler (kullanıcıdan beklenen aksiyonlar)
+
+**Şimdi ilerlemek için gerekli:**
+1. **Supabase Personal Access Token** — CLI'yi non-interactive login edip (`SUPABASE_ACCESS_TOKEN` env var ile) `generate-outfit` ve `tag-item-photo` Edge Function'larını deploy etmek için gerekiyor. Konum: Supabase Dashboard → sağ üst hesap menüsü → **Access Tokens** → yeni token oluştur (proje ayarı değil, hesap ayarı). Bu, anon key veya service_role key'den **farklı** bir şey.
+2. **Supabase Storage bucket** — envanter ürün fotoğrafları ve kombin albümü (`outfit_wears.photo_url`) için gerekiyor. Personal Access Token verilirse CLI/Management API üzerinden ben de deneyebilirim; olmazsa Dashboard → Storage → New bucket (örn. `item-photos`) ile manuel oluşturman gerekir.
+
+**Yakın gelecek (bugün acil değil, ama bilgin olsun):**
+3. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
+4. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
+5. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
+6. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
