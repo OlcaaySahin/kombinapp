@@ -9,7 +9,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "test:ci": "jest --watchAll=false",
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit"
   },
   "jest": {
     "preset": "jest-expo"
