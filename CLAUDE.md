@@ -70,7 +70,17 @@ Bottom tab: **Ana Sayfa** (kombin oluştur) · **Envanter** · **Kombinlerim** (
 - **Profil** (`app/(tabs)/profil.tsx`) — hesap özeti + menü listesi
 - Ortak bileşenler `components/ui/` altında: `CategoryChip`, `ItemCard`, `OutfitCard`, `PrimaryButton`, `OptionChipRow`
 
-**Henüz gerçek değil**: auth, veri kalıcılığı, AI kombin üretimi — hepsi `lib/mockData.ts`'ten geliyor. Gerçek işlevsellik için kullanıcının sağlaması gereken iki şey: (1) Supabase proje URL + anon key (`.env`, bkz. `.env.example`), (2) uygulamanın kendi Anthropic API key'i (Claude Code aboneliğinden ayrı, console.anthropic.com üzerinden).
+**Henüz gerçek değil**: auth, veri kalıcılığı, AI kombin üretimi — hepsi `lib/mockData.ts`'ten geliyor.
+
+## Ortam Değişkenleri / Secrets (gitignore'da, repo'da yok)
+İki ayrı dosya, iki ayrı güven seviyesi — birbirine karıştırılmamalı:
+
+- **`.env`** (repo kökü) — Expo/client tarafı, `EXPO_PUBLIC_*` prefix'li, **uygulama paketine gömülür, gizli değildir**. İçinde: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Şablon: `.env.example`. Proje: `OlcaaySahin's Project`, ref `tvjjwpotqeybtkkvvwox`, bölge Tokyo (ap-northeast-1).
+- **`supabase/.env`** — sunucu-taraf secret, **asla client'a girmemeli**. İçinde: `ANTHROPIC_API_KEY` (console.anthropic.com, Claude Code aboneliğinden ayrı, kullanım bazlı ücretli). Henüz kullanılmıyor — AI kombin üretimi Edge Function'ı yazıldığında `supabase secrets set` ile Supabase'e taşınacak.
+
+Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı** (gitignore'da olduğu için repo'yu klonlayan biri bunları göremez).
+
+**Supabase şema durumu**: `supabase/migrations/20260715000000_init_schema.sql` yazıldı ve commit'lendi, ama gerçek Supabase projesinde **çalıştırılıp çalıştırılmadığı teyit edilmedi** — kullanıcıya SQL Editor'da manuel çalıştırması söylendi. Yeni oturum başlarsa önce bunu doğrula (örn. `categories` tablosu dolu mu diye bak).
 
 ## Notlar
 - **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Aktif olması için VS Code workspace kökünün bu klasör olması ve yeni bir Claude Code oturumu gerekiyor.
