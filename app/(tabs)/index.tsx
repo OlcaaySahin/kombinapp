@@ -1,12 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
-import { OutfitCard } from '@/components/ui/OutfitCard';
+import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { pickRandomOutfit, type GeneratedOutfit } from '@/lib/mockData';
+import { useItems, type DbItem } from '@/lib/hooks/useItems';
+import {
+  useCreateOutfit,
+  useDailyOutfitCount,
+  useLogGenerationEvent,
+  type OutfitContext,
+} from '@/lib/hooks/useOutfits';
+import { generateRandomOutfit } from '@/lib/outfitGenerator';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 const MEVSIM = ['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'];
 const MEKAN = ['Şehir içi', 'Ofis', 'Deniz/Tatil', 'Ev'];
@@ -14,34 +22,76 @@ const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
 
 const DAILY_LIMIT = 3;
+const DEFAULT_CONTEXT: OutfitContext = {
+  mevsim: 'İlkbahar',
+  mekan: 'Şehir içi',
+  saat: 'Gündüz',
+  konsept: 'Günlük',
+};
 
 type Screen = 'idle' | 'questions' | 'result';
 
 export default function AnaSayfaScreen() {
+  const userId = useAuthStore((state) => state.userId);
+  const { data: items } = useItems();
+  const dailyCount = useDailyOutfitCount(userId);
+  const logEvent = useLogGenerationEvent();
+  const createOutfit = useCreateOutfit();
+
   const [screen, setScreen] = useState<Screen>('idle');
   const [mevsim, setMevsim] = useState<string | null>(null);
   const [mekan, setMekan] = useState<string | null>(null);
   const [saat, setSaat] = useState<string | null>(null);
   const [konsept, setKonsept] = useState<string | null>(null);
-  const [outfit, setOutfit] = useState<GeneratedOutfit | null>(null);
-  const [dailyCount, setDailyCount] = useState(0);
+  const [generatedItems, setGeneratedItems] = useState<DbItem[] | null>(null);
+  const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DEFAULT_CONTEXT);
+  const [saved, setSaved] = useState(false);
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept);
-  const limitReached = dailyCount >= DAILY_LIMIT;
+  const count = dailyCount.data ?? 0;
+  const limitReached = count >= DAILY_LIMIT;
+
+  function generate(context: OutfitContext) {
+    if (limitReached || !userId) return;
+    const pool: DbItem[] = items ?? [];
+    const picked = generateRandomOutfit<DbItem>(pool);
+    if (!picked) {
+      Alert.alert(
+        'Envanterin yeterli değil',
+        'Kombin oluşturmak için envanterine en az bir üst, bir alt giyim ve bir ayakkabı eklemelisin.'
+      );
+      return;
+    }
+    setGeneratedItems(picked);
+    setGeneratedContext(context);
+    setSaved(false);
+    setScreen('result');
+    logEvent.mutate({ userId, type: 'outfit' });
+  }
 
   function generateFromQuestions() {
-    if (!allAnswered || limitReached) return;
-    const result = pickRandomOutfit({ mevsim: mevsim!, mekan: mekan!, saat: saat!, konsept: konsept! });
-    setOutfit(result);
-    setDailyCount((count) => count + 1);
-    setScreen('result');
+    if (!allAnswered) return;
+    generate({ mevsim: mevsim!, mekan: mekan!, saat: saat!, konsept: konsept! });
   }
 
   function rollDice() {
-    if (limitReached) return;
-    setOutfit(pickRandomOutfit());
-    setDailyCount((count) => count + 1);
-    setScreen('result');
+    generate(DEFAULT_CONTEXT);
+  }
+
+  async function handleLike() {
+    if (!userId || !generatedItems) return;
+    try {
+      await createOutfit.mutateAsync({
+        userId,
+        itemIds: generatedItems.map((item) => item.id),
+        context: generatedContext,
+        source: screen === 'questions' ? 'ai_generated' : 'dice',
+        isLiked: true,
+      });
+      setSaved(true);
+    } catch (error) {
+      Alert.alert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
+    }
   }
 
   function reset() {
@@ -50,8 +100,17 @@ export default function AnaSayfaScreen() {
     setMekan(null);
     setSaat(null);
     setKonsept(null);
-    setOutfit(null);
+    setGeneratedItems(null);
+    setSaved(false);
   }
+
+  const outfitCardData: OutfitCardData | null = generatedItems
+    ? {
+        id: 'preview',
+        context: generatedContext,
+        items: generatedItems,
+      }
+    : null;
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
@@ -59,7 +118,7 @@ export default function AnaSayfaScreen() {
         <View className="pb-6 pt-2">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Bugün ne giysem?</Text>
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
-            Günlük {dailyCount}/{DAILY_LIMIT} kombin hakkı kullanıldı
+            Günlük {count}/{DAILY_LIMIT} kombin hakkı kullanıldı
           </Text>
         </View>
 
@@ -94,17 +153,33 @@ export default function AnaSayfaScreen() {
           </View>
         )}
 
-        {screen === 'result' && outfit && (
+        {screen === 'result' && outfitCardData && (
           <View className="gap-4">
-            <OutfitCard outfit={outfit} />
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <PrimaryButton label="Beğen" onPress={reset} />
+            <OutfitCard outfit={outfitCardData} />
+            {saved ? (
+              <View className="flex-row items-center justify-center gap-2 rounded-2xl bg-primary/10 py-4">
+                <Ionicons name="checkmark-circle" size={20} color="#3461FD" />
+                <Text className="font-heading text-base text-primary">Kombinlerim&apos;e kaydedildi</Text>
               </View>
-              <View className="flex-1">
-                <PrimaryButton label="Tekrar Dene" variant="secondary" disabled={limitReached} onPress={rollDice} />
+            ) : (
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <PrimaryButton
+                    label={createOutfit.isPending ? 'Kaydediliyor...' : 'Beğen'}
+                    disabled={createOutfit.isPending}
+                    onPress={handleLike}
+                  />
+                </View>
+                <View className="flex-1">
+                  <PrimaryButton
+                    label="Tekrar Dene"
+                    variant="secondary"
+                    disabled={limitReached}
+                    onPress={() => generate(generatedContext)}
+                  />
+                </View>
               </View>
-            </View>
+            )}
             <Pressable onPress={reset}>
               <Text className="text-center font-body-medium text-sm text-gray-500 dark:text-gray-400">
                 Baştan başla

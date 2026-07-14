@@ -1,10 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
 
-import { getCategory } from '@/constants/categories';
-import type { GeneratedOutfit } from '@/lib/mockData';
+import { getCategory, type CategorySlot } from '@/constants/categories';
 
-export function OutfitCard({ outfit }: { outfit: GeneratedOutfit }) {
+export type OutfitCardData = {
+  id: string;
+  context: { mevsim: string; mekan: string; saat: string; konsept: string };
+  items: { id: string; name: string | null; slot: CategorySlot; color: string | null }[];
+};
+
+export function OutfitCard({ outfit }: { outfit: OutfitCardData }) {
   const contextChips = Object.values(outfit.context);
 
   return (
@@ -20,17 +25,18 @@ export function OutfitCard({ outfit }: { outfit: GeneratedOutfit }) {
       <View className="flex-row flex-wrap justify-between">
         {outfit.items.map((item) => {
           const category = getCategory(item.slot);
+          const color = item.color ?? '#8E8E93';
           return (
             <View key={item.id} className="mb-4 w-[47%]">
               <View
                 className="aspect-square w-full items-center justify-center rounded-2xl"
-                style={{ backgroundColor: item.color }}>
+                style={{ backgroundColor: color }}>
                 <Ionicons name={category.icon} size={28} color="#FFFFFF" />
               </View>
               <Text
                 numberOfLines={1}
                 className="mt-1.5 font-body-medium text-xs text-gray-900 dark:text-gray-100">
-                {item.name}
+                {item.name ?? 'İsimsiz ürün'}
               </Text>
             </View>
           );

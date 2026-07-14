@@ -1,0 +1,15 @@
+export const COLOR_SWATCHES = [
+  { name: 'Beyaz', hex: '#F5F5F5' },
+  { name: 'Siyah', hex: '#1C1C1E' },
+  { name: 'Gri', hex: '#8E8E93' },
+  { name: 'Bej', hex: '#D8C3A5' },
+  { name: 'Kahverengi', hex: '#6B4226' },
+  { name: 'Lacivert', hex: '#2C3E63' },
+  { name: 'Mavi', hex: '#3461FD' },
+  { name: 'Yeşil', hex: '#3FA34D' },
+  { name: 'Sarı', hex: '#E8B923' },
+  { name: 'Turuncu', hex: '#F2762E' },
+  { name: 'Kırmızı', hex: '#E4463A' },
+  { name: 'Pembe', hex: '#E88BA0' },
+  { name: 'Mor', hex: '#8B3FE8' },
+] as const;

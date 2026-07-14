@@ -5,10 +5,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 
+import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { queryClient } from '@/lib/queryClient';
 
@@ -25,14 +26,19 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
   });
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
+    bootstrapSession().finally(() => setSessionReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (loaded && sessionReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, sessionReady]);
 
-  if (!loaded) {
+  if (!loaded || !sessionReady) {
     return null;
   }
 
@@ -41,6 +47,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="add-item" options={{ presentation: 'modal', title: 'Ürün Ekle' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
       </ThemeProvider>

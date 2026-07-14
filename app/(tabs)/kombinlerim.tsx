@@ -1,18 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OutfitCard } from '@/components/ui/OutfitCard';
-import { pickRandomOutfit } from '@/lib/mockData';
-
-const MOCK_HISTORY = [pickRandomOutfit(), pickRandomOutfit()];
-const MOCK_LIKED = [pickRandomOutfit(), pickRandomOutfit(), pickRandomOutfit()];
+import { useLikedOutfits, useWornOutfits, type OutfitWithItems } from '@/lib/hooks/useOutfits';
 
 type Tab = 'gecmis' | 'begenilen';
 
 export default function KombinlerimScreen() {
   const [tab, setTab] = useState<Tab>('gecmis');
-  const outfits = tab === 'gecmis' ? MOCK_HISTORY : MOCK_LIKED;
+  const worn = useWornOutfits();
+  const liked = useLikedOutfits();
+
+  const active = tab === 'gecmis' ? worn : liked;
+  const outfits = active.data ?? [];
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
@@ -25,11 +27,34 @@ export default function KombinlerimScreen() {
         <TabButton label="Beğenilenler" active={tab === 'begenilen'} onPress={() => setTab('begenilen')} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
-        {outfits.map((outfit) => (
-          <OutfitCard key={outfit.id} outfit={outfit} />
-        ))}
-      </ScrollView>
+      {active.isLoading && (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color="#3461FD" />
+        </View>
+      )}
+
+      {!active.isLoading && outfits.length === 0 && (
+        <View className="flex-1 items-center justify-center px-10">
+          <Ionicons name="heart-outline" size={40} color="#9BA1A6" />
+          <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
+            {tab === 'gecmis' ? 'Henüz giydiğin bir kombin yok' : 'Henüz beğendiğin bir kombin yok'}
+          </Text>
+          <Text className="mt-1 text-center font-body text-sm text-gray-500 dark:text-gray-400">
+            Ana Sayfa&apos;dan bir kombin oluştur.
+          </Text>
+        </View>
+      )}
+
+      {!active.isLoading && outfits.length > 0 && (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
+          {outfits.map((outfit: OutfitWithItems) => (
+            <OutfitCard
+              key={outfit.id}
+              outfit={{ id: outfit.id, context: outfit.generation_context, items: outfit.items }}
+            />
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
