@@ -125,6 +125,16 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - `supabase/migrations/20260715000000_init_schema.sql` — kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
 - `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı**: her iki bucket'a da anon key + RLS ile gerçek dosya yükleme, herkese açık URL erişimi (HTTP 200) ve silme test edildi, hepsi sorunsuz.
 
+## generate-outfit: Gerçek Stilist Mantığı (2026-07-15)
+Kullanıcı cihazda test ederken kombinlerin renk/parça uyumunu yakalayamadığını, mevsim/mekan/saat/konsept bağlamına göre mantıklı seçim yapmadığını bildirdi. Kök neden: sistem prompt'u çok genel ("renk uyumuna ve konsepte dikkat et") — somut bir kural seti yoktu, ve item'ların rengi Claude'a ham hex kod (`#2C3E63`) olarak gidiyordu, renk uyumu muhakemesi için zayıf bir sinyal.
+
+**Yapılan değişiklikler** (`supabase/functions/generate-outfit/index.ts`):
+1. Sistem prompt'u somut kurallara genişletildi: nötr taban + 1-2 vurgu rengi, çatışan renk/desen kombinasyonlarından kaçınma, mevsime göre parça filtreleme (Kış'ta yazlık/Yaz'da kışlık parça yok), mekan/konsept uygunluğu (Ofis/Şık'ta aşırı gündelik parçalardan kaçınma), soğukta uygun dış giyim varsa ekleme, envanterde ideal seçenek yoksa en yakın alternatifi seçip asla reddetmeme.
+2. Item'ların hex rengi artık en yakın Türkçe renk adına (`colorName`) çevrilip prompt'a ekleniyor (`closestColorName()` — aynı nearest-color mantığı `lib/outfitPreview.ts`'teki ile paralel, ayrı dosyada çünkü Edge Function'lar arası paylaşılan modül yok).
+3. Tool şemasında `reasoning` alanı `itemIds`'ten ÖNCE geliyor — Claude önce iç analizini yazıp sonra seçim yapıyor (chain-of-thought etkisi, tool-use şemalarında bilinen bir teknik).
+
+**Canlı test edildi** (anonim test kullanıcısı + kasıtlı olarak yazlık/kışlık/renk-çatışmalı karışık 10 ürünlük envanter, script sonrasında silindi): Kış/Ofis/Sabah/Şık bağlamında çağrıldı, yazlık ve aşırı gündelik parçaları (turuncu crop, bej şort, kırmızı terlik, mor pantolon) doğru şekilde elemiş, lacivert kazak + siyah pantolon + siyah ayakkabı + lacivert kaban + gri bere ile tutarlı nötr bir palet seçmiş, gerekçesi de bunu doğru şekilde açıklıyor.
+
 ## AI Kombin Gerekçesi (reasoning) Gösterimi (2026-07-15)
 `generate-outfit` Edge Function'ı baştan beri Claude'dan bir `reasoning` (1-2 cümlelik Türkçe gerekçe) döndürüyordu ama hiç kullanılmıyordu. Artık `app/(tabs)/index.tsx` bunu `generatedReasoning` state'inde tutup `OutfitCard`'a `reasoning` alanı olarak geçiyor; kart doluysa küçük bir ampul ikonlu notla gösteriliyor. **Sadece AI (bağlamsal sorular) yolunda var** — zar butonu tamamen yerel/rastgele seçim yaptığı için gerçek bir gerekçesi yok, bilinçli olarak boş bırakıldı (sahte açıklama üretmek yerine).
 
