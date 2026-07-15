@@ -7,10 +7,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/alert';
 import { useAuthStore } from '@/lib/stores/authStore';
 
-type MenuItem = { icon: ComponentProps<typeof Ionicons>['name']; label: string; comingSoonMessage?: string };
+type MenuItem = {
+  icon: ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  route?: '/profile-edit' | '/yardim' | '/bildirimler';
+  comingSoonMessage?: string;
+};
 
 const MENU_ITEMS: MenuItem[] = [
-  { icon: 'person-outline', label: 'Hesap Bilgileri' },
+  { icon: 'person-outline', label: 'Hesap Bilgileri', route: '/profile-edit' },
   {
     icon: 'people-outline',
     label: 'Partner Eşleştirme',
@@ -21,16 +26,8 @@ const MENU_ITEMS: MenuItem[] = [
     label: "Premium'a Yükselt",
     comingSoonMessage: 'Premium üyelik yakında burada olacak.',
   },
-  {
-    icon: 'notifications-outline',
-    label: 'Bildirimler',
-    comingSoonMessage: 'Bildirim tercihleri yakında burada olacak.',
-  },
-  {
-    icon: 'help-circle-outline',
-    label: 'Yardım',
-    comingSoonMessage: 'Sorun mu yaşıyorsun? Şimdilik geliştiriciyle doğrudan iletişime geçebilirsin.',
-  },
+  { icon: 'notifications-outline', label: 'Bildirimler', route: '/bildirimler' },
+  { icon: 'help-circle-outline', label: 'Yardım', route: '/yardim' },
 ];
 
 export default function ProfilScreen() {
@@ -77,8 +74,8 @@ export default function ProfilScreen() {
           <Pressable
             key={item.label}
             onPress={() =>
-              item.label === 'Hesap Bilgileri'
-                ? router.push('/profile-edit')
+              item.route
+                ? router.push(item.route)
                 : showAlert('Yakında', item.comingSoonMessage ?? 'Bu özellik yakında eklenecek.')
             }
             className={`flex-row items-center px-4 py-4 ${

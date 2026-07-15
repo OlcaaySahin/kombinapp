@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,6 +20,7 @@ import {
   type OutfitContext,
 } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit } from '@/lib/outfitGenerator';
+import { hasSeenOnboarding } from '@/lib/onboarding';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -56,6 +58,12 @@ export default function AnaSayfaScreen() {
   const logEvent = useLogGenerationEvent();
   const createOutfit = useCreateOutfit();
   const rateOutfit = useRateOutfit();
+
+  useEffect(() => {
+    hasSeenOnboarding().then((seen) => {
+      if (!seen) router.push('/onboarding');
+    });
+  }, []);
 
   const [screen, setScreen] = useState<Screen>('idle');
   const [mevsim, setMevsim] = useState<string | null>(null);

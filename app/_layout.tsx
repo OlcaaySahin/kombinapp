@@ -52,6 +52,9 @@ export default function RootLayout() {
           <Stack.Screen name="mark-worn" options={{ presentation: 'modal', title: 'Giydim' }} />
           <Stack.Screen name="sign-in" options={{ presentation: 'modal', title: 'Hesabını Oluştur' }} />
           <Stack.Screen name="profile-edit" options={{ presentation: 'modal', title: 'Bilgilerini Tamamla' }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="yardim" options={{ presentation: 'modal', title: 'Yardım' }} />
+          <Stack.Screen name="bildirimler" options={{ presentation: 'modal', title: 'Bildirimler' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
       </ThemeProvider>
