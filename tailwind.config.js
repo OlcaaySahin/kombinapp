@@ -2,6 +2,10 @@
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './components/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // NativeWind zorunlu kılıyor: native'de medya sorgusu (prefers-color-scheme) yok, bu yüzden
+  // dark mode'u kendi runtime'ı (useColorScheme ile senkron) yönetiyor — 'media' bırakılırsa
+  // web'de "Cannot manually set color scheme" hatasıyla çöküyor.
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
