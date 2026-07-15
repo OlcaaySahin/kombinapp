@@ -32,7 +32,7 @@ export default function EnvanterScreen() {
         <View>
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Envanter</Text>
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
-            {allItems ? `${allItems.length} ürün · silmek için basılı tut` : ' '}
+            {allItems ? `${allItems.length} ürün · düzenlemek için dokun, silmek için basılı tut` : ' '}
           </Text>
         </View>
         <Pressable
@@ -93,7 +93,13 @@ export default function EnvanterScreen() {
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between' }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
-          renderItem={({ item }) => <ItemCard item={item} onLongPress={() => confirmDelete(item)} />}
+          renderItem={({ item }) => (
+            <ItemCard
+              item={item}
+              onPress={() => router.push({ pathname: '/add-item', params: { itemId: item.id } })}
+              onLongPress={() => confirmDelete(item)}
+            />
+          )}
         />
       )}
     </SafeAreaView>

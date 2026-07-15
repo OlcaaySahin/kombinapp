@@ -70,6 +70,47 @@ export function useAddItem() {
   });
 }
 
+export type UpdateItemInput = {
+  id: string;
+  slot: CategorySlot;
+  name: string;
+  color: string;
+  imageUrl?: string;
+};
+
+export function useUpdateItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: UpdateItemInput) => {
+      const updates: {
+        slot: CategorySlot;
+        name: string;
+        color: string;
+        updated_at: string;
+        image_url?: string;
+      } = {
+        slot: input.slot,
+        name: input.name,
+        color: input.color,
+        updated_at: new Date().toISOString(),
+      };
+      if (input.imageUrl) updates.image_url = input.imageUrl;
+
+      const { data, error } = await supabase
+        .from('items')
+        .update(updates)
+        .eq('id', input.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as DbItem;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
 export function useDeleteItem() {
   const queryClient = useQueryClient();
   return useMutation({

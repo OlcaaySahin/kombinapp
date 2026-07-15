@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 import { getCategory, type CategorySlot } from '@/constants/categories';
 
@@ -8,6 +8,7 @@ export type ItemCardData = {
   name: string | null;
   slot: CategorySlot;
   color: string | null;
+  image_url?: string | null;
 };
 
 function isLightColor(hex: string) {
@@ -18,17 +19,29 @@ function isLightColor(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
 }
 
-export function ItemCard({ item, onLongPress }: { item: ItemCardData; onLongPress?: () => void }) {
+export function ItemCard({
+  item,
+  onPress,
+  onLongPress,
+}: {
+  item: ItemCardData;
+  onPress?: () => void;
+  onLongPress?: () => void;
+}) {
   const category = getCategory(item.slot);
   const color = item.color ?? '#8E8E93';
   const iconColor = isLightColor(color) ? '#1C1C1E' : '#FFFFFF';
 
   return (
-    <Pressable onLongPress={onLongPress} className="mb-4 w-[47%]">
-      <View
-        className="aspect-square w-full items-center justify-center rounded-2xl"
-        style={{ backgroundColor: color }}>
-        <Ionicons name={category.icon} size={32} color={iconColor} />
+    <Pressable onPress={onPress} onLongPress={onLongPress} className="mb-4 w-[47%]">
+      <View className="aspect-square w-full overflow-hidden rounded-2xl" style={{ backgroundColor: color }}>
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
+        ) : (
+          <View className="h-full w-full items-center justify-center">
+            <Ionicons name={category.icon} size={32} color={iconColor} />
+          </View>
+        )}
       </View>
       <Text numberOfLines={1} className="mt-2 font-body-medium text-sm text-gray-900 dark:text-gray-100">
         {item.name ?? 'İsimsiz ürün'}

@@ -15,6 +15,7 @@ export type OutfitItemSummary = {
   name: string | null;
   slot: CategorySlot;
   color: string | null;
+  image_url: string | null;
 };
 
 export type OutfitWithItems = {
@@ -51,7 +52,7 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
 
 const OUTFIT_SELECT = `
   id, name, is_liked, generation_source, generation_context, created_at,
-  outfit_items ( items ( id, name, slot, color ) )
+  outfit_items ( items ( id, name, slot, color, image_url ) )
 `;
 
 export function useLikedOutfits() {

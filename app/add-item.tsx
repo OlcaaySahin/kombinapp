@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,21 +11,41 @@ import { suggestTagsForPhoto } from '@/lib/aiTagging';
 import { showAlert } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { COLOR_SWATCHES } from '@/constants/colorSwatches';
-import { useAddItem } from '@/lib/hooks/useItems';
+import { useAddItem, useItems, useUpdateItem, type DbItem } from '@/lib/hooks/useItems';
 import { uploadPhoto } from '@/lib/storage';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 export default function AddItemScreen() {
-  const userId = useAuthStore((state) => state.userId);
-  const addItem = useAddItem();
+  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
+  const isEditing = Boolean(itemId);
 
+  const userId = useAuthStore((state) => state.userId);
+  const { data: items } = useItems();
+  const addItem = useAddItem();
+  const updateItem = useUpdateItem();
+
+  const [hasPrefilled, setHasPrefilled] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoMimeType, setPhotoMimeType] = useState<string | undefined>(undefined);
+  const [photoChanged, setPhotoChanged] = useState(false);
   const [tagging, setTagging] = useState(false);
   const [name, setName] = useState('');
   const [slot, setSlot] = useState<CategorySlot | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing || hasPrefilled || !items) return;
+    const list: DbItem[] = items;
+    const existing = list.find((item: DbItem) => item.id === itemId);
+    if (existing) {
+      setName(existing.name ?? '');
+      setSlot(existing.slot);
+      setColor(existing.color);
+      if (existing.image_url) setPhotoUri(existing.image_url);
+      setHasPrefilled(true);
+    }
+  }, [isEditing, hasPrefilled, items, itemId]);
 
   const canSave = Boolean(name.trim() && slot && color && userId && !saving);
 
@@ -46,6 +66,7 @@ export default function AddItemScreen() {
     const asset = result.assets[0];
     setPhotoUri(asset.uri);
     setPhotoMimeType(asset.mimeType);
+    setPhotoChanged(true);
 
     // AI otomatik etiketleme — Edge Function deploy edilmediyse sessizce atlanır, form manuel kalır.
     setTagging(true);
@@ -67,13 +88,18 @@ export default function AddItemScreen() {
     setSaving(true);
     try {
       let imageUrl: string | undefined;
-      if (photoUri) {
+      if (photoUri && (photoChanged || !isEditing)) {
         imageUrl = await uploadPhoto('item-photos', userId, photoUri, photoMimeType);
       }
-      await addItem.mutateAsync({ userId, slot, name: name.trim(), color, imageUrl });
+
+      if (isEditing && itemId) {
+        await updateItem.mutateAsync({ id: itemId, slot, name: name.trim(), color, imageUrl });
+      } else {
+        await addItem.mutateAsync({ userId, slot, name: name.trim(), color, imageUrl });
+      }
       router.back();
     } catch (error) {
-      console.error('Ürün eklenemedi:', error);
+      console.error('Ürün kaydedilemedi:', error);
       showAlert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
@@ -87,7 +113,9 @@ export default function AddItemScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-        <Text className="mb-6 font-heading-bold text-2xl text-gray-900 dark:text-white">Ürün Ekle</Text>
+        <Text className="mb-6 font-heading-bold text-2xl text-gray-900 dark:text-white">
+          {isEditing ? 'Ürünü Düzenle' : 'Ürün Ekle'}
+        </Text>
 
         <Pressable
           onPress={pickPhoto}
@@ -154,7 +182,7 @@ export default function AddItemScreen() {
         </View>
 
         <PrimaryButton
-          label={saving ? 'Kaydediliyor...' : 'Envantere Ekle'}
+          label={saving ? (isEditing ? 'Güncelleniyor...' : 'Kaydediliyor...') : isEditing ? 'Güncelle' : 'Envantere Ekle'}
           disabled={!canSave}
           onPress={handleSave}
         />
