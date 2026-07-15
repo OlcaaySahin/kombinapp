@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import { getCategory, type CategorySlot } from '@/constants/categories';
 import { StarRating } from '@/components/ui/StarRating';
+import { buildOutfitPreviewUrl } from '@/lib/outfitPreview';
 
 export type OutfitCardData = {
   id: string;
@@ -19,16 +21,57 @@ export function OutfitCard({
   onRate?: (rating: number) => void;
 }) {
   const contextChips = Object.values(outfit.context);
+  const [previewState, setPreviewState] = useState<'hidden' | 'loading' | 'shown' | 'error'>('hidden');
+
+  function togglePreview() {
+    setPreviewState((current) => (current === 'hidden' || current === 'error' ? 'loading' : 'hidden'));
+  }
 
   return (
     <View className="rounded-3xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-      <View className="mb-4 flex-row flex-wrap gap-2">
-        {contextChips.map((value) => (
-          <View key={value} className="rounded-full bg-primary/10 px-3 py-1">
-            <Text className="font-body-medium text-xs text-primary">{value}</Text>
-          </View>
-        ))}
+      <View className="mb-4 flex-row items-start justify-between">
+        <View className="flex-1 flex-row flex-wrap gap-2">
+          {contextChips.map((value) => (
+            <View key={value} className="rounded-full bg-primary/10 px-3 py-1">
+              <Text className="font-body-medium text-xs text-primary">{value}</Text>
+            </View>
+          ))}
+        </View>
+        <Pressable
+          onPress={togglePreview}
+          className="ml-2 h-9 w-9 items-center justify-center rounded-full bg-primary/10"
+          accessibilityLabel="Önizlemeyi Göster">
+          <Ionicons name="body-outline" size={18} color="#3461FD" />
+        </Pressable>
       </View>
+
+      {previewState !== 'hidden' && (
+        <View className="mb-4 aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-2xl bg-gray-50 dark:bg-gray-800">
+          {previewState === 'error' ? (
+            <Text className="px-6 text-center font-body text-xs text-gray-500 dark:text-gray-400">
+              Önizleme oluşturulamadı, tekrar dene.
+            </Text>
+          ) : (
+            <>
+              <Image
+                source={{ uri: buildOutfitPreviewUrl(outfit.items) }}
+                className="h-full w-full"
+                resizeMode="cover"
+                onLoad={() => setPreviewState('shown')}
+                onError={() => setPreviewState('error')}
+              />
+              {previewState === 'loading' && (
+                <View className="absolute inset-0 items-center justify-center">
+                  <ActivityIndicator color="#3461FD" />
+                  <Text className="mt-2 font-body text-xs text-gray-500 dark:text-gray-400">
+                    Önizleme oluşturuluyor...
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
 
       {(onRate || outfit.rating) && (
         <View className="mb-4">

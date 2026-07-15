@@ -124,6 +124,13 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - `supabase/migrations/20260715000000_init_schema.sql` — kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
 - `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı**: her iki bucket'a da anon key + RLS ile gerçek dosya yükleme, herkese açık URL erişimi (HTTP 200) ve silme test edildi, hepsi sorunsuz.
 
+## Kombin Önizleme (Silüet) — Ücretsiz Çözüm (2026-07-15)
+`OutfitCard`'ın sağ üstünde küçük bir "body-outline" ikon butonu var ("Önizlemeyi Göster") — basınca kombindeki ürünlerin isimlerinden metin bir prompt kurup jenerik bir insan silüeti/manken üzerinde giyilmiş halini gösteren bir görsel üretiyor. `lib/outfitPreview.ts` → `buildOutfitPreviewUrl()`.
+
+**Neden Pollinations.ai**: Kullanıcı demo aşamasında ücretli bir servise (Gemini/OpenAI görsel üretim API'leri, ~$0.02-0.05/görsel, ikisi de billing/kredi kartı istiyor) para ödemek istemedi. Pollinations.ai key/hesap/kredi kartı istemeyen, tamamen ücretsiz bir text-to-image servisi (`https://image.pollinations.ai/prompt/<prompt>`), GET isteğiyle direkt görsel dönüyor. Bu yüzden **hiçbir Edge Function veya API key gerekmiyor** — `buildOutfitPreviewUrl()` client'ta URL kurup direkt `<Image source={{uri}}>`'a veriyor. Aynı kombin için aynı görsel gelsin diye ürün id'lerinden basit bir hash `seed` parametresi olarak veriliyor.
+
+**Bilinen sınırlamalar / ileride dikkat**: Pollinations resmi/kurumsal bir servis değil — uptime/kalite garantisi yok, prod için uygun değil ama demo için yeterli. Kullanıcının kendi yüz/boy fotoğrafıyla gerçek "virtual try-on" (kişiselleştirilmiş önizleme) fikri bilinçli olarak ertelendi — bu, özel bir try-on modeli/API'si (fal.ai, Replicate vb.), gerçek bir bütçe ve yüz fotoğrafı gibi hassas veri için bir saklama/silme politikası gerektiriyor. Bkz. "Fikir havuzu".
+
 ## Profil Bilgileri: Cinsiyet, Yaş, Boy, Kilo, Günlük Stil (2026-07-15)
 `profiles` tablosuna `age`, `height_cm`, `weight_kg`, `daily_style` eklendi (`gender` zaten vardı). Amaç: kullanıcıyı tanıyıp AI kombin önerisini kişiselleştirmek. `app/profile-edit.tsx` (modal, Profil sekmesi → "Hesap Bilgileri") tüm alanları opsiyonel bırakıyor — hiçbiri zorunlu değil, kullanıcı istediği kadarını doldurur. `lib/hooks/useProfile.ts` → `useProfile()`/`useUpdateProfile()`.
 
