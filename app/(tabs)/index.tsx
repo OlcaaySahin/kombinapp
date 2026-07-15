@@ -59,6 +59,7 @@ export default function AnaSayfaScreen() {
   const [generatedItems, setGeneratedItems] = useState<DbItem[] | null>(null);
   const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
   const [generatedSource, setGeneratedSource] = useState<Source>('dice');
+  const [generatedReasoning, setGeneratedReasoning] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
@@ -67,10 +68,11 @@ export default function AnaSayfaScreen() {
   const count = dailyCount.data ?? 0;
   const limitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
 
-  function showResult(picked: DbItem[], context: OutfitContext, source: Source) {
+  function showResult(picked: DbItem[], context: OutfitContext, source: Source, reasoning?: string | null) {
     setGeneratedItems(picked);
     setGeneratedContext(context);
     setGeneratedSource(source);
+    setGeneratedReasoning(reasoning ?? null);
     setSaved(false);
     setSavedOutfitId(null);
     setRating(null);
@@ -98,7 +100,7 @@ export default function AnaSayfaScreen() {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
       }
-      showResult(suggestion.items, context, suggestion.source);
+      showResult(suggestion.items, context, suggestion.source, suggestion.reasoning);
     } finally {
       setGenerating(false);
     }
@@ -149,6 +151,7 @@ export default function AnaSayfaScreen() {
     setSaat(null);
     setKonsept(null);
     setGeneratedItems(null);
+    setGeneratedReasoning(null);
     setSaved(false);
     setSavedOutfitId(null);
     setRating(null);
@@ -159,6 +162,7 @@ export default function AnaSayfaScreen() {
         id: 'preview',
         context: generatedContext,
         items: generatedItems,
+        reasoning: generatedReasoning,
       }
     : null;
 
