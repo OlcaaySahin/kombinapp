@@ -1,25 +1,35 @@
-import { decode } from 'base64-arraybuffer';
-import * as FileSystem from 'expo-file-system';
-
 import { supabase } from '@/lib/supabase';
 
 export type StorageBucket = 'item-photos' | 'outfit-wear-photos';
 
+function extensionFromMimeType(mimeType: string | undefined) {
+  if (!mimeType) return 'jpg';
+  if (mimeType.includes('png')) return 'png';
+  if (mimeType.includes('webp')) return 'webp';
+  return 'jpg';
+}
+
 /**
  * Yerel bir foto URI'sini (expo-image-picker'dan gelen) Supabase Storage'a yükler.
- * Yol konvansiyonu: {bucket}/{userId}/{dosya}.jpg — RLS politikaları bu ilk klasörü kontrol eder.
- * Not: Bu fonksiyon fiziksel bir cihazda henüz interaktif olarak test edilmedi (bkz. CLAUDE.md).
+ * `fetch(uri).arrayBuffer()` kullanılıyor çünkü bu, native'deki file:// URI'lerinde de
+ * web'deki blob:/data: URI'lerinde de aynı şekilde çalışıyor — expo-file-system'in
+ * base64 okuma yöntemi web'de blob: URI'lerini okuyamadığı için (2026-07-15, kullanıcı
+ * tarafından "Envantere Ekle" butonunun web'de sessizce hiçbir şey yapmaması ile bulundu).
+ * Yol konvansiyonu: {bucket}/{userId}/{dosya} — RLS politikaları bu ilk klasörü kontrol eder.
  */
-export async function uploadPhoto(bucket: StorageBucket, userId: string, localUri: string): Promise<string> {
-  const base64 = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const arrayBuffer = decode(base64);
-  const extension = localUri.split('.').pop()?.toLowerCase() ?? 'jpg';
+export async function uploadPhoto(
+  bucket: StorageBucket,
+  userId: string,
+  localUri: string,
+  mimeType?: string
+): Promise<string> {
+  const response = await fetch(localUri);
+  const arrayBuffer = await response.arrayBuffer();
+  const extension = extensionFromMimeType(mimeType);
   const path = `${userId}/${Date.now()}.${extension}`;
 
   const { error } = await supabase.storage.from(bucket).upload(path, arrayBuffer, {
-    contentType: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+    contentType: mimeType ?? 'image/jpeg',
   });
   if (error) throw error;
 

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
+import { showConfirm } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
 
@@ -15,10 +16,9 @@ export default function EnvanterScreen() {
   const deleteItem = useDeleteItem();
 
   function confirmDelete(item: DbItem) {
-    Alert.alert('Ürünü sil', `"${item.name ?? 'Bu ürün'}" envanterden silinsin mi?`, [
-      { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Sil', style: 'destructive', onPress: () => deleteItem.mutate(item.id) },
-    ]);
+    showConfirm('Ürünü sil', `"${item.name ?? 'Bu ürün'}" envanterden silinsin mi?`, () =>
+      deleteItem.mutate(item.id)
+    );
   }
 
   const items = useMemo(() => {

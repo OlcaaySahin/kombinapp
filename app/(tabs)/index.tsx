@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { requestAiOutfit } from '@/lib/aiOutfit';
+import { showAlert } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useCreateOutfit,
@@ -72,7 +73,7 @@ export default function AnaSayfaScreen() {
     const pool: DbItem[] = items ?? [];
     const picked = generateRandomOutfit<DbItem>(pool);
     if (!picked) {
-      Alert.alert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
+      showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
       return;
     }
     showResult(picked, DICE_CONTEXT, 'dice');
@@ -84,7 +85,7 @@ export default function AnaSayfaScreen() {
     try {
       const suggestion = await requestAiOutfit(items ?? [], context);
       if (!suggestion) {
-        Alert.alert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
+        showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
       }
       showResult(suggestion.items, context, suggestion.source);
@@ -118,7 +119,8 @@ export default function AnaSayfaScreen() {
       });
       setSaved(true);
     } catch (error) {
-      Alert.alert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
+      console.error('Kombin kaydedilemedi:', error);
+      showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
     }
   }
 

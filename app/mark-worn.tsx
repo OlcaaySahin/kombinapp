@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { showAlert } from '@/lib/alert';
 import { useMarkWorn } from '@/lib/hooks/useOutfits';
 import { uploadPhoto } from '@/lib/storage';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -16,18 +17,20 @@ export default function MarkWornScreen() {
   const markWorn = useMarkWorn();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState<string | undefined>(undefined);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   async function pickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('İzin gerekli', 'Fotoğraf seçebilmek için galeri izni vermelisin.');
+      showAlert('İzin gerekli', 'Fotoğraf seçebilmek için galeri izni vermelisin.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     setPhotoUri(result.assets[0].uri);
+    setPhotoMimeType(result.assets[0].mimeType);
   }
 
   async function handleSave() {
@@ -36,12 +39,13 @@ export default function MarkWornScreen() {
     try {
       let photoUrl: string | undefined;
       if (photoUri) {
-        photoUrl = await uploadPhoto('outfit-wear-photos', userId, photoUri);
+        photoUrl = await uploadPhoto('outfit-wear-photos', userId, photoUri, photoMimeType);
       }
       await markWorn.mutateAsync({ outfitId, photoUrl, note: note.trim() || undefined });
       router.back();
     } catch (error) {
-      Alert.alert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
+      console.error('Giydim işaretlenemedi:', error);
+      showAlert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
     }

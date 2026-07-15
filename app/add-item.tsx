@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { suggestTagsForPhoto } from '@/lib/aiTagging';
+import { showAlert } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { COLOR_SWATCHES } from '@/constants/colorSwatches';
 import { useAddItem } from '@/lib/hooks/useItems';
@@ -19,6 +20,7 @@ export default function AddItemScreen() {
   const addItem = useAddItem();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState<string | undefined>(undefined);
   const [tagging, setTagging] = useState(false);
   const [name, setName] = useState('');
   const [slot, setSlot] = useState<CategorySlot | null>(null);
@@ -30,7 +32,7 @@ export default function AddItemScreen() {
   async function pickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('İzin gerekli', 'Fotoğraf seçebilmek için galeri izni vermelisin.');
+      showAlert('İzin gerekli', 'Fotoğraf seçebilmek için galeri izni vermelisin.');
       return;
     }
 
@@ -41,13 +43,14 @@ export default function AddItemScreen() {
     });
     if (result.canceled || !result.assets[0]) return;
 
-    const uri = result.assets[0].uri;
-    setPhotoUri(uri);
+    const asset = result.assets[0];
+    setPhotoUri(asset.uri);
+    setPhotoMimeType(asset.mimeType);
 
     // AI otomatik etiketleme — Edge Function deploy edilmediyse sessizce atlanır, form manuel kalır.
     setTagging(true);
     try {
-      const suggestion = await suggestTagsForPhoto(uri);
+      const suggestion = await suggestTagsForPhoto(asset.uri);
       if (suggestion) {
         setName(suggestion.name);
         setColor(suggestion.color);
@@ -65,16 +68,21 @@ export default function AddItemScreen() {
     try {
       let imageUrl: string | undefined;
       if (photoUri) {
-        imageUrl = await uploadPhoto('item-photos', userId, photoUri);
+        imageUrl = await uploadPhoto('item-photos', userId, photoUri, photoMimeType);
       }
       await addItem.mutateAsync({ userId, slot, name: name.trim(), color, imageUrl });
       router.back();
     } catch (error) {
-      Alert.alert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
+      console.error('Ürün eklenemedi:', error);
+      showAlert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
     }
   }
+
+  const missingFields = [!name.trim() && 'ürün adı', !slot && 'kategori', !color && 'renk'].filter(
+    (field): field is string => Boolean(field)
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
@@ -150,6 +158,11 @@ export default function AddItemScreen() {
           disabled={!canSave}
           onPress={handleSave}
         />
+        {!canSave && !saving && missingFields.length > 0 && (
+          <Text className="mt-2 text-center font-body text-xs text-gray-500 dark:text-gray-400">
+            Eksik: {missingFields.join(', ')}
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
