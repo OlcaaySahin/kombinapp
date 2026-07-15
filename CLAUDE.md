@@ -125,6 +125,15 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - `supabase/migrations/20260715000000_init_schema.sql` — kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
 - `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı**: her iki bucket'a da anon key + RLS ile gerçek dosya yükleme, herkese açık URL erişimi (HTTP 200) ve silme test edildi, hepsi sorunsuz.
 
+## AI Kombin Ekranında Opsiyonel Serbest Metin Not (2026-07-15)
+Kullanıcı önerisi: bağlamsal sorular (mevsim/mekan/saat/konsept) yeterli nüansı yakalayamıyor — "iş görüşmesi", "arkadaşımın doğum günü partisi" gibi somut senaryolar için kullanıcının kendi cümleleriyle ek bilgi verebileceği bir alan istedi. Ayrıca ileride alışveriş/ek ürün önerisi gibi özelliklerde bu notun işe yarayacağını belirtti.
+
+- Ana Sayfa'daki soru ekranına opsiyonel bir çok satırlı `TextInput` eklendi (maxLength 200).
+- `generate-outfit` prompt'una **diğer bağlam bilgilerinden daha öncelikli** bir sinyal olarak ekleniyor (`userNoteBlock`, sunucu tarafında da 300 karaktere kırpılıyor — savunma amaçlı, client zaten 200'de sınırlıyor).
+- `outfits.user_note` kolonu eklendi (migration `20260717000000_add_outfit_user_note.sql`, kullanıcıya sormadan Management API ile çalıştırıldı) — kaydedilen kombinle birlikte kalıcı olarak saklanıyor, `OutfitCard`'da küçük bir konuşma balonu ikonuyla gösteriliyor (hem üretim anında hem Kombinlerim'de). `outfit_wears.note` (giydim notu, farklı tablo) ile karışmasın diye kolon adı bilinçli olarak `user_note`.
+- Sadece AI yolunda var — zar butonu etkilenmedi.
+- **Canlı test edildi**: nötr/"Günlük" konseptli bir bağlama rağmen "iş görüşmesine gidiyorum, ciddi görünmek istiyorum" notu verildiğinde, model konsept sinyalini bilinçli olarak geçersiz kılıp lacivert gömlek + siyah pantolon + siyah ayakkabı gibi profesyonel bir kombin seçti ve gerekçesinde bu önceliklendirmeyi açıkça belirtti.
+
 ## generate-outfit: Gerçek Stilist Mantığı (2026-07-15)
 Kullanıcı cihazda test ederken kombinlerin renk/parça uyumunu yakalayamadığını, mevsim/mekan/saat/konsept bağlamına göre mantıklı seçim yapmadığını bildirdi. Kök neden: sistem prompt'u çok genel ("renk uyumuna ve konsepte dikkat et") — somut bir kural seti yoktu, ve item'ların rengi Claude'a ham hex kod (`#2C3E63`) olarak gidiyordu, renk uyumu muhakemesi için zayıf bir sinyal.
 
