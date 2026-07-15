@@ -24,26 +24,75 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+// Ürünün hex renk kodunu Claude'un daha güvenilir akıl yürütebildiği bir Türkçe
+// renk adına çevirir — ham hex kodu ("#2C3E63") renk uyumu muhakemesi için zayıf bir sinyal.
+const NAMED_COLORS: { name: string; hex: string }[] = [
+  { name: 'beyaz', hex: '#F5F5F5' },
+  { name: 'siyah', hex: '#1C1C1E' },
+  { name: 'gri', hex: '#8E8E93' },
+  { name: 'bej', hex: '#D8C3A5' },
+  { name: 'kahverengi', hex: '#6B4226' },
+  { name: 'lacivert', hex: '#2C3E63' },
+  { name: 'mavi', hex: '#3461FD' },
+  { name: 'yeşil', hex: '#3FA34D' },
+  { name: 'sarı', hex: '#E8B923' },
+  { name: 'turuncu', hex: '#F2762E' },
+  { name: 'kırmızı', hex: '#E4463A' },
+  { name: 'pembe', hex: '#E88BA0' },
+  { name: 'mor', hex: '#8B3FE8' },
+  { name: 'bordo', hex: '#722F37' },
+  { name: 'haki', hex: '#7A7256' },
+  { name: 'altın', hex: '#D4AF37' },
+  { name: 'gümüş', hex: '#C0C0C0' },
+  { name: 'krem', hex: '#E8E0D0' },
+];
+
+function hexToRgb(hex: string) {
+  const value = hex.replace('#', '');
+  return {
+    r: parseInt(value.substring(0, 2), 16),
+    g: parseInt(value.substring(2, 4), 16),
+    b: parseInt(value.substring(4, 6), 16),
+  };
+}
+
+function closestColorName(hex: string | null): string | null {
+  if (!hex || !/^#?[0-9a-fA-F]{6}$/.test(hex)) return null;
+  const target = hexToRgb(hex);
+  let best = NAMED_COLORS[0];
+  let bestDist = Infinity;
+  for (const candidate of NAMED_COLORS) {
+    const rgb = hexToRgb(candidate.hex);
+    const dist = (rgb.r - target.r) ** 2 + (rgb.g - target.g) ** 2 + (rgb.b - target.b) ** 2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = candidate;
+    }
+  }
+  return best.name;
+}
+
 type OutfitContext = { mevsim: string; mekan: string; saat: string; konsept: string };
 
 const SUGGEST_OUTFIT_TOOL = {
   name: 'suggest_outfit',
-  description: 'Verilen envanterden bağlama en uygun kombini öner.',
+  description: 'Verilen envanterden bağlama en uygun, stil olarak tutarlı kombini öner.',
   input_schema: {
     type: 'object',
     properties: {
+      reasoning: {
+        type: 'string',
+        description:
+          'Önce kısaca iç analizini yap: bu bağlam (mevsim/mekan/saat/konsept) için hangi renk paleti ve parça tipleri uygun, envanterde bunlara en yakın hangi parçalar var, seçtiğin parçaların renkleri/desenleri birbirini nasıl tamamlıyor. Sonra bu analize dayanan, kullanıcıya yönelik 1-2 cümlelik Türkçe bir gerekçe yaz.',
+      },
       itemIds: {
         type: 'array',
         items: { type: 'string' },
         description:
-          'Seçilen ürünlerin id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli, istersen bir takı/tamamlayıcı ekle.',
-      },
-      reasoning: {
-        type: 'string',
-        description: 'Bu kombinin bağlama neden uygun olduğuna dair kısa (1-2 cümle) Türkçe açıklama.',
+          'reasoning alanındaki analize göre seçilen ürünlerin id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli. Mevsim soğuksa ve envanterde uygun bir dis_giyim varsa ekle. İstersen bir taki/tamamlayici/canta ile tamamla.',
       },
     },
-    required: ['itemIds', 'reasoning'],
+    required: ['reasoning', 'itemIds'],
   },
 };
 
@@ -92,14 +141,27 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Envanterde ürün yok' }, 422);
   }
 
+  const itemsWithColorNames = items.map((item) => ({
+    ...item,
+    colorName: closestColorName(item.color),
+  }));
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('gender, daily_style')
     .eq('id', user.id)
     .maybeSingle();
 
-  const systemPrompt =
-    'Sen bir moda stilistisin. Kullanıcının envanterinden, verilen bağlama (mevsim, mekan, saat, konsept) en uygun kombini seçiyorsun. Sadece envanterde var olan ürün id\'lerini kullan. Renk uyumuna ve konsepte dikkat et.';
+  const systemPrompt = `Sen deneyimli bir moda stilistisin. Kullanıcının envanterinden, verilen bağlama (mevsim, mekan, saat, konsept) EN UYGUN ve stil olarak TUTARLI bir kombin seçiyorsun. Kurallara sıkı sıkıya uy:
+
+1. Sadece envanterde var olan ürün id'lerini kullan, envanterde olmayan bir şey uydurma.
+2. Renk uyumu: nötr bir taban (siyah/beyaz/gri/bej/lacivert/kahverengi) + en fazla 1-2 vurgu rengi hedefle. Birbiriyle çatışan parlak renkleri (ör. kırmızı+turuncu+mor aynı anda) bir arada kullanma. İki farklı belirgin deseni (ör. çizgili+ekose) aynı kombinde eşleştirme. colorName alanını renk uyumu muhakemesi için kullan.
+3. Mevsim uygunluğu: mevsim Kış/Sonbahar ise şort, tank top, sandalet gibi yazlık parçalardan kaçın; mevsim Yaz ise kalın mont/kaban/bot gibi kışlık parçalardan kaçın. Ürünün season alanına da bak.
+4. Mekan/konsept uygunluğu: mekan Ofis veya konsept Şık/Özel Gün ise mümkünse eşofman/spor ayakkabı gibi aşırı gündelik parçalar yerine daha şık seçenekleri tercih et. mekan Deniz/Tatil veya konsept Spor ise rahat/hafif parçaları tercih et.
+5. Mevsim soğuksa (Kış/Sonbahar) ve envanterde uygun bir dış giyim (mont/kaban/ceket) varsa mutlaka ekle.
+6. Envanterde birebir ideal seçenek olmayabilir — böyle durumda envanterdeki EN YAKIN makul alternatifi seç, asla kombin üretmeyi reddetme.
+
+Önce reasoning alanında kısaca iç analizini yap, sonra itemIds'i o analize göre seç.`;
 
   const excludeNote =
     excludeItemIds && excludeItemIds.length > 0
@@ -111,7 +173,7 @@ Deno.serve(async (req: Request) => {
       ? `\n\nKullanıcı profili: ${JSON.stringify({ cinsiyet: profile.gender, gunluk_stil: profile.daily_style })}. Seçimini bu tercihlere göre hafifçe yönlendir (ör. "Rahat" diyorsa daha spor/gündelik parçaları öne çıkar).`
       : '';
 
-  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(items, null, 2)}${excludeNote}${profileNote}`;
+  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
