@@ -20,7 +20,7 @@ Seçim gerekçesi: kullanıcı mobil geliştirmede sıfırdan başlıyor, solo/d
 ## MVP (v1) Kapsamı
 **İçinde:**
 - Giriş: **Supabase anonymous sign-in** ile başlandı (bkz. "Auth Stratejisi" notu) — Google/email ekranı bilerek ertelendi
-- Envanter: foto seç (galeri) → AI otomatik etiketleme dener (Edge Function deploy edilmediyse sessizce atlanır) → manuel düzelt → Storage'a yükle → kaydet. **Kod tamam ama fiziksel cihazda hiç çalıştırılmadı** (bkz. Notlar).
+- Envanter: foto seç (galeri) → AI otomatik etiketleme dener (Edge Function deploy edilmediyse sessizce atlanır) → manuel düzelt → Storage'a yükle → kaydet. **Cihazda test edildi, sorunsuz çalışıyor** (2026-07-15, kullanıcı onayladı — bkz. Notlar).
 - AI kombin önerisi: bağlamsal sorular → Edge Function (Claude) dener, deploy edilmediyse/başarısız olursa yerel kural tabanlı seçime sessizce düşer
 - Zar butonu: envanterden her zaman yerel rastgele-uyumlu seçim (AI'ya hiç gitmez, bilinçli tasarım kararı)
 - Günlük 3 kombin limiti — artık gerçek: `generation_events` tablosundan sayılıyor, state'te değil
@@ -153,7 +153,7 @@ Kullanıcı ilk kez gerçek APK ile (development client) telefonda test etti, ik
 - **TypeScript garipliği**: Bu projede zaman zaman `useQuery<T>({...})` gibi açık generic verilmesine rağmen, o hook'un sonucunu tüketen `.filter()/.map()` callback'lerinde parametre "implicit any" oluyor (TS7006). Kesin kök nedeni netleştirilemedi (muhtemelen tsconfig/expo base config + TS 5.3.3 kombinasyonuna özgü bir çıkarım sınırlaması). **Çözüm**: hook sonucunu tüketen yerde değişkeni/parametreyi açıkça tipleyin (`const list: DbItem[] = ...`, `(item: DbItem) => ...`) — hook tanımının kendisini değiştirmeye gerek yok. Örnekler: `app/(tabs)/envanter.tsx`, `app/(tabs)/index.tsx`, `app/(tabs)/kombinlerim.tsx`.
 - `npx tsc --noEmit` "Unterminated template literal" gibi tuhaf hatalar verirse (`.expo/types/router.d.ts` içinde), `.expo` klasörünü silin — bozuk/eski bir route-tipi cache'iydi, otomatik yeniden üretiliyor.
 - Doğrulama disiplini: her önemli değişiklikten sonra sırasıyla `npx tsc --noEmit` → `npx jest --watchAll=false` → `npx expo export -p web` (gerçek Metro/Babel bundling hatalarını yakalar) çalıştırıldı, hepsi geçmeden commit atılmadı. `dist/` klasörü her export sonrası silinir (gitignore'da zaten var, ekstra önlem).
-- **Dürüstlük notu**: `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme/yükleme akışları (`expo-image-picker` + `lib/storage.ts` + `lib/aiTagging.ts`) sadece bundling/tip seviyesinde doğrulandı — bu ortamda kamera/galeri/fiziksel cihaz olmadığı için interaktif olarak hiç çalıştırılamadı. Kodu iyi bilinen, standart Expo+Supabase kalıplarını takip ediyor ama gecenin geri kalanındaki (auth, veri katmanı, ekranlar) gibi uçtan uca test edilmiş değil. İlk denemeyi kullanıcı yapmalı.
+- **Foto akışları cihazda test edildi (2026-07-15)**: `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme/yükleme akışları (`expo-image-picker` + `lib/storage.ts` + `lib/aiTagging.ts`) kullanıcı tarafından gerçek telefonda denendi, sorunsuz çalışıyor. Artık auth/veri katmanı gibi uçtan uca doğrulanmış kabul edilebilir.
 - **Önemli — `npx expo export -p web`, tarayıcı runtime hatalarını YAKALAMAZ**: export sadece statik bundling yapar, sayfayı gerçek bir JS motorunda/DOM'da çalıştırmaz. Bu yüzden `tailwind.config.js`'te `darkMode: 'class'` eksikliği (varsayılan `'media'` NativeWind'in native↔web renk şeması senkronizasyonuyla çakışıp "Cannot manually set color scheme" hatasıyla çöküyordu) export'ta hiç görünmedi, ancak `npx expo start --web` ile tarayıcıda gerçekten açılınca ortaya çıktı (kullanıcı tarafından bulundu, 2026-07-15). **Ders**: NativeWind kurulumundan sonra mutlaka `npx expo start --web` ile gerçek bir tarayıcıda en az bir kez açıp konsolu kontrol edin — sadece `tsc`/`jest`/`export` yeterli değil.
 
 ## Sabah İçin Gerekenler (kullanıcıdan beklenen aksiyonlar)
@@ -162,13 +162,10 @@ Kullanıcı ilk kez gerçek APK ile (development client) telefonda test etti, ik
 
 **~~2. Storage migration~~ — TAMAMLANDI (2026-07-15).** Kullanıcı SQL Editor'da çalıştırdı, her iki bucket da (`item-photos`, `outfit-wear-photos`) gerçek upload/erişim/silme testinden geçti.
 
-**Backend tarafı artık %100 canlı ve doğrulanmış** (auth, DB, RLS, iki Edge Function, iki Storage bucket). Geriye kalan tek şey, kullanıcı deneyimi tarafında benim test edemediğim kısım:
+**Backend + foto akışları artık %100 canlı ve cihazda doğrulanmış** (auth, DB, RLS, iki Edge Function, iki Storage bucket, galeri foto seçme/yükleme — 2026-07-15 kullanıcı tarafından onaylandı). MVP'nin çekirdeği artık uçtan uca test edilmiş kabul ediliyor.
 
-**Şimdi ilerlemek için gerekli:**
-1. **Foto akışlarını bir kez dene** — `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme + yükleme akışlarını hiçbir cihazda test edemedim (bu ortamda kamera/galeri yok). İlk fırsatta bir ürün eklerken/kombin giyerken foto seçmeyi dene, bir sorun çıkarsa bildir.
-
-**Yakın gelecek (bugün acil değil, ama bilgin olsun):**
-2. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
-3. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
-4. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
-5. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
+**Yakın gelecek (acil değil, ama bilgin olsun):**
+1. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
+2. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
+3. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
+4. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
