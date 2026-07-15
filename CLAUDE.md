@@ -32,13 +32,20 @@ Seçim gerekçesi: kullanıcı mobil geliştirmede sıfırdan başlıyor, solo/d
 
 **Sonraya bırakıldı:** Partner eşleştirme, marka marketplace/alışveriş önerisi, sosyal challenge/paylaşım, görsel kolaj veya sanal deneme (try-on), Premium/RevenueCat entegrasyonu, günlük 5 alışveriş önerisi limiti (marketplace ile birlikte gelecek).
 
+**Fikir havuzu (2026-07-15, kullanıcı eklendi, henüz kapsama alınmadı):**
+- **Marka API / "Bu üründen bende var" entegrasyonu**: Trendyol, Mavi, LC Waikiki, Zara, H&M gibi büyük e-ticaret platformlarından ürün sayfasında bir butona basınca ürünün otomatik envantere aktarılması (foto çekip AI'a etiketletmek yerine). Değerlendirme: bu markaların 3. parti "ürün sahipliği" amaçlı açık bir API'si yok — resmi ortaklık gerekir, kısa vadede gerçekçi değil. Daha ulaşılabilir ara çözüm: kullanıcı ürün linkini "Paylaş" ile uygulamaya gönderir, biz sayfanın herkese açık meta verilerinden (og:image, og:title, fiyat) formu otomatik doldururuz — ortaklık beklemeden yapılabilir bir versiyon.
+- **Rating → AI kişiselleştirme geri beslemesi**: `outfits.rating` (1-5 yıldız) toplanıyor (bkz. aşağıdaki bölüm) ama henüz `generate-outfit` Edge Function'ına bağlanmadı. Yeterli veri birikince, kullanıcının yüksek puan verdiği geçmiş kombinlerin özelliklerini (renk/kategori tercihleri) prompt'a bağlam olarak eklemek düşünülüyor.
+
+## Günlük Kombin Limiti — Bilinçli Olarak Pasif (2026-07-15)
+`app/(tabs)/index.tsx`'teki `DAILY_LIMIT_ENABLED = false` — demo/test aşamasında kullanıcı isteğiyle kapatıldı. Sayaç mekanizması (`generation_events` tablosu, `useDailyOutfitCount`, UI'daki "X/3 kullanıldı" göstergesi) **tamamen sağlam ve çalışıyor**, sadece engelleme devre dışı. Gerçek kullanıcılarla yayına geçerken `DAILY_LIMIT_ENABLED = true` yapmak yeterli — başka bir değişiklik gerekmez.
+
 ## Veritabanı Şeması (Postgres / Supabase, RLS açık)
 
 - **profiles** — id (→auth.users), display_name, avatar_url, gender?, subscription_tier, subscription_expires_at
 - **partnerships** (v2) — requester_id, partner_id, status (pending/accepted/declined)
 - **categories** (lookup) — name, slot (ust_giyim/alt_giyim/tek_parca/dis_giyim/ayakkabi/canta/taki/tamamlayici), icon
 - **items** (envanter) — user_id, category_id, slot, name, color, pattern, season[], brand, image_url, source_type (user_photo/web_photo), ai_tags (jsonb)
-- **outfits** (kombinler) — user_id, name?, is_liked, generation_source (ai_generated/dice/manual), generation_context (jsonb: mevsim/mekan/saat/konsept)
+- **outfits** (kombinler) — user_id, name?, is_liked, rating (1-5, nullable), generation_source (ai_generated/dice/manual), generation_context (jsonb: mevsim/mekan/saat/konsept)
 - **outfit_items** (join) — outfit_id, item_id
 - **outfit_wears** — outfit_id, worn_date, photo_url, note? (bir kombin birden fazla kez giyilebilir, her seferinde ayrı foto)
 - **generation_events** (freemium limit log) — user_id, type (outfit/shopping_suggestion), created_at → günlük limit `WHERE created_at >= CURRENT_DATE` ile sayılır

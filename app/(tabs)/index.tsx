@@ -26,6 +26,9 @@ const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
 
 const DAILY_LIMIT = 3;
+// Demo/test aşamasında bilinçli olarak pasif — mekanizma (sayaç, sorgu, UI) tamamen duruyor,
+// tekrar aktif etmek için sadece bunu true yapmak yeterli. 2026-07-15.
+const DAILY_LIMIT_ENABLED = false;
 const DICE_CONTEXT: OutfitContext = {
   mevsim: 'İlkbahar',
   mekan: 'Şehir içi',
@@ -62,7 +65,7 @@ export default function AnaSayfaScreen() {
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept);
   const count = dailyCount.data ?? 0;
-  const limitReached = count >= DAILY_LIMIT;
+  const limitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
 
   function showResult(picked: DbItem[], context: OutfitContext, source: Source) {
     setGeneratedItems(picked);
