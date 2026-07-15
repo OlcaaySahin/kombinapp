@@ -20,6 +20,8 @@ const BROWSER_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept-Language': 'tr-TR,tr;q=0.9',
+  'Cache-Control': 'no-cache',
+  Pragma: 'no-cache',
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -106,27 +108,46 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Geçerli bir ürün linki gerekli' }, 400);
   }
 
-  let html: string;
-  try {
-    const pageRes = await fetch(url, { headers: BROWSER_HEADERS });
-    if (!pageRes.ok) return jsonResponse({ error: `Sayfa alınamadı (HTTP ${pageRes.status})` }, 502);
-    html = await pageRes.text();
-  } catch {
-    return jsonResponse({ error: 'Sayfaya erişilemedi' }, 502);
+  // Bazı siteler (ör. Trendyol) load balancer arkasında ürün sayfasını bazen tam
+  // sunucu-taraflı render edilmiş (JSON-LD dolu) bazen sadece istemci tarafında
+  // hidrate edilecek boş bir "shell" olarak döndürüyor — hangisinin geldiği istekten
+  // isteğe değişiyor. Bot koruması değil, salt altyapı tutarsızlığı; birkaç kez
+  // denemek genellikle dolu sürümü yakalıyor.
+  const MAX_ATTEMPTS = 4;
+  let scrapedImage: string | null = null;
+  let product: Record<string, unknown> | null = null;
+  let meta: Record<string, string> = {};
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS && !scrapedImage; attempt++) {
+    // Her denemede benzersiz bir cache-buster query param'ı ekleniyor — ara CDN
+    // katmanlarının ayni URL'i onbellekten (bos "shell" surumuyle) donmesini engellemek icin.
+    const cacheBustUrl = url + (url.includes('?') ? '&' : '?') + `_cb=${Date.now()}${attempt}`;
+    let html: string;
+    try {
+      const pageRes = await fetch(cacheBustUrl, { headers: BROWSER_HEADERS, cache: 'no-store' });
+      if (!pageRes.ok) return jsonResponse({ error: `Sayfa alınamadı (HTTP ${pageRes.status})` }, 502);
+      html = await pageRes.text();
+    } catch {
+      return jsonResponse({ error: 'Sayfaya erişilemedi' }, 502);
+    }
+
+    product = extractJsonLdProduct(html);
+    meta = extractMetaTags(html);
+
+    const productImage = product?.image as { contentUrl?: string | string[] } | string | undefined;
+    scrapedImage =
+      (typeof productImage === 'string'
+        ? productImage
+        : Array.isArray(productImage?.contentUrl)
+          ? productImage?.contentUrl?.[0]
+          : productImage?.contentUrl) ??
+      meta['og:image'] ??
+      null;
+
+    if (!scrapedImage && attempt < MAX_ATTEMPTS - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    }
   }
-
-  const product = extractJsonLdProduct(html);
-  const meta = extractMetaTags(html);
-
-  const productImage = product?.image as { contentUrl?: string | string[] } | string | undefined;
-  const scrapedImage =
-    (typeof productImage === 'string'
-      ? productImage
-      : Array.isArray(productImage?.contentUrl)
-        ? productImage?.contentUrl?.[0]
-        : productImage?.contentUrl) ??
-    meta['og:image'] ??
-    null;
 
   const scrapedName = (product?.name as string | undefined) ?? meta['og:title'] ?? null;
   const scrapedColor = (product?.color as string | undefined) ?? null;
@@ -135,7 +156,7 @@ Deno.serve(async (req: Request) => {
   const scrapedCurrency = offers?.priceCurrency ?? null;
 
   if (!scrapedImage) {
-    return jsonResponse({ error: 'Sayfada ürün görseli bulunamadı' }, 422);
+    return jsonResponse({ error: 'Sayfada ürün görseli bulunamadı, birkaç kez denendi. Tekrar dene.' }, 422);
   }
 
   let imageBase64: string;

@@ -25,7 +25,22 @@ export type ProductLinkResult =
 export async function fetchProductFromLink(url: string): Promise<ProductLinkResult> {
   try {
     const { data, error } = await supabase.functions.invoke('fetch-product-link', { body: { url } });
-    if (error) throw error;
+    if (error) {
+      // supabase-js'in error.message'ı non-2xx yanıtlarda hep ayni jenerik metni verir
+      // ("Edge Function returned a non-2xx status code") — asil hata mesaji response
+      // govdesinde (error.context), onu okuyup gostermeye calisiyoruz.
+      let message = error instanceof Error ? error.message : String(error);
+      const context = (error as { context?: Response }).context;
+      if (context) {
+        try {
+          const body = await context.clone().json();
+          if (body?.error) message = body.error;
+        } catch {
+          // govde JSON degilse jenerik mesaj kalsin
+        }
+      }
+      throw new Error(message);
+    }
 
     const suggestion = data as ProductLinkSuggestion;
     if (!suggestion.isClothingItem) {
