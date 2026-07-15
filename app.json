@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "kombin-app",
-    "slug": "kombin-app",
+    "slug": "olcay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,6 +16,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.olcaaysahin.kombinapp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -31,6 +32,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "olcaaysahins-team",
+    "extra": {
+      "eas": {
+        "projectId": "b0249353-0970-4817-9ff7-149da360941c"
+      }
     }
   }
 }

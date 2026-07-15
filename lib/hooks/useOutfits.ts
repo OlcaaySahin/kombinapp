@@ -55,38 +55,59 @@ const OUTFIT_SELECT = `
   outfit_items ( items ( id, name, slot, color, image_url ) )
 `;
 
+/** Beğenilmiş AMA henüz giyilmemiş kombinler — giyilenler bu listeden otomatik düşer. */
 export function useLikedOutfits() {
   return useQuery<OutfitWithItems[]>({
     queryKey: ['outfits', 'liked'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('outfits')
-        .select(OUTFIT_SELECT)
+        .select(`${OUTFIT_SELECT}, outfit_wears ( id )`)
         .eq('is_liked', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data as unknown as RawOutfitRow[]).map(mapOutfit);
+      const rows = data as unknown as (RawOutfitRow & { outfit_wears: { id: string }[] })[];
+      return rows.filter((row) => row.outfit_wears.length === 0).map(mapOutfit);
     },
   });
 }
 
+export type WearEventData = {
+  id: string;
+  wornDate: string;
+  photoUrl: string | null;
+  note: string | null;
+  items: OutfitItemSummary[];
+};
+
+type RawWearRow = {
+  id: string;
+  worn_date: string;
+  photo_url: string | null;
+  note: string | null;
+  outfits: { outfit_items: { items: OutfitItemSummary }[] } | null;
+};
+
+/** Giyme anlarının kronolojik günlüğü (kombin albümü) — bir kombin birden fazla kez giyilmişse her seferi ayrı kart. */
 export function useWornOutfits() {
-  return useQuery<OutfitWithItems[]>({
+  return useQuery<WearEventData[]>({
     queryKey: ['outfits', 'worn'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('outfits')
-        .select(`${OUTFIT_SELECT}, outfit_wears!inner(worn_date)`)
-        .order('created_at', { ascending: false });
+        .from('outfit_wears')
+        .select(
+          `id, worn_date, photo_url, note, outfits ( outfit_items ( items ( id, name, slot, color, image_url ) ) )`
+        )
+        .order('worn_date', { ascending: false });
       if (error) throw error;
-      const rows = data as unknown as RawOutfitRow[];
-      const seen = new Set<string>();
-      const unique = rows.filter((row) => {
-        if (seen.has(row.id)) return false;
-        seen.add(row.id);
-        return true;
-      });
-      return unique.map(mapOutfit);
+      const rows = data as unknown as RawWearRow[];
+      return rows.map((row) => ({
+        id: row.id,
+        wornDate: row.worn_date,
+        photoUrl: row.photo_url,
+        note: row.note,
+        items: row.outfits?.outfit_items.map((entry) => entry.items) ?? [],
+      }));
     },
   });
 }

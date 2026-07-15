@@ -5,7 +5,8 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OutfitCard } from '@/components/ui/OutfitCard';
-import { useLikedOutfits, useWornOutfits, type OutfitWithItems } from '@/lib/hooks/useOutfits';
+import { WearEventCard } from '@/components/ui/WearEventCard';
+import { useLikedOutfits, useWornOutfits, type OutfitWithItems, type WearEventData } from '@/lib/hooks/useOutfits';
 
 type Tab = 'gecmis' | 'begenilen';
 
@@ -14,8 +15,8 @@ export default function KombinlerimScreen() {
   const worn = useWornOutfits();
   const liked = useLikedOutfits();
 
-  const active = tab === 'gecmis' ? worn : liked;
-  const outfits = active.data ?? [];
+  const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
+  const isEmpty = tab === 'gecmis' ? (worn.data ?? []).length === 0 : (liked.data ?? []).length === 0;
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
@@ -28,37 +29,45 @@ export default function KombinlerimScreen() {
         <TabButton label="Beğenilenler" active={tab === 'begenilen'} onPress={() => setTab('begenilen')} />
       </View>
 
-      {active.isLoading && (
+      {isLoading && (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#3461FD" />
         </View>
       )}
 
-      {!active.isLoading && outfits.length === 0 && (
+      {!isLoading && isEmpty && (
         <View className="flex-1 items-center justify-center px-10">
           <Ionicons name="heart-outline" size={40} color="#9BA1A6" />
           <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
             {tab === 'gecmis' ? 'Henüz giydiğin bir kombin yok' : 'Henüz beğendiğin bir kombin yok'}
           </Text>
           <Text className="mt-1 text-center font-body text-sm text-gray-500 dark:text-gray-400">
-            Ana Sayfa&apos;dan bir kombin oluştur.
+            {tab === 'gecmis'
+              ? 'Beğendiğin bir kombini "Giydim" olarak işaretlediğinde burada görünecek.'
+              : "Ana Sayfa'dan bir kombin oluştur."}
           </Text>
         </View>
       )}
 
-      {!active.isLoading && outfits.length > 0 && (
+      {!isLoading && !isEmpty && tab === 'gecmis' && (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+          {(worn.data ?? []).map((wear: WearEventData) => (
+            <WearEventCard key={wear.id} wear={wear} />
+          ))}
+        </ScrollView>
+      )}
+
+      {!isLoading && !isEmpty && tab === 'begenilen' && (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
-          {outfits.map((outfit: OutfitWithItems) => (
+          {(liked.data ?? []).map((outfit: OutfitWithItems) => (
             <View key={outfit.id}>
               <OutfitCard outfit={{ id: outfit.id, context: outfit.generation_context, items: outfit.items }} />
-              {tab === 'begenilen' && (
-                <Pressable
-                  onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
-                  className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#3461FD" />
-                  <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
-                </Pressable>
-              )}
+              <Pressable
+                onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
+                className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
+                <Ionicons name="checkmark-circle-outline" size={18} color="#3461FD" />
+                <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
+              </Pressable>
             </View>
           ))}
         </ScrollView>
