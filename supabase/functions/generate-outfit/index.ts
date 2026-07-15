@@ -92,6 +92,12 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Envanterde ürün yok' }, 422);
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('gender, daily_style')
+    .eq('id', user.id)
+    .maybeSingle();
+
   const systemPrompt =
     'Sen bir moda stilistisin. Kullanıcının envanterinden, verilen bağlama (mevsim, mekan, saat, konsept) en uygun kombini seçiyorsun. Sadece envanterde var olan ürün id\'lerini kullan. Renk uyumuna ve konsepte dikkat et.';
 
@@ -100,7 +106,12 @@ Deno.serve(async (req: Request) => {
       ? `\n\nÖnceki öneri şu ürün id'lerini içeriyordu: ${JSON.stringify(excludeItemIds)}. Kullanıcı "Tekrar Dene" dedi, mümkünse FARKLI bir ürün kombinasyonu öner (aynısını tekrar önerme). Envanterde gerçekten başka uygun seçenek yoksa aynısını tekrarlayabilirsin.`
       : '';
 
-  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(items, null, 2)}${excludeNote}`;
+  const profileNote =
+    profile && (profile.gender || profile.daily_style)
+      ? `\n\nKullanıcı profili: ${JSON.stringify({ cinsiyet: profile.gender, gunluk_stil: profile.daily_style })}. Seçimini bu tercihlere göre hafifçe yönlendir (ör. "Rahat" diyorsa daha spor/gündelik parçaları öne çıkar).`
+      : '';
+
+  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(items, null, 2)}${excludeNote}${profileNote}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

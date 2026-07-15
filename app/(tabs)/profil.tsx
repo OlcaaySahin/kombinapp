@@ -59,6 +59,7 @@ export default function ProfilScreen() {
         {MENU_ITEMS.map((item, index) => (
           <Pressable
             key={item.label}
+            onPress={item.label === 'Hesap Bilgileri' ? () => router.push('/profile-edit') : undefined}
             className={`flex-row items-center px-4 py-4 ${
               index !== MENU_ITEMS.length - 1 ? 'border-b border-gray-200 dark:border-gray-700' : ''
             }`}>
