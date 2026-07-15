@@ -78,10 +78,10 @@ export default function AnaSayfaScreen() {
     if (userId) logEvent.mutate({ userId, type: 'outfit' });
   }
 
-  function rollDice() {
+  function rollDice(excludeIds?: Set<string>) {
     if (limitReached) return;
     const pool: DbItem[] = items ?? [];
-    const picked = generateRandomOutfit<DbItem>(pool);
+    const picked = generateRandomOutfit<DbItem>(pool, excludeIds);
     if (!picked) {
       showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
       return;
@@ -89,11 +89,11 @@ export default function AnaSayfaScreen() {
     showResult(picked, DICE_CONTEXT, 'dice');
   }
 
-  async function generateViaAi(context: OutfitContext) {
+  async function generateViaAi(context: OutfitContext, excludeItemIds?: string[]) {
     if (limitReached) return;
     setGenerating(true);
     try {
-      const suggestion = await requestAiOutfit(items ?? [], context);
+      const suggestion = await requestAiOutfit(items ?? [], context, excludeItemIds);
       if (!suggestion) {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
@@ -110,10 +110,11 @@ export default function AnaSayfaScreen() {
   }
 
   function retry() {
+    const previousIds = generatedItems?.map((item) => item.id) ?? [];
     if (generatedSource === 'ai_generated') {
-      generateViaAi(generatedContext);
+      generateViaAi(generatedContext, previousIds);
     } else {
-      rollDice();
+      rollDice(new Set(previousIds));
     }
   }
 
@@ -179,7 +180,7 @@ export default function AnaSayfaScreen() {
               onPress={() => setScreen('questions')}
             />
             <Pressable
-              onPress={rollDice}
+              onPress={() => rollDice()}
               disabled={limitReached}
               className={`flex-row items-center justify-center gap-2 rounded-2xl border py-4 ${
                 limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'

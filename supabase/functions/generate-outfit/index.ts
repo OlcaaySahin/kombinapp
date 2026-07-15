@@ -74,7 +74,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
-  const { context } = (await req.json()) as { context: OutfitContext };
+  const { context, excludeItemIds } = (await req.json()) as {
+    context: OutfitContext;
+    excludeItemIds?: string[];
+  };
 
   const { data: items, error: itemsError } = await supabase
     .from('items')
@@ -92,7 +95,12 @@ Deno.serve(async (req: Request) => {
   const systemPrompt =
     'Sen bir moda stilistisin. Kullanıcının envanterinden, verilen bağlama (mevsim, mekan, saat, konsept) en uygun kombini seçiyorsun. Sadece envanterde var olan ürün id\'lerini kullan. Renk uyumuna ve konsepte dikkat et.';
 
-  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(items, null, 2)}`;
+  const excludeNote =
+    excludeItemIds && excludeItemIds.length > 0
+      ? `\n\nÖnceki öneri şu ürün id'lerini içeriyordu: ${JSON.stringify(excludeItemIds)}. Kullanıcı "Tekrar Dene" dedi, mümkünse FARKLI bir ürün kombinasyonu öner (aynısını tekrar önerme). Envanterde gerçekten başka uygun seçenek yoksa aynısını tekrarlayabilirsin.`
+      : '';
+
+  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(items, null, 2)}${excludeNote}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

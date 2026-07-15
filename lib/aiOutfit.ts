@@ -12,15 +12,18 @@ export type OutfitSuggestion = {
 /**
  * "Kombin Oluştur" (soru bazlı) akışı için: generate-outfit Edge Function'ını dener.
  * Function henüz deploy edilmediyse veya hata verirse, yerel kural tabanlı seçime düşer.
+ * excludeItemIds verilirse ("Tekrar Dene"), hem AI hem fallback öncekiyle aynı kombini
+ * tekrar önermemeye çalışır.
  * Not: Zar butonu bunu KULLANMAZ, her zaman generateRandomOutfit ile lokal çalışır.
  */
 export async function requestAiOutfit(
   items: DbItem[],
-  context: OutfitContext
+  context: OutfitContext,
+  excludeItemIds?: string[]
 ): Promise<OutfitSuggestion | null> {
   try {
     const { data, error } = await supabase.functions.invoke('generate-outfit', {
-      body: { context },
+      body: { context, excludeItemIds },
     });
     if (error) throw error;
 
@@ -33,7 +36,8 @@ export async function requestAiOutfit(
 
     return { items: matched, reasoning: data?.reasoning, source: 'ai_generated' };
   } catch {
-    const fallback = generateRandomOutfit<DbItem>(items);
+    const excludeSet = excludeItemIds ? new Set(excludeItemIds) : undefined;
+    const fallback = generateRandomOutfit<DbItem>(items, excludeSet);
     if (!fallback) return null;
     return { items: fallback, source: 'dice' };
   }
