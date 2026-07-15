@@ -170,6 +170,9 @@ Kullanıcı cihazda test ederken kombinlerin renk/parça uyumunu yakalayamadığ
 
 **Canlı test edildi** (anonim test kullanıcısı + kasıtlı olarak yazlık/kışlık/renk-çatışmalı karışık 10 ürünlük envanter, script sonrasında silindi): Kış/Ofis/Sabah/Şık bağlamında çağrıldı, yazlık ve aşırı gündelik parçaları (turuncu crop, bej şort, kırmızı terlik, mor pantolon) doğru şekilde elemiş, lacivert kazak + siyah pantolon + siyah ayakkabı + lacivert kaban + gri bere ile tutarlı nötr bir palet seçmiş, gerekçesi de bunu doğru şekilde açıklıyor.
 
+## Tek Parçayı "Karıştır" ile Değiştirme (2026-07-15)
+Kullanıcı önerisi: kombinin tamamını değil, tek bir beğenmediği parçayı değiştirebilme. `OutfitCard`'da bir parçaya basılı tutunca üzerinde dinamik bir "Karıştır" butonu beliriyor (`onReplaceItem` callback'i verildiyse) — basınca `app/(tabs)/index.tsx`'teki `replaceItem()` o parçayı aynı `slot`tan, kombinin diğer parçalarıyla ve bu slotta bu oturumda daha önce denenmiş ürünlerle çakışmayan rastgele bir alternatifle değiştiriyor (`triedIdsBySlotRef`, her yeni kombin üretiminde sıfırlanıyor). İstek listesi dahil edilmişse (bkz. "İstek Listesi") o havuzdan da seçebiliyor. Kombin kaydedildikten sonra (`saved=true`) bu etkileşim kapatılıyor. Değiştirme sonrası eski AI `reasoning`'i temizleniyor (artık değişmiş bir ürüne atıf yapıyor olabileceği için).
+
 ## AI Kombin Gerekçesi (reasoning) Gösterimi (2026-07-15)
 `generate-outfit` Edge Function'ı baştan beri Claude'dan bir `reasoning` (1-2 cümlelik Türkçe gerekçe) döndürüyordu ama hiç kullanılmıyordu. Artık `app/(tabs)/index.tsx` bunu `generatedReasoning` state'inde tutup `OutfitCard`'a `reasoning` alanı olarak geçiyor; kart doluysa küçük bir ampul ikonlu notla gösteriliyor. **Sadece AI (bağlamsal sorular) yolunda var** — zar butonu tamamen yerel/rastgele seçim yaptığı için gerçek bir gerekçesi yok, bilinçli olarak boş bırakıldı (sahte açıklama üretmek yerine).
 
