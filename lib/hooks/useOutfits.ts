@@ -22,6 +22,7 @@ export type OutfitWithItems = {
   id: string;
   name: string | null;
   is_liked: boolean;
+  rating: number | null;
   generation_source: 'ai_generated' | 'dice' | 'manual';
   generation_context: OutfitContext;
   created_at: string;
@@ -32,6 +33,7 @@ type RawOutfitRow = {
   id: string;
   name: string | null;
   is_liked: boolean;
+  rating: number | null;
   generation_source: 'ai_generated' | 'dice' | 'manual';
   generation_context: OutfitContext;
   created_at: string;
@@ -43,6 +45,7 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
     id: row.id,
     name: row.name,
     is_liked: row.is_liked,
+    rating: row.rating,
     generation_source: row.generation_source,
     generation_context: row.generation_context,
     created_at: row.created_at,
@@ -51,7 +54,7 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
 }
 
 const OUTFIT_SELECT = `
-  id, name, is_liked, generation_source, generation_context, created_at,
+  id, name, is_liked, rating, generation_source, generation_context, created_at,
   outfit_items ( items ( id, name, slot, color, image_url ) )
 `;
 
@@ -74,9 +77,11 @@ export function useLikedOutfits() {
 
 export type WearEventData = {
   id: string;
+  outfitId: string | null;
   wornDate: string;
   photoUrl: string | null;
   note: string | null;
+  rating: number | null;
   items: OutfitItemSummary[];
 };
 
@@ -85,7 +90,7 @@ type RawWearRow = {
   worn_date: string;
   photo_url: string | null;
   note: string | null;
-  outfits: { outfit_items: { items: OutfitItemSummary }[] } | null;
+  outfits: { id: string; rating: number | null; outfit_items: { items: OutfitItemSummary }[] } | null;
 };
 
 /** Giyme anlarının kronolojik günlüğü (kombin albümü) — bir kombin birden fazla kez giyilmişse her seferi ayrı kart. */
@@ -96,16 +101,18 @@ export function useWornOutfits() {
       const { data, error } = await supabase
         .from('outfit_wears')
         .select(
-          `id, worn_date, photo_url, note, outfits ( outfit_items ( items ( id, name, slot, color, image_url ) ) )`
+          `id, worn_date, photo_url, note, outfits ( id, rating, outfit_items ( items ( id, name, slot, color, image_url ) ) )`
         )
         .order('worn_date', { ascending: false });
       if (error) throw error;
       const rows = data as unknown as RawWearRow[];
       return rows.map((row) => ({
         id: row.id,
+        outfitId: row.outfits?.id ?? null,
         wornDate: row.worn_date,
         photoUrl: row.photo_url,
         note: row.note,
+        rating: row.outfits?.rating ?? null,
         items: row.outfits?.outfit_items.map((entry) => entry.items) ?? [],
       }));
     },
@@ -154,6 +161,19 @@ export function useToggleLike() {
   return useMutation({
     mutationFn: async ({ outfitId, liked }: { outfitId: string; liked: boolean }) => {
       const { error } = await supabase.from('outfits').update({ is_liked: liked }).eq('id', outfitId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outfits'] });
+    },
+  });
+}
+
+export function useRateOutfit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ outfitId, rating }: { outfitId: string; rating: number }) => {
+      const { error } = await supabase.from('outfits').update({ rating }).eq('id', outfitId);
       if (error) throw error;
     },
     onSuccess: () => {

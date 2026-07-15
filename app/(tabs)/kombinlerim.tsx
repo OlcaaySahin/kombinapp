@@ -6,7 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OutfitCard } from '@/components/ui/OutfitCard';
 import { WearEventCard } from '@/components/ui/WearEventCard';
-import { useLikedOutfits, useWornOutfits, type OutfitWithItems, type WearEventData } from '@/lib/hooks/useOutfits';
+import {
+  useLikedOutfits,
+  useRateOutfit,
+  useWornOutfits,
+  type OutfitWithItems,
+  type WearEventData,
+} from '@/lib/hooks/useOutfits';
 
 type Tab = 'gecmis' | 'begenilen';
 
@@ -14,6 +20,7 @@ export default function KombinlerimScreen() {
   const [tab, setTab] = useState<Tab>('gecmis');
   const worn = useWornOutfits();
   const liked = useLikedOutfits();
+  const rateOutfit = useRateOutfit();
 
   const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
   const isEmpty = tab === 'gecmis' ? (worn.data ?? []).length === 0 : (liked.data ?? []).length === 0;
@@ -52,7 +59,11 @@ export default function KombinlerimScreen() {
       {!isLoading && !isEmpty && tab === 'gecmis' && (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
           {(worn.data ?? []).map((wear: WearEventData) => (
-            <WearEventCard key={wear.id} wear={wear} />
+            <WearEventCard
+              key={wear.id}
+              wear={wear}
+              onRate={wear.outfitId ? (value) => rateOutfit.mutate({ outfitId: wear.outfitId!, rating: value }) : undefined}
+            />
           ))}
         </ScrollView>
       )}
@@ -61,7 +72,15 @@ export default function KombinlerimScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
           {(liked.data ?? []).map((outfit: OutfitWithItems) => (
             <View key={outfit.id}>
-              <OutfitCard outfit={{ id: outfit.id, context: outfit.generation_context, items: outfit.items }} />
+              <OutfitCard
+                outfit={{
+                  id: outfit.id,
+                  context: outfit.generation_context,
+                  items: outfit.items,
+                  rating: outfit.rating,
+                }}
+                onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
+              />
               <Pressable
                 onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
                 className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">

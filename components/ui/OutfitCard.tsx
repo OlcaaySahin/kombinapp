@@ -2,14 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, View } from 'react-native';
 
 import { getCategory, type CategorySlot } from '@/constants/categories';
+import { StarRating } from '@/components/ui/StarRating';
 
 export type OutfitCardData = {
   id: string;
   context: { mevsim: string; mekan: string; saat: string; konsept: string };
   items: { id: string; name: string | null; slot: CategorySlot; color: string | null; image_url?: string | null }[];
+  rating?: number | null;
 };
 
-export function OutfitCard({ outfit }: { outfit: OutfitCardData }) {
+export function OutfitCard({
+  outfit,
+  onRate,
+}: {
+  outfit: OutfitCardData;
+  onRate?: (rating: number) => void;
+}) {
   const contextChips = Object.values(outfit.context);
 
   return (
@@ -21,6 +29,12 @@ export function OutfitCard({ outfit }: { outfit: OutfitCardData }) {
           </View>
         ))}
       </View>
+
+      {(onRate || outfit.rating) && (
+        <View className="mb-4">
+          <StarRating value={outfit.rating ?? null} onChange={onRate} size={20} />
+        </View>
+      )}
 
       <View className="flex-row flex-wrap justify-between">
         {outfit.items.map((item) => {

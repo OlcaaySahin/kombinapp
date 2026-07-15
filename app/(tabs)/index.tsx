@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { StarRating } from '@/components/ui/StarRating';
 import { requestAiOutfit } from '@/lib/aiOutfit';
 import { showAlert } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
@@ -13,6 +14,7 @@ import {
   useCreateOutfit,
   useDailyOutfitCount,
   useLogGenerationEvent,
+  useRateOutfit,
   type OutfitContext,
 } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit } from '@/lib/outfitGenerator';
@@ -43,6 +45,7 @@ export default function AnaSayfaScreen() {
   const dailyCount = useDailyOutfitCount(userId);
   const logEvent = useLogGenerationEvent();
   const createOutfit = useCreateOutfit();
+  const rateOutfit = useRateOutfit();
 
   const [screen, setScreen] = useState<Screen>('idle');
   const [mevsim, setMevsim] = useState<string | null>(null);
@@ -54,6 +57,8 @@ export default function AnaSayfaScreen() {
   const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
   const [generatedSource, setGeneratedSource] = useState<Source>('dice');
   const [saved, setSaved] = useState(false);
+  const [savedOutfitId, setSavedOutfitId] = useState<string | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept);
   const count = dailyCount.data ?? 0;
@@ -64,6 +69,8 @@ export default function AnaSayfaScreen() {
     setGeneratedContext(context);
     setGeneratedSource(source);
     setSaved(false);
+    setSavedOutfitId(null);
+    setRating(null);
     setScreen('result');
     if (userId) logEvent.mutate({ userId, type: 'outfit' });
   }
@@ -110,18 +117,25 @@ export default function AnaSayfaScreen() {
   async function handleLike() {
     if (!userId || !generatedItems) return;
     try {
-      await createOutfit.mutateAsync({
+      const outfitId = await createOutfit.mutateAsync({
         userId,
         itemIds: generatedItems.map((item) => item.id),
         context: generatedContext,
         source: generatedSource,
         isLiked: true,
       });
+      setSavedOutfitId(outfitId);
       setSaved(true);
     } catch (error) {
       console.error('Kombin kaydedilemedi:', error);
       showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
     }
+  }
+
+  function handleRate(value: number) {
+    if (!savedOutfitId) return;
+    setRating(value);
+    rateOutfit.mutate({ outfitId: savedOutfitId, rating: value });
   }
 
   function reset() {
@@ -132,6 +146,8 @@ export default function AnaSayfaScreen() {
     setKonsept(null);
     setGeneratedItems(null);
     setSaved(false);
+    setSavedOutfitId(null);
+    setRating(null);
   }
 
   const outfitCardData: OutfitCardData | null = generatedItems
@@ -191,9 +207,17 @@ export default function AnaSayfaScreen() {
           <View className="gap-4">
             <OutfitCard outfit={outfitCardData} />
             {saved ? (
-              <View className="flex-row items-center justify-center gap-2 rounded-2xl bg-primary/10 py-4">
-                <Ionicons name="checkmark-circle" size={20} color="#3461FD" />
-                <Text className="font-heading text-base text-primary">Kombinlerim&apos;e kaydedildi</Text>
+              <View className="items-center gap-3 rounded-2xl bg-primary/10 py-4">
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="checkmark-circle" size={20} color="#3461FD" />
+                  <Text className="font-heading text-base text-primary">Kombinlerim&apos;e kaydedildi</Text>
+                </View>
+                <View className="items-center gap-1">
+                  <Text className="font-body text-xs text-gray-500 dark:text-gray-400">
+                    Bu kombini nasıl buldun?
+                  </Text>
+                  <StarRating value={rating} onChange={handleRate} />
+                </View>
               </View>
             ) : (
               <View className="flex-row gap-3">

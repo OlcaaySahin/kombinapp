@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, View } from 'react-native';
 
+import { StarRating } from '@/components/ui/StarRating';
 import type { WearEventData } from '@/lib/hooks/useOutfits';
 
 function formatDate(dateStr: string) {
@@ -9,7 +10,13 @@ function formatDate(dateStr: string) {
   );
 }
 
-export function WearEventCard({ wear }: { wear: WearEventData }) {
+export function WearEventCard({
+  wear,
+  onRate,
+}: {
+  wear: WearEventData;
+  onRate?: (rating: number) => void;
+}) {
   return (
     <View className="mb-4 overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
       {wear.photoUrl ? (
@@ -21,7 +28,10 @@ export function WearEventCard({ wear }: { wear: WearEventData }) {
       )}
 
       <View className="p-4">
-        <Text className="font-body text-xs text-gray-500 dark:text-gray-400">{formatDate(wear.wornDate)}</Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="font-body text-xs text-gray-500 dark:text-gray-400">{formatDate(wear.wornDate)}</Text>
+          {(onRate || wear.rating) && <StarRating value={wear.rating} onChange={onRate} size={16} />}
+        </View>
         {wear.note ? (
           <Text className="mt-1 font-body-medium text-sm text-gray-900 dark:text-gray-100">{wear.note}</Text>
         ) : null}
