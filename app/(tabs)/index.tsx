@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import {
   type OutfitContext,
 } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit } from '@/lib/outfitGenerator';
+import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 const MEVSIM = ['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'];
@@ -45,6 +46,11 @@ type Source = 'ai_generated' | 'dice';
 export default function AnaSayfaScreen() {
   const userId = useAuthStore((state) => state.userId);
   const { data: items } = useItems();
+  const { data: wishlistItems } = useWishlistItems();
+  const wishlistIdSet = useMemo(
+    () => new Set((wishlistItems ?? []).map((item: DbWishlistItem) => item.id)),
+    [wishlistItems]
+  );
   const dailyCount = useDailyOutfitCount(userId);
   const logEvent = useLogGenerationEvent();
   const createOutfit = useCreateOutfit();
@@ -56,6 +62,7 @@ export default function AnaSayfaScreen() {
   const [saat, setSaat] = useState<string | null>(null);
   const [konsept, setKonsept] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [includeWishlist, setIncludeWishlist] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedItems, setGeneratedItems] = useState<DbItem[] | null>(null);
   const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
@@ -96,7 +103,14 @@ export default function AnaSayfaScreen() {
     if (limitReached) return;
     setGenerating(true);
     try {
-      const suggestion = await requestAiOutfit(items ?? [], context, excludeItemIds, note.trim() || undefined);
+      const pool: DbItem[] = includeWishlist ? [...(items ?? []), ...(wishlistItems ?? [])] : (items ?? []);
+      const suggestion = await requestAiOutfit(
+        pool,
+        context,
+        excludeItemIds,
+        note.trim() || undefined,
+        includeWishlist
+      );
       if (!suggestion) {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
@@ -123,6 +137,7 @@ export default function AnaSayfaScreen() {
 
   async function handleLike() {
     if (!userId || !generatedItems) return;
+    if (generatedItems.some((item) => wishlistIdSet.has(item.id))) return;
     try {
       const outfitId = await createOutfit.mutateAsync({
         userId,
@@ -153,6 +168,7 @@ export default function AnaSayfaScreen() {
     setSaat(null);
     setKonsept(null);
     setNote('');
+    setIncludeWishlist(false);
     setGeneratedItems(null);
     setGeneratedReasoning(null);
     setSaved(false);
@@ -160,11 +176,13 @@ export default function AnaSayfaScreen() {
     setRating(null);
   }
 
+  const hasWishlistItem = generatedItems?.some((item) => wishlistIdSet.has(item.id)) ?? false;
+
   const outfitCardData: OutfitCardData | null = generatedItems
     ? {
         id: 'preview',
         context: generatedContext,
-        items: generatedItems,
+        items: generatedItems.map((item) => ({ ...item, fromWishlist: wishlistIdSet.has(item.id) })),
         reasoning: generatedReasoning,
         userNote: generatedSource === 'ai_generated' ? note.trim() || null : null,
       }
@@ -222,6 +240,21 @@ export default function AnaSayfaScreen() {
               style={{ minHeight: 72, textAlignVertical: 'top' }}
             />
 
+            {(wishlistItems?.length ?? 0) > 0 && (
+              <Pressable
+                onPress={() => setIncludeWishlist((value) => !value)}
+                className="mb-6 flex-row items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-700">
+                <Ionicons
+                  name={includeWishlist ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={includeWishlist ? '#3461FD' : '#9BA1A6'}
+                />
+                <Text className="flex-1 font-body text-sm text-gray-700 dark:text-gray-300">
+                  İstek listemi de dahil et ({wishlistItems?.length} ürün)
+                </Text>
+              </Pressable>
+            )}
+
             <PrimaryButton
               label={generating ? 'Oluşturuluyor...' : 'Kombini Oluştur'}
               disabled={!allAnswered || generating}
@@ -247,22 +280,29 @@ export default function AnaSayfaScreen() {
                 </View>
               </View>
             ) : (
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <PrimaryButton
-                    label={createOutfit.isPending ? 'Kaydediliyor...' : 'Beğen'}
-                    disabled={createOutfit.isPending}
-                    onPress={handleLike}
-                  />
+              <View className="gap-2">
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <PrimaryButton
+                      label={createOutfit.isPending ? 'Kaydediliyor...' : 'Beğen'}
+                      disabled={createOutfit.isPending || hasWishlistItem}
+                      onPress={handleLike}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <PrimaryButton
+                      label={generating ? 'Oluşturuluyor...' : 'Tekrar Dene'}
+                      variant="secondary"
+                      disabled={limitReached || generating}
+                      onPress={retry}
+                    />
+                  </View>
                 </View>
-                <View className="flex-1">
-                  <PrimaryButton
-                    label={generating ? 'Oluşturuluyor...' : 'Tekrar Dene'}
-                    variant="secondary"
-                    disabled={limitReached || generating}
-                    onPress={retry}
-                  />
-                </View>
+                {hasWishlistItem && (
+                  <Text className="text-center font-body text-xs text-gray-500 dark:text-gray-400">
+                    Bu kombin istek listesi ürünü içeriyor — satın alıp envanterine ekleyince kaydedebilirsin.
+                  </Text>
+                )}
               </View>
             )}
             <Pressable onPress={reset}>

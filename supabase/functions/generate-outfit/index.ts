@@ -123,10 +123,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
-  const { context, excludeItemIds, note } = (await req.json()) as {
+  const { context, excludeItemIds, note, includeWishlist } = (await req.json()) as {
     context: OutfitContext;
     excludeItemIds?: string[];
     note?: string;
+    includeWishlist?: boolean;
   };
 
   const { data: items, error: itemsError } = await supabase
@@ -142,10 +143,22 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Envanterde ürün yok' }, 422);
   }
 
-  const itemsWithColorNames = items.map((item) => ({
-    ...item,
-    colorName: closestColorName(item.color),
-  }));
+  let wishlistItems: typeof items = [];
+  if (includeWishlist) {
+    const { data: wishlistData, error: wishlistError } = await supabase
+      .from('wishlist_items')
+      .select('id, slot, name, color, pattern, season, brand')
+      .eq('user_id', user.id);
+    if (wishlistError) {
+      return jsonResponse({ error: wishlistError.message }, 500);
+    }
+    wishlistItems = wishlistData ?? [];
+  }
+
+  const itemsWithColorNames = [
+    ...items.map((item) => ({ ...item, colorName: closestColorName(item.color), sahiplik: 'sahip' })),
+    ...wishlistItems.map((item) => ({ ...item, colorName: closestColorName(item.color), sahiplik: 'istek_listesi' })),
+  ];
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -161,6 +174,7 @@ Deno.serve(async (req: Request) => {
 4. Mekan/konsept uygunluğu: mekan Ofis veya konsept Şık/Özel Gün ise mümkünse eşofman/spor ayakkabı gibi aşırı gündelik parçalar yerine daha şık seçenekleri tercih et. mekan Deniz/Tatil veya konsept Spor ise rahat/hafif parçaları tercih et.
 5. Mevsim soğuksa (Kış/Sonbahar) ve envanterde uygun bir dış giyim (mont/kaban/ceket) varsa mutlaka ekle.
 6. Envanterde birebir ideal seçenek olmayabilir — böyle durumda envanterdeki EN YAKIN makul alternatifi seç, asla kombin üretmeyi reddetme.
+7. Bazı ürünlerin "sahiplik" alanı "istek_listesi" olabilir — bunlar kullanıcının satın almayı düşündüğü ama henüz sahip OLMADIĞI ürünlerdir. Bu ürünleri de kombine dahil edebilirsin (bu, kullanıcıyı satın almaya teşvik etmek için isteniyor), ama mümkünse kombinde en az bir "sahip" olunan parça kalsın. reasoning'de istek_listesi'nden seçtiğin parça(lar) varsa bunu açıkça belirt (ör. "X'i satın alırsan Y ile çok iyi gider").
 
 Önce reasoning alanında kısaca iç analizini yap, sonra itemIds'i o analize göre seç.`;
 

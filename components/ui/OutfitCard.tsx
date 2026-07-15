@@ -9,7 +9,14 @@ import { buildOutfitPreviewUrl } from '@/lib/outfitPreview';
 export type OutfitCardData = {
   id: string;
   context: { mevsim: string; mekan: string; saat: string; konsept: string };
-  items: { id: string; name: string | null; slot: CategorySlot; color: string | null; image_url?: string | null }[];
+  items: {
+    id: string;
+    name: string | null;
+    slot: CategorySlot;
+    color: string | null;
+    image_url?: string | null;
+    fromWishlist?: boolean;
+  }[];
   rating?: number | null;
   reasoning?: string | null;
   userNote?: string | null;
@@ -109,6 +116,12 @@ export function OutfitCard({
                 ) : (
                   <View className="h-full w-full items-center justify-center">
                     <Ionicons name={category.icon} size={28} color="#FFFFFF" />
+                  </View>
+                )}
+                {item.fromWishlist && (
+                  <View className="absolute left-1.5 top-1.5 flex-row items-center gap-1 rounded-full bg-black/60 px-2 py-1">
+                    <Ionicons name="heart" size={10} color="#FFFFFF" />
+                    <Text className="font-body-semibold text-[10px] text-white">İstek Listesi</Text>
                   </View>
                 )}
               </View>
