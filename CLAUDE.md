@@ -140,6 +140,13 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 
 **Ders**: "daha fazla deneme = daha güvenilir" varsayımı bot-tespiti olan sistemlerde tam tersine çalışabilir — ölçüm yaparken az sayıda örnekle ("başarı arttı görünüyor") aceleci sonuca varmamalı, ve retry/cache-busting gibi "dayanıklılık" iyileştirmeleri bile niyet dışında bir kaçınma/evasion deseni oluşturabileceğinden dikkatli tasarlanmalı.
 
+## Edge Function'larda Rate-Limit (2026-07-16)
+Daha önce hiçbir korunma yoktu — `generate-outfit`, `tag-item-photo`, `fetch-product-link` üçü de sınırsız çağrılabiliyordu (anon key zaten public, sadece bir oturum yeterliydi), bu gerçek bir Claude API maliyet riskiydi. `tag-item-photo` ve `fetch-product-link`'in ayrıca **hiç auth kontrolü bile yoktu** (Authorization header hiç okunmuyordu) — ikisine de eklendi.
+
+Üçü de artık: kullanıcının son 1 saatteki `generation_events(type='ai_call')` satır sayısı 30'u geçerse `429` dönüyor, geçmezse yeni bir `ai_call` satırı ekleyip devam ediyor. `generation_events.type` CHECK kısıtı `ai_call` değerini kapsayacak şekilde genişletildi (`20260716010000_extend_generation_events_type.sql`, Management API ile çalıştırıldı). 30/saat, gerçek bir kullanıcının normal kullanımında asla tetiklenmeyecek kadar cömert, ama script/kötüye kullanımı sınırlıyor.
+
+**Canlı test edildi**: her üç fonksiyon da rate-limit kodu eklendikten sonra normal çağrılarda sorunsuz çalışmaya devam ediyor (regresyon yok — özellikle `tag-item-photo`/`fetch-product-link`'e yeni eklenen auth zorunluluğu client tarafını bozmadı, çünkü `supabase.functions.invoke()` zaten otomatik olarak Authorization header'ı gönderiyor). 30 çağrı doldurulup 31.'si denendiğinde doğru şekilde "Çok fazla istek gönderildi" hatası döndü.
+
 ## Onboarding Turu + Profil Menü Ölü Öğeleri (2026-07-16)
 Kullanıcının "boş durmama" fikri + "işlevsiz menüleri işlevli kıl" isteği üzerine gece yapıldı:
 
@@ -234,6 +241,17 @@ Kullanıcı ilk kez gerçek APK ile (development client) telefonda test etti, ik
 - Doğrulama disiplini: her önemli değişiklikten sonra sırasıyla `npx tsc --noEmit` → `npx jest --watchAll=false` → `npx expo export -p web` (gerçek Metro/Babel bundling hatalarını yakalar) çalıştırıldı, hepsi geçmeden commit atılmadı. `dist/` klasörü her export sonrası silinir (gitignore'da zaten var, ekstra önlem).
 - **Foto akışları cihazda test edildi (2026-07-15)**: `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme/yükleme akışları (`expo-image-picker` + `lib/storage.ts` + `lib/aiTagging.ts`) kullanıcı tarafından gerçek telefonda denendi, sorunsuz çalışıyor. Artık auth/veri katmanı gibi uçtan uca doğrulanmış kabul edilebilir.
 - **Önemli — `npx expo export -p web`, tarayıcı runtime hatalarını YAKALAMAZ**: export sadece statik bundling yapar, sayfayı gerçek bir JS motorunda/DOM'da çalıştırmaz. Bu yüzden `tailwind.config.js`'te `darkMode: 'class'` eksikliği (varsayılan `'media'` NativeWind'in native↔web renk şeması senkronizasyonuyla çakışıp "Cannot manually set color scheme" hatasıyla çöküyordu) export'ta hiç görünmedi, ancak `npx expo start --web` ile tarayıcıda gerçekten açılınca ortaya çıktı (kullanıcı tarafından bulundu, 2026-07-15). **Ders**: NativeWind kurulumundan sonra mutlaka `npx expo start --web` ile gerçek bir tarayıcıda en az bir kez açıp konsolu kontrol edin — sadece `tsc`/`jest`/`export` yeterli değil.
+
+## Gece Boyunca Yapılanlar — Sabah Özeti (2026-07-15 gece → 2026-07-16 sabah)
+Kullanıcı uyurken (yeni API key/hesap gerektirmeyen) backlog üzerinde çalışıldı, hepsi doğrulanıp deploy edildi:
+
+1. **Rating → AI kişiselleştirme** — yüksek puanlı geçmiş kombinlerin renk/marka tercihleri yeni önerilere hafif bir sinyal olarak yansıyor (bağlamı hiç ezmiyor, canlı test edildi).
+2. **Parça-bazlı kombin gerekçesi** — kullanıcının önerdiği "beyaz crop + buz mavisi şort" tarzı somut çift-bazlı notlar artık `OutfitCard`'da gösteriliyor.
+3. **Profil menüsündeki ölü öğeler düzeltildi** — Yardım artık gerçek bir SSS ekranı, Bildirimler gerçek bir tercih ekranı (hatırlatıcı açık/kapalı + saat, AsyncStorage'a kaydediliyor — gerçek bildirim gönderimi `expo-notifications` native modülü gerektirdiği için ve bu gece test edilemeyeceği için bilinçli olarak eklenmedi). Partner Eşleştirme/Premium hâlâ "Yakında" — bunlar gerçekten büyük, ayrı alt yapı gerektiren özellikler.
+4. **Kart-bazlı onboarding turu** — ilk açılışta otomatik, sonra Yardım'dan tekrar açılabilir, dokunarak ilerleniyor (video değil).
+5. **Edge Function'larda rate-limit** — daha önce hiç yoktu, gerçek bir maliyet riskiydi; artık üçü de saatte 30 çağrı ile sınırlı, `tag-item-photo`/`fetch-product-link`'e eksik olan auth kontrolü de eklendi.
+
+Hepsi commit'lendi ve GitHub'a push edildi. Detaylar için yukarıdaki ilgili başlıklara bak.
 
 ## Sabah İçin Gerekenler (kullanıcıdan beklenen aksiyonlar)
 
