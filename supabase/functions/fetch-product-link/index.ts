@@ -3,6 +3,10 @@
 // olmadığını (alakasız ürünleri reddetmek için) belirler.
 // Deploy: supabase functions deploy fetch-product-link
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
+// Opsiyonel: render-headless-service/ (Render'da barındırılan Playwright servisi).
+// Ayarlanmamışsa headless fallback sessizce atlanır, direkt fetch tek başına çalışır.
+const RENDER_SERVICE_URL = Deno.env.get('RENDER_SERVICE_URL');
+const RENDER_SERVICE_API_KEY = Deno.env.get('RENDER_SERVICE_API_KEY');
 
 // Maliyet-etkin varsayılan; kalite yetersiz kalırsa 'claude-sonnet-5' ile değiştir.
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
@@ -70,6 +74,44 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function parseProductHtml(html: string) {
+  const product = extractJsonLdProduct(html);
+  const meta = extractMetaTags(html);
+  const productImage = product?.image as { contentUrl?: string | string[] } | string | undefined;
+  const scrapedImage =
+    (typeof productImage === 'string'
+      ? productImage
+      : Array.isArray(productImage?.contentUrl)
+        ? productImage?.contentUrl?.[0]
+        : productImage?.contentUrl) ??
+    meta['og:image'] ??
+    null;
+  return { product, meta, scrapedImage: scrapedImage ?? null };
+}
+
+// Direkt fetch, JS ile sonradan doldurulan bir SPA "shell" döndürdüğünde (200 OK ama
+// ürün verisi yok) devreye giren yedek: gerçek bir Chromium'da (Render'daki
+// render-headless-service) sayfayı açıp JS çalıştıktan sonraki HTML'i alır. Bu bir bot
+// koruması ATLATMA aracı değil — sadece sayfayı gerçek bir tarayıcı gibi render ediyoruz.
+// Bu yüzden SADECE burada (200 OK + boş içerik) çağrılıyor; sitenin açıkça engellediği
+// (403 vb.) durumlarda hiç denenmiyor.
+async function renderWithHeadlessService(url: string): Promise<string | null> {
+  if (!RENDER_SERVICE_URL || !RENDER_SERVICE_API_KEY) return null;
+  try {
+    const res = await fetch(`${RENDER_SERVICE_URL.replace(/\/$/, '')}/render`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': RENDER_SERVICE_API_KEY },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.html as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const TAG_PRODUCT_TOOL = {
   name: 'tag_product',
   description: 'Bir ürün görselini analiz edip giyim/aksesuar envanteri için etiketler üret.',
@@ -130,21 +172,20 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Sayfaya erişilemedi' }, 502);
     }
 
-    product = extractJsonLdProduct(html);
-    meta = extractMetaTags(html);
-
-    const productImage = product?.image as { contentUrl?: string | string[] } | string | undefined;
-    scrapedImage =
-      (typeof productImage === 'string'
-        ? productImage
-        : Array.isArray(productImage?.contentUrl)
-          ? productImage?.contentUrl?.[0]
-          : productImage?.contentUrl) ??
-      meta['og:image'] ??
-      null;
+    ({ product, meta, scrapedImage } = parseProductHtml(html));
 
     if (!scrapedImage && attempt < MAX_ATTEMPTS - 1) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
+  // Direkt fetch'ler 200 döndü ama içinde ürün verisi yoktu (JS ile sonradan doldurulan
+  // bir shell) — gerçek tarayıcıda render edip tekrar deniyoruz. Site zaten açıkça
+  // engellemiş olsaydı yukarıdaki döngü çoktan erken dönüş yapmış olurdu.
+  if (!scrapedImage) {
+    const renderedHtml = await renderWithHeadlessService(url);
+    if (renderedHtml) {
+      ({ product, meta, scrapedImage } = parseProductHtml(renderedHtml));
     }
   }
 

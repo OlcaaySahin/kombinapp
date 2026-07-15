@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: kombin-headless-render
+    runtime: docker
+    plan: free
+    rootDir: render-headless-service
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: API_KEY
+        sync: false

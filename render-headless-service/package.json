@@ -1,0 +1,17 @@
+{
+  "name": "kombin-headless-render",
+  "version": "1.0.0",
+  "description": "Kombin App icin: bir URL'i gercek bir tarayicida (Playwright/Chromium) acip JS calistiktan sonraki HTML'i donen kucuk servis. fetch-product-link Edge Function'inin, direkt fetch'in bos bir SPA kabugu dondurdugu durumlarda basvurdugu bir yedek.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "^1.47.0"
+  }
+}
