@@ -12,6 +12,7 @@ export type OutfitCardData = {
   items: { id: string; name: string | null; slot: CategorySlot; color: string | null; image_url?: string | null }[];
   rating?: number | null;
   reasoning?: string | null;
+  userNote?: string | null;
 };
 
 export function OutfitCard({
@@ -45,6 +46,15 @@ export function OutfitCard({
           <Ionicons name="body-outline" size={18} color="#3461FD" />
         </Pressable>
       </View>
+
+      {outfit.userNote && (
+        <View className="mb-3 flex-row gap-2 rounded-2xl bg-primary/5 p-3">
+          <Ionicons name="chatbox-ellipses-outline" size={16} color="#3461FD" style={{ marginTop: 1 }} />
+          <Text className="flex-1 font-body text-xs italic text-gray-600 dark:text-gray-300">
+            &quot;{outfit.userNote}&quot;
+          </Text>
+        </View>
+      )}
 
       {outfit.reasoning && (
         <View className="mb-4 flex-row gap-2 rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">

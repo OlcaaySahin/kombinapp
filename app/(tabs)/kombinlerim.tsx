@@ -78,6 +78,7 @@ export default function KombinlerimScreen() {
                   context: outfit.generation_context,
                   items: outfit.items,
                   rating: outfit.rating,
+                  userNote: outfit.user_note,
                 }}
                 onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
               />

@@ -25,6 +25,7 @@ export type OutfitWithItems = {
   rating: number | null;
   generation_source: 'ai_generated' | 'dice' | 'manual';
   generation_context: OutfitContext;
+  user_note: string | null;
   created_at: string;
   items: OutfitItemSummary[];
 };
@@ -36,6 +37,7 @@ type RawOutfitRow = {
   rating: number | null;
   generation_source: 'ai_generated' | 'dice' | 'manual';
   generation_context: OutfitContext;
+  user_note: string | null;
   created_at: string;
   outfit_items: { items: OutfitItemSummary }[];
 };
@@ -48,13 +50,14 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
     rating: row.rating,
     generation_source: row.generation_source,
     generation_context: row.generation_context,
+    user_note: row.user_note,
     created_at: row.created_at,
     items: row.outfit_items.map((entry) => entry.items),
   };
 }
 
 const OUTFIT_SELECT = `
-  id, name, is_liked, rating, generation_source, generation_context, created_at,
+  id, name, is_liked, rating, generation_source, generation_context, user_note, created_at,
   outfit_items ( items ( id, name, slot, color, image_url ) )
 `;
 
@@ -125,6 +128,7 @@ export type CreateOutfitInput = {
   context: OutfitContext;
   source: 'ai_generated' | 'dice' | 'manual';
   isLiked?: boolean;
+  userNote?: string;
 };
 
 export function useCreateOutfit() {
@@ -138,6 +142,7 @@ export function useCreateOutfit() {
           generation_source: input.source,
           generation_context: input.context,
           is_liked: input.isLiked ?? true,
+          user_note: input.userNote ?? null,
         })
         .select()
         .single();

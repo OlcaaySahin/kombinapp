@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
@@ -55,6 +55,7 @@ export default function AnaSayfaScreen() {
   const [mekan, setMekan] = useState<string | null>(null);
   const [saat, setSaat] = useState<string | null>(null);
   const [konsept, setKonsept] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedItems, setGeneratedItems] = useState<DbItem[] | null>(null);
   const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
@@ -95,7 +96,7 @@ export default function AnaSayfaScreen() {
     if (limitReached) return;
     setGenerating(true);
     try {
-      const suggestion = await requestAiOutfit(items ?? [], context, excludeItemIds);
+      const suggestion = await requestAiOutfit(items ?? [], context, excludeItemIds, note.trim() || undefined);
       if (!suggestion) {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
@@ -129,6 +130,7 @@ export default function AnaSayfaScreen() {
         context: generatedContext,
         source: generatedSource,
         isLiked: true,
+        userNote: note.trim() || undefined,
       });
       setSavedOutfitId(outfitId);
       setSaved(true);
@@ -150,6 +152,7 @@ export default function AnaSayfaScreen() {
     setMekan(null);
     setSaat(null);
     setKonsept(null);
+    setNote('');
     setGeneratedItems(null);
     setGeneratedReasoning(null);
     setSaved(false);
@@ -163,6 +166,7 @@ export default function AnaSayfaScreen() {
         context: generatedContext,
         items: generatedItems,
         reasoning: generatedReasoning,
+        userNote: generatedSource === 'ai_generated' ? note.trim() || null : null,
       }
     : null;
 
@@ -203,6 +207,21 @@ export default function AnaSayfaScreen() {
             <OptionChipRow label="Mekan" options={MEKAN} value={mekan} onChange={setMekan} />
             <OptionChipRow label="Saat" options={SAAT} value={saat} onChange={setSaat} />
             <OptionChipRow label="Konsept" options={KONSEPT} value={konsept} onChange={setKonsept} />
+
+            <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
+              Ek not (opsiyonel)
+            </Text>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Örn. Arkadaşımın doğum günü partisi, rahat ama şık olsun"
+              placeholderTextColor="#9BA1A6"
+              multiline
+              maxLength={200}
+              className="mb-6 rounded-2xl border border-gray-200 px-4 py-3 font-body text-base text-gray-900 dark:border-gray-700 dark:text-gray-100"
+              style={{ minHeight: 72, textAlignVertical: 'top' }}
+            />
+
             <PrimaryButton
               label={generating ? 'Oluşturuluyor...' : 'Kombini Oluştur'}
               disabled={!allAnswered || generating}

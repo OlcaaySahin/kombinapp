@@ -19,11 +19,12 @@ export type OutfitSuggestion = {
 export async function requestAiOutfit(
   items: DbItem[],
   context: OutfitContext,
-  excludeItemIds?: string[]
+  excludeItemIds?: string[],
+  note?: string
 ): Promise<OutfitSuggestion | null> {
   try {
     const { data, error } = await supabase.functions.invoke('generate-outfit', {
-      body: { context, excludeItemIds },
+      body: { context, excludeItemIds, note },
     });
     if (error) throw error;
 

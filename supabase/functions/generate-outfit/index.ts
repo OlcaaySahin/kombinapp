@@ -123,9 +123,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
-  const { context, excludeItemIds } = (await req.json()) as {
+  const { context, excludeItemIds, note } = (await req.json()) as {
     context: OutfitContext;
     excludeItemIds?: string[];
+    note?: string;
   };
 
   const { data: items, error: itemsError } = await supabase
@@ -173,7 +174,12 @@ Deno.serve(async (req: Request) => {
       ? `\n\nKullanıcı profili: ${JSON.stringify({ cinsiyet: profile.gender, gunluk_stil: profile.daily_style })}. Seçimini bu tercihlere göre hafifçe yönlendir (ör. "Rahat" diyorsa daha spor/gündelik parçaları öne çıkar).`
       : '';
 
-  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}`;
+  const userNoteBlock =
+    note && note.trim()
+      ? `\n\nKullanıcının bu kombin için özel notu: "${note.trim().slice(0, 300)}". Bu notu diğer bağlam bilgilerinden (mevsim/mekan/saat/konsept) DAHA ÖNCELİKLİ bir sinyal olarak dikkate al, seçimini buna göre şekillendir ve reasoning'de bu nota nasıl karşılık verdiğini belirt.`
+      : '';
+
+  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}${userNoteBlock}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
