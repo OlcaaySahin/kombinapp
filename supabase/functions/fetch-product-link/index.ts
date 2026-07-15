@@ -108,23 +108,22 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Geçerli bir ürün linki gerekli' }, 400);
   }
 
-  // Bazı siteler (ör. Trendyol) load balancer arkasında ürün sayfasını bazen tam
-  // sunucu-taraflı render edilmiş (JSON-LD dolu) bazen sadece istemci tarafında
-  // hidrate edilecek boş bir "shell" olarak döndürüyor — hangisinin geldiği istekten
-  // isteğe değişiyor. Bot koruması değil, salt altyapı tutarsızlığı; birkaç kez
-  // denemek genellikle dolu sürümü yakalıyor.
-  const MAX_ATTEMPTS = 4;
+  // Bazı siteler ürün sayfasını bazen tam sunucu-taraflı render edilmiş (JSON-LD dolu)
+  // bazen sadece istemci tarafında hidrate edilecek boş bir "shell" olarak döndürüyor.
+  // Bilinçli olarak SADECE 1 nazik tekrar deneniyor, agresif retry/cache-busting YAPILMIYOR —
+  // önceki (4 deneme + sahte cache-buster query param) sürüm otomasyon gibi göründüğü için
+  // muhtemelen bazı sitelerde durumu kötüleştirdi (2026-07-15, kullanıcı cihazda gözlemledi).
+  // Bir site açıkça engellerse (403 vb.) hiç tekrar denenmiyor — bu net bir "hayır" sinyali,
+  // etrafından dolaşmaya çalışmıyoruz.
+  const MAX_ATTEMPTS = 2;
   let scrapedImage: string | null = null;
   let product: Record<string, unknown> | null = null;
   let meta: Record<string, string> = {};
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS && !scrapedImage; attempt++) {
-    // Her denemede benzersiz bir cache-buster query param'ı ekleniyor — ara CDN
-    // katmanlarının ayni URL'i onbellekten (bos "shell" surumuyle) donmesini engellemek icin.
-    const cacheBustUrl = url + (url.includes('?') ? '&' : '?') + `_cb=${Date.now()}${attempt}`;
     let html: string;
     try {
-      const pageRes = await fetch(cacheBustUrl, { headers: BROWSER_HEADERS, cache: 'no-store' });
+      const pageRes = await fetch(url, { headers: BROWSER_HEADERS, cache: 'no-store' });
       if (!pageRes.ok) return jsonResponse({ error: `Sayfa alınamadı (HTTP ${pageRes.status})` }, 502);
       html = await pageRes.text();
     } catch {
@@ -145,7 +144,7 @@ Deno.serve(async (req: Request) => {
       null;
 
     if (!scrapedImage && attempt < MAX_ATTEMPTS - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
   }
 
@@ -156,7 +155,7 @@ Deno.serve(async (req: Request) => {
   const scrapedCurrency = offers?.priceCurrency ?? null;
 
   if (!scrapedImage) {
-    return jsonResponse({ error: 'Sayfada ürün görseli bulunamadı, birkaç kez denendi. Tekrar dene.' }, 422);
+    return jsonResponse({ error: 'Sayfada ürün görseli bulunamadı. Bu site şu an desteklenmiyor olabilir, elle doldurabilirsin.' }, 422);
   }
 
   let imageBase64: string;
