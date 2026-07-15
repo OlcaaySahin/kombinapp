@@ -91,6 +91,27 @@ const SUGGEST_OUTFIT_TOOL = {
         description:
           'reasoning alanındaki analize göre seçilen ürünlerin id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli. Mevsim soğuksa ve envanterde uygun bir dis_giyim varsa ekle. İstersen bir taki/tamamlayici/canta ile tamamla.',
       },
+      pairingNotes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            itemIds: {
+              type: 'array',
+              items: { type: 'string' },
+              description: "Bu notun bahsettiği 2 (bazen daha fazla) ürünün id'leri, itemIds listesinden.",
+            },
+            note: {
+              type: 'string',
+              description:
+                'Kısa (en fazla 12-15 kelime), somut bir Türkçe stil notu, ör. "Beyaz crop ile lacivert pantolonun renk kontrastı şık bir görünüm sağlıyor."',
+            },
+          },
+          required: ['itemIds', 'note'],
+        },
+        description:
+          'Opsiyonel, en fazla 3 tane: seçtiğin parçalar arasındaki somut ilişkiler (renk uyumu, doku/desen eşleşmesi, aksesuarın tamamlayıcılığı vb.). Genel geçer laf etme, spesifik ol.',
+      },
     },
     required: ['reasoning', 'itemIds'],
   },
@@ -166,6 +187,35 @@ Deno.serve(async (req: Request) => {
     .eq('id', user.id)
     .maybeSingle();
 
+  // Rating -> kisisellestirme: kullanicinin yuksek puan verdigi (4-5 yildiz) gecmis
+  // kombinlerdeki renk/marka tercihlerini cikarip hafif bir sinyal olarak prompt'a ekle.
+  // En az 3 puanli kombin olmadan (yetersiz veri) hic devreye girmez.
+  const { data: ratedOutfitRows } = await supabase
+    .from('outfits')
+    .select('rating, outfit_items(items(color, brand))')
+    .eq('user_id', user.id)
+    .gte('rating', 4)
+    .order('rating', { ascending: false })
+    .limit(15);
+
+  type RatedOutfitRow = { rating: number; outfit_items: { items: { color: string | null; brand: string | null } | null }[] };
+  const ratedRows = (ratedOutfitRows ?? []) as unknown as RatedOutfitRow[];
+
+  const colorCounts = new Map<string, number>();
+  const brandCounts = new Map<string, number>();
+  for (const row of ratedRows) {
+    for (const entry of row.outfit_items) {
+      const item = entry.items;
+      if (!item) continue;
+      const colorName = closestColorName(item.color);
+      if (colorName) colorCounts.set(colorName, (colorCounts.get(colorName) ?? 0) + 1);
+      if (item.brand) brandCounts.set(item.brand, (brandCounts.get(item.brand) ?? 0) + 1);
+    }
+  }
+
+  const topColors = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
+  const topBrands = [...brandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name]) => name);
+
   const systemPrompt = `Sen deneyimli bir moda stilistisin. Kullanıcının envanterinden, verilen bağlama (mevsim, mekan, saat, konsept) EN UYGUN ve stil olarak TUTARLI bir kombin seçiyorsun. Kurallara sıkı sıkıya uy:
 
 1. Sadece envanterde var olan ürün id'lerini kullan, envanterde olmayan bir şey uydurma.
@@ -175,8 +225,9 @@ Deno.serve(async (req: Request) => {
 5. Mevsim soğuksa (Kış/Sonbahar) ve envanterde uygun bir dış giyim (mont/kaban/ceket) varsa mutlaka ekle.
 6. Envanterde birebir ideal seçenek olmayabilir — böyle durumda envanterdeki EN YAKIN makul alternatifi seç, asla kombin üretmeyi reddetme.
 7. Bazı ürünlerin "sahiplik" alanı "istek_listesi" olabilir — bunlar kullanıcının satın almayı düşündüğü ama henüz sahip OLMADIĞI ürünlerdir. Bu ürünleri de kombine dahil edebilirsin (bu, kullanıcıyı satın almaya teşvik etmek için isteniyor), ama mümkünse kombinde en az bir "sahip" olunan parça kalsın. reasoning'de istek_listesi'nden seçtiğin parça(lar) varsa bunu açıkça belirt (ör. "X'i satın alırsan Y ile çok iyi gider").
+8. pairingNotes alanında (opsiyonel, en fazla 3 tane) seçtiğin parçalar arasındaki somut ilişkileri kısaca açıkla — renk uyumu, doku/desen eşleşmesi, aksesuarın tamamlayıcılığı gibi. Genel geçer laf etme ("bu ikisi güzel gider" gibi), spesifik ol ("X'in Y tonu Z'nin rengiyle aynı ailede" gibi).
 
-Önce reasoning alanında kısaca iç analizini yap, sonra itemIds'i o analize göre seç.`;
+Önce reasoning alanında kısaca iç analizini yap, sonra itemIds'i o analize göre seç, en son pairingNotes ile detaylandır.`;
 
   const excludeNote =
     excludeItemIds && excludeItemIds.length > 0
@@ -193,7 +244,16 @@ Deno.serve(async (req: Request) => {
       ? `\n\nKullanıcının bu kombin için özel notu: "${note.trim().slice(0, 300)}". Bu notu diğer bağlam bilgilerinden (mevsim/mekan/saat/konsept) DAHA ÖNCELİKLİ bir sinyal olarak dikkate al, seçimini buna göre şekillendir ve reasoning'de bu nota nasıl karşılık verdiğini belirt.`
       : '';
 
-  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}${userNoteBlock}`;
+  const ratingNote =
+    ratedRows.length >= 3 && (topColors.length > 0 || topBrands.length > 0)
+      ? `\n\nKullanıcının geçmişte yüksek puan verdiği (4-5 yıldız) kombinlerde öne çıkan tercihler: ${
+          topColors.length ? `renkler: ${topColors.join(', ')}` : ''
+        }${topColors.length && topBrands.length ? '; ' : ''}${
+          topBrands.length ? `markalar: ${topBrands.join(', ')}` : ''
+        }. Mümkünse bu tercihlere hafifçe öncelik ver — ama bağlama uygunluk (mevsim/mekan/konsept) her zaman daha önemli, sırf geçmiş tercih diye uygunsuz bir parça seçme.`
+      : '';
+
+  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}${userNoteBlock}${ratingNote}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

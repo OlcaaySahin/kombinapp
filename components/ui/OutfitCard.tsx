@@ -19,6 +19,7 @@ export type OutfitCardData = {
   }[];
   rating?: number | null;
   reasoning?: string | null;
+  pairingNotes?: { itemIds: string[]; note: string }[] | null;
   userNote?: string | null;
 };
 
@@ -66,10 +67,32 @@ export function OutfitCard({
         </View>
       )}
 
-      {outfit.reasoning && (
-        <View className="mb-4 flex-row gap-2 rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
-          <Ionicons name="bulb-outline" size={16} color="#3461FD" style={{ marginTop: 1 }} />
-          <Text className="flex-1 font-body text-xs text-gray-600 dark:text-gray-300">{outfit.reasoning}</Text>
+      {(outfit.reasoning || (outfit.pairingNotes && outfit.pairingNotes.length > 0)) && (
+        <View className="mb-4 gap-2 rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
+          {outfit.reasoning && (
+            <View className="flex-row gap-2">
+              <Ionicons name="bulb-outline" size={16} color="#3461FD" style={{ marginTop: 1 }} />
+              <Text className="flex-1 font-body text-xs text-gray-600 dark:text-gray-300">{outfit.reasoning}</Text>
+            </View>
+          )}
+          {outfit.pairingNotes?.map((pairing, index) => {
+            const names = pairing.itemIds
+              .map((id) => outfit.items.find((item) => item.id === id)?.name)
+              .filter((name): name is string => Boolean(name));
+            return (
+              <View key={index} className="flex-row gap-2">
+                <Ionicons name="sparkles-outline" size={16} color="#8B3FE8" style={{ marginTop: 1 }} />
+                <Text className="flex-1 font-body text-xs text-gray-600 dark:text-gray-300">
+                  {names.length > 0 && (
+                    <Text className="font-body-semibold text-gray-700 dark:text-gray-200">
+                      {names.join(' + ')}:{' '}
+                    </Text>
+                  )}
+                  {pairing.note}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       )}
 

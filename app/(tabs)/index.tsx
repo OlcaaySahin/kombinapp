@@ -7,7 +7,7 @@ import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StarRating } from '@/components/ui/StarRating';
-import { requestAiOutfit } from '@/lib/aiOutfit';
+import { requestAiOutfit, type PairingNote } from '@/lib/aiOutfit';
 import { showAlert } from '@/lib/alert';
 import type { CategorySlot } from '@/constants/categories';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
@@ -69,6 +69,7 @@ export default function AnaSayfaScreen() {
   const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
   const [generatedSource, setGeneratedSource] = useState<Source>('dice');
   const [generatedReasoning, setGeneratedReasoning] = useState<string | null>(null);
+  const [generatedPairingNotes, setGeneratedPairingNotes] = useState<PairingNote[] | null>(null);
   const [saved, setSaved] = useState(false);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
@@ -81,7 +82,13 @@ export default function AnaSayfaScreen() {
   // ürünleri hariç tutmak için — her yeni kombin üretiminde sıfırlanır.
   const triedIdsBySlotRef = useRef<Map<CategorySlot, Set<string>>>(new Map());
 
-  function showResult(picked: DbItem[], context: OutfitContext, source: Source, reasoning?: string | null) {
+  function showResult(
+    picked: DbItem[],
+    context: OutfitContext,
+    source: Source,
+    reasoning?: string | null,
+    pairingNotes?: PairingNote[] | null
+  ) {
     const triedMap = new Map<CategorySlot, Set<string>>();
     for (const item of picked) {
       if (!triedMap.has(item.slot)) triedMap.set(item.slot, new Set());
@@ -93,6 +100,7 @@ export default function AnaSayfaScreen() {
     setGeneratedContext(context);
     setGeneratedSource(source);
     setGeneratedReasoning(reasoning ?? null);
+    setGeneratedPairingNotes(pairingNotes ?? null);
     setSaved(false);
     setSavedOutfitId(null);
     setRating(null);
@@ -124,6 +132,7 @@ export default function AnaSayfaScreen() {
 
     setGeneratedItems((current) => current!.map((item) => (item.id === itemId ? replacement : item)));
     setGeneratedReasoning(null);
+    setGeneratedPairingNotes(null);
   }
 
   function rollDice(excludeIds?: Set<string>) {
@@ -153,7 +162,7 @@ export default function AnaSayfaScreen() {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
       }
-      showResult(suggestion.items, context, suggestion.source, suggestion.reasoning);
+      showResult(suggestion.items, context, suggestion.source, suggestion.reasoning, suggestion.pairingNotes);
     } finally {
       setGenerating(false);
     }
@@ -209,6 +218,7 @@ export default function AnaSayfaScreen() {
     setIncludeWishlist(false);
     setGeneratedItems(null);
     setGeneratedReasoning(null);
+    setGeneratedPairingNotes(null);
     setSaved(false);
     setSavedOutfitId(null);
     setRating(null);
@@ -222,6 +232,7 @@ export default function AnaSayfaScreen() {
         context: generatedContext,
         items: generatedItems.map((item) => ({ ...item, fromWishlist: wishlistIdSet.has(item.id) })),
         reasoning: generatedReasoning,
+        pairingNotes: generatedPairingNotes,
         userNote: generatedSource === 'ai_generated' ? note.trim() || null : null,
       }
     : null;

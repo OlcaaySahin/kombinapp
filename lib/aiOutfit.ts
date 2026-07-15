@@ -3,9 +3,12 @@ import type { OutfitContext } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit } from '@/lib/outfitGenerator';
 import { supabase } from '@/lib/supabase';
 
+export type PairingNote = { itemIds: string[]; note: string };
+
 export type OutfitSuggestion = {
   items: DbItem[];
   reasoning?: string;
+  pairingNotes?: PairingNote[];
   source: 'ai_generated' | 'dice';
 };
 
@@ -36,7 +39,7 @@ export async function requestAiOutfit(
 
     if (matched.length === 0) throw new Error('AI önerisi envanterle eşleşmedi');
 
-    return { items: matched, reasoning: data?.reasoning, source: 'ai_generated' };
+    return { items: matched, reasoning: data?.reasoning, pairingNotes: data?.pairingNotes, source: 'ai_generated' };
   } catch {
     const excludeSet = excludeItemIds ? new Set(excludeItemIds) : undefined;
     const fallback = generateRandomOutfit<DbItem>(items, excludeSet);

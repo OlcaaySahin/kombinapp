@@ -4,16 +4,33 @@ import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/lib/alert';
 import { useAuthStore } from '@/lib/stores/authStore';
 
-type MenuItem = { icon: ComponentProps<typeof Ionicons>['name']; label: string };
+type MenuItem = { icon: ComponentProps<typeof Ionicons>['name']; label: string; comingSoonMessage?: string };
 
 const MENU_ITEMS: MenuItem[] = [
   { icon: 'person-outline', label: 'Hesap Bilgileri' },
-  { icon: 'people-outline', label: 'Partner Eşleştirme' },
-  { icon: 'star-outline', label: "Premium'a Yükselt" },
-  { icon: 'notifications-outline', label: 'Bildirimler' },
-  { icon: 'help-circle-outline', label: 'Yardım' },
+  {
+    icon: 'people-outline',
+    label: 'Partner Eşleştirme',
+    comingSoonMessage: 'Partnerinle envanterinizi birleştirip birlikte kombin önerisi alma özelliği yakında.',
+  },
+  {
+    icon: 'star-outline',
+    label: "Premium'a Yükselt",
+    comingSoonMessage: 'Premium üyelik yakında burada olacak.',
+  },
+  {
+    icon: 'notifications-outline',
+    label: 'Bildirimler',
+    comingSoonMessage: 'Bildirim tercihleri yakında burada olacak.',
+  },
+  {
+    icon: 'help-circle-outline',
+    label: 'Yardım',
+    comingSoonMessage: 'Sorun mu yaşıyorsun? Şimdilik geliştiriciyle doğrudan iletişime geçebilirsin.',
+  },
 ];
 
 export default function ProfilScreen() {
@@ -59,7 +76,11 @@ export default function ProfilScreen() {
         {MENU_ITEMS.map((item, index) => (
           <Pressable
             key={item.label}
-            onPress={item.label === 'Hesap Bilgileri' ? () => router.push('/profile-edit') : undefined}
+            onPress={() =>
+              item.label === 'Hesap Bilgileri'
+                ? router.push('/profile-edit')
+                : showAlert('Yakında', item.comingSoonMessage ?? 'Bu özellik yakında eklenecek.')
+            }
             className={`flex-row items-center px-4 py-4 ${
               index !== MENU_ITEMS.length - 1 ? 'border-b border-gray-200 dark:border-gray-700' : ''
             }`}>
