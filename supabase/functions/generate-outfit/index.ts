@@ -144,6 +144,20 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
+  // Basit saatlik rate-limit: ucretli Claude cagrilarinin kotuye kullanimini onlemek icin
+  // (butun user'lar icin cok cömert bir tavan, gercek kullanimda hic tetiklenmemesi beklenir).
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentCallCount } = await supabase
+    .from('generation_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('type', 'ai_call')
+    .gte('created_at', oneHourAgo);
+  if ((recentCallCount ?? 0) >= 30) {
+    return jsonResponse({ error: 'Çok fazla istek gönderildi, lütfen birazdan tekrar dene.' }, 429);
+  }
+  await supabase.from('generation_events').insert({ user_id: user.id, type: 'ai_call' });
+
   const { context, excludeItemIds, note, includeWishlist } = (await req.json()) as {
     context: OutfitContext;
     excludeItemIds?: string[];

@@ -2,7 +2,11 @@
 // isim/görsel/fiyat çeker, görseli Claude vision ile etiketler ve giyim ürünü olup
 // olmadığını (alakasız ürünleri reddetmek için) belirler.
 // Deploy: supabase functions deploy fetch-product-link
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 // Opsiyonel: render-headless-service/ (Render'da barındırılan Playwright servisi).
 // Ayarlanmamışsa headless fallback sessizce atlanır, direkt fetch tek başına çalışır.
 const RENDER_SERVICE_URL = Deno.env.get('RENDER_SERVICE_URL');
@@ -144,6 +148,38 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return jsonResponse({ error: 'Missing Authorization header' }, 401);
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  // Basit saatlik rate-limit: hem Claude vision cagrisi hem urun sayfasi/headless-render
+  // istekleri gercek maliyet tasidigi icin.
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentCallCount } = await supabase
+    .from('generation_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('type', 'ai_call')
+    .gte('created_at', oneHourAgo);
+  if ((recentCallCount ?? 0) >= 30) {
+    return jsonResponse({ error: 'Çok fazla istek gönderildi, lütfen birazdan tekrar dene.' }, 429);
+  }
+  await supabase.from('generation_events').insert({ user_id: user.id, type: 'ai_call' });
 
   const { url } = (await req.json()) as { url?: string };
   if (!url || !/^https?:\/\//i.test(url)) {

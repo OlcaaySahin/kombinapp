@@ -1,7 +1,11 @@
 // Supabase Edge Function: bir kıyafet/aksesuar fotoğrafını Claude vision ile otomatik etiketler.
 // Deploy: supabase functions deploy tag-item-photo
 // Gizli anahtar: supabase secrets set --env-file supabase/.env
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 // Maliyet-etkin varsayılan; kalite yetersiz kalırsa 'claude-sonnet-5' ile değiştir.
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
@@ -60,6 +64,37 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return jsonResponse({ error: 'Missing Authorization header' }, 401);
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  // Basit saatlik rate-limit: ucretli Claude vision cagrilarinin kotuye kullanimini onlemek icin.
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentCallCount } = await supabase
+    .from('generation_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('type', 'ai_call')
+    .gte('created_at', oneHourAgo);
+  if ((recentCallCount ?? 0) >= 30) {
+    return jsonResponse({ error: 'Çok fazla istek gönderildi, lütfen birazdan tekrar dene.' }, 429);
+  }
+  await supabase.from('generation_events').insert({ user_id: user.id, type: 'ai_call' });
 
   const { imageBase64, mediaType } = (await req.json()) as {
     imageBase64: string;
