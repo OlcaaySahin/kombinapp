@@ -25,12 +25,15 @@ export type OutfitCardData = {
 export function OutfitCard({
   outfit,
   onRate,
+  onReplaceItem,
 }: {
   outfit: OutfitCardData;
   onRate?: (rating: number) => void;
+  onReplaceItem?: (itemId: string) => void;
 }) {
   const contextChips = Object.values(outfit.context);
   const [previewState, setPreviewState] = useState<'hidden' | 'loading' | 'shown' | 'error'>('hidden');
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
   function togglePreview() {
     setPreviewState((current) => (current === 'hidden' || current === 'error' ? 'loading' : 'hidden'));
@@ -110,7 +113,10 @@ export function OutfitCard({
           const color = item.color ?? '#8E8E93';
           return (
             <View key={item.id} className="mb-4 w-[47%]">
-              <View className="aspect-square w-full overflow-hidden rounded-2xl" style={{ backgroundColor: color }}>
+              <Pressable
+                onLongPress={() => onReplaceItem && setActiveItemId((current) => (current === item.id ? null : item.id))}
+                className="aspect-square w-full overflow-hidden rounded-2xl"
+                style={{ backgroundColor: color }}>
                 {item.image_url ? (
                   <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
                 ) : (
@@ -124,7 +130,20 @@ export function OutfitCard({
                     <Text className="font-body-semibold text-[10px] text-white">İstek Listesi</Text>
                   </View>
                 )}
-              </View>
+                {onReplaceItem && activeItemId === item.id && (
+                  <View className="absolute inset-0 items-center justify-center bg-black/50">
+                    <Pressable
+                      onPress={() => {
+                        onReplaceItem(item.id);
+                        setActiveItemId(null);
+                      }}
+                      className="flex-row items-center gap-1.5 rounded-full bg-white px-3 py-2">
+                      <Ionicons name="shuffle" size={14} color="#3461FD" />
+                      <Text className="font-body-semibold text-xs text-primary">Karıştır</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </Pressable>
               <Text
                 numberOfLines={1}
                 className="mt-1.5 font-body-medium text-xs text-gray-900 dark:text-gray-100">

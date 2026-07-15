@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StarRating } from '@/components/ui/StarRating';
 import { requestAiOutfit } from '@/lib/aiOutfit';
 import { showAlert } from '@/lib/alert';
+import type { CategorySlot } from '@/constants/categories';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useCreateOutfit,
@@ -76,7 +77,18 @@ export default function AnaSayfaScreen() {
   const count = dailyCount.data ?? 0;
   const limitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
 
+  // "Karıştır" ile tek parça değiştirirken ayni parçanın slotunda daha önce denenmiş
+  // ürünleri hariç tutmak için — her yeni kombin üretiminde sıfırlanır.
+  const triedIdsBySlotRef = useRef<Map<CategorySlot, Set<string>>>(new Map());
+
   function showResult(picked: DbItem[], context: OutfitContext, source: Source, reasoning?: string | null) {
+    const triedMap = new Map<CategorySlot, Set<string>>();
+    for (const item of picked) {
+      if (!triedMap.has(item.slot)) triedMap.set(item.slot, new Set());
+      triedMap.get(item.slot)!.add(item.id);
+    }
+    triedIdsBySlotRef.current = triedMap;
+
     setGeneratedItems(picked);
     setGeneratedContext(context);
     setGeneratedSource(source);
@@ -86,6 +98,32 @@ export default function AnaSayfaScreen() {
     setRating(null);
     setScreen('result');
     if (userId) logEvent.mutate({ userId, type: 'outfit' });
+  }
+
+  function replaceItem(itemId: string) {
+    if (!generatedItems) return;
+    const target = generatedItems.find((item) => item.id === itemId);
+    if (!target) return;
+
+    const pool: DbItem[] = includeWishlist ? [...(items ?? []), ...(wishlistItems ?? [])] : (items ?? []);
+    const tried = triedIdsBySlotRef.current.get(target.slot) ?? new Set<string>();
+    const currentIds = new Set(generatedItems.map((item) => item.id));
+
+    const candidates = pool.filter(
+      (item: DbItem) => item.slot === target.slot && !tried.has(item.id) && !currentIds.has(item.id)
+    );
+
+    if (candidates.length === 0) {
+      showAlert('Başka seçenek yok', 'Bu kategoride envanterinde/istek listende başka bir ürün bulunmuyor.');
+      return;
+    }
+
+    const replacement = candidates[Math.floor(Math.random() * candidates.length)];
+    tried.add(replacement.id);
+    triedIdsBySlotRef.current.set(target.slot, tried);
+
+    setGeneratedItems((current) => current!.map((item) => (item.id === itemId ? replacement : item)));
+    setGeneratedReasoning(null);
   }
 
   function rollDice(excludeIds?: Set<string>) {
@@ -265,7 +303,12 @@ export default function AnaSayfaScreen() {
 
         {screen === 'result' && outfitCardData && (
           <View className="gap-4">
-            <OutfitCard outfit={outfitCardData} />
+            <OutfitCard outfit={outfitCardData} onReplaceItem={saved ? undefined : replaceItem} />
+            {!saved && (
+              <Text className="-mt-2 text-center font-body text-xs text-gray-400 dark:text-gray-500">
+                Beğenmediğin bir parçaya basılı tut, değiştirmek için Karıştır'a bas
+              </Text>
+            )}
             {saved ? (
               <View className="items-center gap-3 rounded-2xl bg-primary/10 py-4">
                 <View className="flex-row items-center gap-2">
