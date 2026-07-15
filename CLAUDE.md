@@ -140,6 +140,14 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 
 **Ders**: "daha fazla deneme = daha güvenilir" varsayımı bot-tespiti olan sistemlerde tam tersine çalışabilir — ölçüm yaparken az sayıda örnekle ("başarı arttı görünüyor") aceleci sonuca varmamalı, ve retry/cache-busting gibi "dayanıklılık" iyileştirmeleri bile niyet dışında bir kaçınma/evasion deseni oluşturabileceğinden dikkatli tasarlanmalı.
 
+## Onboarding Turu + Profil Menü Ölü Öğeleri (2026-07-16)
+Kullanıcının "boş durmama" fikri + "işlevsiz menüleri işlevli kıl" isteği üzerine gece yapıldı:
+
+- **`app/onboarding.tsx`** — 6 kartlık, dokunarak (kartın herhangi bir yerine veya "İleri" butonuna basınca) ilerlenen bir tanıtım turu. Video değil, sadece ikon+başlık+açıklama kartları: hoş geldin → envanter oluştur → bağlamsal soru ile kombin → zar → karıştır → istek listesi. `lib/onboarding.ts`'teki `hasSeenOnboarding()`/`markOnboardingSeen()` AsyncStorage kullanıyor (yeni bir tabloya gerek yok, cihaz bazlı bir tercih zaten). Ana Sayfa mount olduğunda kontrol edilip görülmediyse otomatik açılıyor (`app/(tabs)/index.tsx`'teki `useEffect`).
+- **`app/yardim.tsx`** — artık gerçek bir SSS ekranı (5 soru-cevap) + "Tanıtımı Tekrar İzle" butonu (onboarding'i istenildiği zaman tekrar açar). Daha önce sadece "Yakında" alerti veriyordu.
+- **`app/bildirimler.tsx`** — günlük kombin hatırlatıcısı tercihini (açık/kapalı + saat, chip seçimi) AsyncStorage'a kaydediyor. **Bilinçli olarak `expo-notifications` eklenmedi** — yeni bir native modül mevcut dev-client build'ini yeniden derletmeyi (`eas build`) gerektirir ve bu gece (kullanıcı uyurken) test edilemezdi; sadece tercih kaydediliyor, gerçek bildirim gönderimi ileride bu tercihi kullanarak eklenebilir. Bu, "her şeyi işlevli yap" isteğiyle "test edemeyeceğim native değişiklik yapma" ilkesi arasında bilinçli bir denge.
+- **Partner Eşleştirme / Premium'a Yükselt** hâlâ "Yakında" alerti veriyor — bunlar gerçekten büyük, ayrı backend (partner eşleştirme mantığı) veya ödeme altyapısı (RevenueCat) gerektiren özellikler, sahte bir ekranla doldurmak yanlış olurdu, dürüstçe "yakında" demek tercih edildi.
+
 ## Rating Kişiselleştirme + Parça-Bazlı Gerekçe (2026-07-16)
 Kullanıcı uyurken Fikir havuzu'ndaki iki backlog maddesi tamamlandı, `generate-outfit`'e eklendi:
 
