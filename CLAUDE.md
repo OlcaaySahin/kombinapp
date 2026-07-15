@@ -79,6 +79,23 @@ Neden bu yaklaşım: sahte/hardcoded bir `user_id` ile ilerleseydik, gerçek gir
 
 **Önemli**: Supabase Dashboard'da Authentication → Sign In/Providers → "Allow anonymous sign-ins" **açık olmalı** (2026-07-15'te kullanıcı tarafından açıldı ve doğrulandı). Kapatılırsa uygulama açılışta patlar.
 
+## Gerçek Giriş: E-posta ile Hesap Yükseltme — CANLI VE UÇTAN UCA TEST EDİLDİ (2026-07-15)
+Anonim kullanıcı, verisini kaybetmeden kalıcı bir hesaba "yükseltiliyor" (aynı `auth.uid()` korunuyor, sadece `is_anonymous` `false` oluyor):
+- `lib/auth.ts` → `sendAccountUpgradeCode(email)` (`supabase.auth.updateUser({ email })`) ve `verifyAccountUpgradeCode(email, token)` (`supabase.auth.verifyOtp({ email, token, type: 'email_change' })`)
+- `app/sign-in.tsx` — e-posta gir → kod gönder → kodu gir → doğrula, iki adımlı modal ekran
+- `app/(tabs)/profil.tsx` — anonim kullanıcıya "Hesabını Oluştur" kartı gösterip `/sign-in`'e yönlendiriyor; gerçek kullanıcıya e-postasını gösteriyor
+- `lib/stores/authStore.ts` artık `isAnonymous` ve `email` de tutuyor, `lib/auth.ts`'teki `syncSession()` her auth state değişikliğinde günceliyor
+- **Gerçek testle doğrulandı**: anonim oturum → kod gönderildi → kullanıcı gerçek e-postasından kodu aldı → doğrulama sonrası `is_anonymous: false` teyit edildi
+
+**Kritik gotcha'lar (sırasıyla keşfedildi):**
+1. Supabase'in varsayılan (yerleşik) e-posta servisi şablonları **düzenlemeye izin vermiyor** — sadece link içeren sabit varsayılan şablonu gönderiyor. Şablon içeriğini (`{{ .Token }}` eklemek gibi) değiştirmek için **önce özel SMTP kurmak zorunlu** (Supabase Dashboard bunu açıkça UI'da belirtiyor: "Set up custom SMTP to edit templates").
+2. Kullanıcı Gmail'i SMTP olarak kurdu (`smtp.gmail.com:587`, Gmail App Password ile, gönderen: `kombinapp67@gmail.com`) — günde 500 mail limiti bizim ölçeğimiz için fazlasıyla yeterli. "Change email address" şablonuna `{{ .Token }}` eklendi.
+3. **Supabase'in OTP kodu 6 haneli değil, 8 haneli** — `app/sign-in.tsx`'teki input `maxLength` buna göre ayarlandı (6→8). Varsayımla ilerlenirse (çoğu üçüncü parti auth örneği 6 haneli varsayır) kod input'u kırpar, doğrulama sessizce başarısız olur.
+4. Link-tabanlı varsayılan şablon (SMTP kurulmadan önce) aslında **arka planda çalışıyordu** — kullanıcı "link çalışmıyor" dese de sunucu tarafında onay gerçekleşmişti (ikinci bir `updateUser` denemesi "already registered" hatası verince anlaşıldı). Yani mobilde link'in görsel olarak "başarılı" görünmemesi, onayın gerçekleşmediği anlamına gelmiyor — şüphede kalınırsa `getUser()` ile kontrol edin.
+5. Gmail nokta-duyarsızdır (`o.l.c.a.y.s.a.h.i.n5858@gmail.com` ile `olcaysahin5858@gmail.com` aynı kutuya düşer) ama **Supabase bunları farklı e-posta olarak görür** — test sırasında "already registered" hatasına takılırsanız nokta varyasyonunu değiştirmek pratik bir geçici çözüm.
+
+**Hâlâ eksik**: Google OAuth girişi — Google Cloud Console'da ayrı kurulum (OAuth Client ID/Secret) gerektirir, kullanıcı henüz bunu sağlamadı, MVP'yi bloklamıyor (email akışı zaten çalışıyor).
+
 ## Gerçek Veri Durumu (mock kaldırıldı, `lib/mockData.ts` silindi)
 Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz):
 - **Ana Sayfa** (`app/(tabs)/index.tsx`) — bağlamsal soru akışı → `lib/aiOutfit.ts`'teki `requestAiOutfit()` (Edge Function dener, fallback'li) · Zar At → `lib/outfitGenerator.ts`'teki `generateRandomOutfit()` (her zaman lokal) · günlük limit `useDailyOutfitCount` ile DB'den · "Beğen" → `useCreateOutfit` ile `outfits`+`outfit_items`'a yazar

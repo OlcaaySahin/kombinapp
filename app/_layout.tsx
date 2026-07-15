@@ -49,6 +49,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="add-item" options={{ presentation: 'modal', title: 'Ürün Ekle' }} />
           <Stack.Screen name="mark-worn" options={{ presentation: 'modal', title: 'Giydim' }} />
+          <Stack.Screen name="sign-in" options={{ presentation: 'modal', title: 'Hesabını Oluştur' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
       </ThemeProvider>
