@@ -98,7 +98,7 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 
 **Supabase şema durumu**:
 - `supabase/migrations/20260715000000_init_schema.sql` — kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
-- `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Henüz SQL Editor'da çalıştırılmadı/doğrulanmadı** — foto yükleme akışının çalışması için bunun da çalıştırılması gerekiyor (bkz. sabah listesi, madde 2).
+- `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı**: her iki bucket'a da anon key + RLS ile gerçek dosya yükleme, herkese açık URL erişimi (HTTP 200) ve silme test edildi, hepsi sorunsuz.
 
 ## Notlar
 - **Figma MCP** `.mcp.json` içinde proje seviyesinde tanımlı (`figma`, http transport). Aktif olması için VS Code workspace kökünün bu klasör olması ve yeni bir Claude Code oturumu gerekiyor.
@@ -115,12 +115,15 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 
 **~~1. Supabase Personal Access Token~~ — TAMAMLANDI (2026-07-15).** Token verildi, Edge Function'lar deploy edildi, secret set edildi, ikisi de gerçek Claude çağrılarıyla test edildi. Token bu oturumda sadece geçici env var olarak kullanıldı, hiçbir dosyaya yazılmadı.
 
+**~~2. Storage migration~~ — TAMAMLANDI (2026-07-15).** Kullanıcı SQL Editor'da çalıştırdı, her iki bucket da (`item-photos`, `outfit-wear-photos`) gerçek upload/erişim/silme testinden geçti.
+
+**Backend tarafı artık %100 canlı ve doğrulanmış** (auth, DB, RLS, iki Edge Function, iki Storage bucket). Geriye kalan tek şey, kullanıcı deneyimi tarafında benim test edemediğim kısım:
+
 **Şimdi ilerlemek için gerekli:**
-1. **Storage migration'ı çalıştır** — `supabase/migrations/20260715010000_storage_setup.sql` dosyasının tamamını SQL Editor'a yapıştırıp çalıştırman yeterli (ilk migration'da yaptığın gibi). Bucket oluşturma + RLS için token/manuel dashboard işlemi gerekmiyor, bu SQL hepsini yapıyor.
-2. **Foto akışlarını bir kez dene** — `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme + yükleme akışlarını hiçbir cihazda test edemedim (bu ortamda kamera/galeri yok). İlk fırsatta bir ürün eklerken/kombin giyerken foto seçmeyi dene, bir sorun çıkarsa bildir. (AI kombin üretimi ve foto etiketleme Edge Function'ları zaten canlı test edildi — bunlar çalışır durumda.)
+1. **Foto akışlarını bir kez dene** — `app/add-item.tsx` ve `app/mark-worn.tsx`'teki foto seçme + yükleme akışlarını hiçbir cihazda test edemedim (bu ortamda kamera/galeri yok). İlk fırsatta bir ürün eklerken/kombin giyerken foto seçmeyi dene, bir sorun çıkarsa bildir.
 
 **Yakın gelecek (bugün acil değil, ama bilgin olsun):**
-3. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
-4. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
-5. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
-6. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
+2. **Google OAuth Client ID/Secret** — gerçek Google ile giriş ekranı yapılacağı zaman lazım (Google Cloud Console). Şu an anonymous auth ile çalıştığımız için MVP'yi bloklamıyor.
+3. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
+4. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
+5. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
