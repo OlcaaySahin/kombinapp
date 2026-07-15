@@ -124,6 +124,11 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 - `supabase/migrations/20260715000000_init_schema.sql` — kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı (anon key ile `categories` tablosuna canlı sorgu atılıp 8 satır döndüğü teyit edildi). Tüm tablolar ve RLS politikaları prod projede (`tvjjwpotqeybtkkvvwox`, Tokyo) aktif.
 - `supabase/migrations/20260715010000_storage_setup.sql` — `item-photos` ve `outfit-wear-photos` bucket'larını + RLS politikalarını oluşturuyor. **Kullanıcı tarafından SQL Editor'da çalıştırıldı ve doğrulandı**: her iki bucket'a da anon key + RLS ile gerçek dosya yükleme, herkese açık URL erişimi (HTTP 200) ve silme test edildi, hepsi sorunsuz.
 
+## Profil Bilgileri: Cinsiyet, Yaş, Boy, Kilo, Günlük Stil (2026-07-15)
+`profiles` tablosuna `age`, `height_cm`, `weight_kg`, `daily_style` eklendi (`gender` zaten vardı). Amaç: kullanıcıyı tanıyıp AI kombin önerisini kişiselleştirmek. `app/profile-edit.tsx` (modal, Profil sekmesi → "Hesap Bilgileri") tüm alanları opsiyonel bırakıyor — hiçbiri zorunlu değil, kullanıcı istediği kadarını doldurur. `lib/hooks/useProfile.ts` → `useProfile()`/`useUpdateProfile()`.
+
+`generate-outfit` Edge Function artık kullanıcının `gender`/`daily_style`'ını (doluysa) prompt'a hafif bir yönlendirme notu olarak ekliyor. `age`/`height_cm`/`weight_kg` şu an AI prompt'una **dahil değil** — envanterdeki mevcut ürünlerin kombinasyonunu seçiyoruz, beden/uyum önerisi yapmıyoruz, bu yüzden doğrudan faydası yok; ileride "bu ürün sana uyar mı" gibi bir özellik gelirse kullanılabilir. Migration (`20260716000000_add_profile_details.sql`) kullanıcıya sorulmadan doğrudan Management API (`SUPABASE_ACCESS_TOKEN` + `/database/query` endpoint) üzerinden benim tarafımdan çalıştırıldı — rating migration'ının unutulup sessizce özelliği kırdığı olaydan sonra bilinçli tercih.
+
 ## Cihaz Testinde Bulunan İki Bug — Düzeltildi (2026-07-15)
 Kullanıcı ilk kez gerçek APK ile (development client) telefonda test etti, iki gerçek bug bildirdi, ikisi de düzeltildi:
 
