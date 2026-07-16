@@ -33,7 +33,7 @@ export function ItemCard({
   const iconColor = isLightColor(color) ? '#1C1C1E' : '#FFFFFF';
 
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} className="mb-4 w-[47%]">
+    <Pressable onPress={onPress} onLongPress={onLongPress} className="mb-4 w-[47%] shadow-sm dark:shadow-none">
       <View className="aspect-square w-full overflow-hidden rounded-2xl" style={{ backgroundColor: color }}>
         {item.image_url ? (
           <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />

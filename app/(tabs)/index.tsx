@@ -250,7 +250,15 @@ export default function AnaSayfaScreen() {
     : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
+    <SafeAreaView className="flex-1 overflow-hidden bg-white dark:bg-[#151718]" edges={['top']}>
+      <View
+        className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/10 dark:bg-primary/20"
+        pointerEvents="none"
+      />
+      <View
+        className="absolute -right-6 top-24 h-28 w-28 rounded-full bg-accent-purple/10 dark:bg-accent-purple/15"
+        pointerEvents="none"
+      />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <View className="pb-6 pt-2">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Bugün ne giysem?</Text>

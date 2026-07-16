@@ -41,7 +41,7 @@ export function OutfitCard({
   }
 
   return (
-    <View className="rounded-3xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+    <View className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
       <View className="mb-4 flex-row items-start justify-between">
         <View className="flex-1 flex-row flex-wrap gap-2">
           {contextChips.map((value) => (
