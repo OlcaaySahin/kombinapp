@@ -83,7 +83,7 @@ const SUGGEST_OUTFIT_TOOL = {
       internalAnalysis: {
         type: 'string',
         description:
-          "İÇ ANALİZ (kullanıcıya GÖSTERİLMEZ, sadece senin düşünme alanın): bu bağlam (mevsim/mekan/saat/konsept) için hangi renk paleti ve parça tipleri uygun, envanterde bunlara en yakın hangi parçalar var (ürün id'leriyle referans verebilirsin), seçtiğin parçaların renkleri/desenleri birbirini nasıl tamamlıyor.",
+          'İÇ ANALİZ (kullanıcıya GÖSTERİLMEZ, sadece senin düşünme alanın): bu bağlam için hangi renk paleti ve parça tipleri uygun, envanterde bunlara en yakın hangi parçalar var, seçimlerin birbirini nasıl tamamlıyor. KISA TUT (en fazla ~80 kelime), ürünlere İSMİYLE değin — ürün id\'lerini bu alana ASLA yazma (id\'ler sadece itemIds alanına, burada yer kaplamasın).',
       },
       reasoning: {
         type: 'string',
@@ -283,7 +283,9 @@ Deno.serve(async (req: Request) => {
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
+      // 1024 yetersizdi: internalAnalysis + UUID listeleri büyük envanterde çıktıyı
+      // yarıda kestiriyordu (reasoning/itemIds eksik dönüyordu) — canlı yeniden üretildi.
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
       tools: [SUGGEST_OUTFIT_TOOL],
@@ -301,6 +303,15 @@ Deno.serve(async (req: Request) => {
 
   if (!toolUse) {
     return jsonResponse({ error: 'AI yanıtı ayrıştırılamadı' }, 502);
+  }
+
+  // Çıktı token limitine takılırsa alanlar sessizce eksik dönebiliyor — bunu maskelenmiş
+  // bir "envanter eşleşmedi" hatası yerine açık, teşhis edilebilir bir hata yap.
+  if (result.stop_reason === 'max_tokens' || !Array.isArray(toolUse.input.itemIds) || !toolUse.input.reasoning) {
+    return jsonResponse(
+      { error: `AI yanıtı eksik döndü (stop_reason: ${result.stop_reason ?? 'bilinmiyor'})` },
+      502
+    );
   }
 
   return jsonResponse({

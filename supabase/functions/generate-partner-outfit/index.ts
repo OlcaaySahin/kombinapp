@@ -87,7 +87,7 @@ const SUGGEST_PARTNER_OUTFIT_TOOL = {
       internalAnalysis: {
         type: 'string',
         description:
-          "İÇ ANALİZ (kullanıcıya GÖSTERİLMEZ): kullanıcının kombini hangi renk paletinde/stilde, partnerin envanterinde buna uyumlu (aynı renk ailesinden veya bilinçli tamamlayıcı kontrast) hangi parçalar var, gerekirse ürün id'leriyle referans ver.",
+          'İÇ ANALİZ (kullanıcıya GÖSTERİLMEZ): kullanıcının kombini hangi renk paletinde/stilde, partnerin envanterinde buna uyumlu (aynı renk ailesinden veya bilinçli tamamlayıcı kontrast) hangi parçalar var. KISA TUT (en fazla ~80 kelime), ürünlere İSMİYLE değin — ürün id\'lerini bu alana ASLA yazma (id\'ler sadece itemIds alanına).',
       },
       reasoning: {
         type: 'string',
@@ -234,7 +234,8 @@ ${matchPolicy}`;
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
+      // generate-outfit'teki max_tokens kesilme bug'ının aynısına karşı önlem (bkz. o dosya).
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
       tools: [SUGGEST_PARTNER_OUTFIT_TOOL],
@@ -251,6 +252,9 @@ ${matchPolicy}`;
   const toolUse = result.content?.find((block: { type: string }) => block.type === 'tool_use');
   if (!toolUse) {
     return jsonResponse({ error: 'AI yanıtı ayrıştırılamadı' }, 502);
+  }
+  if (result.stop_reason === 'max_tokens') {
+    return jsonResponse({ error: `AI yanıtı eksik döndü (stop_reason: max_tokens)` }, 502);
   }
 
   const selectedIds: string[] = toolUse.input.itemIds ?? [];

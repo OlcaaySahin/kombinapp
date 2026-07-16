@@ -295,6 +295,13 @@ Kullanıcı bildirdi: bağlam soruları cevaplanıp kombin oluşturulduğunda ba
 
 **Düzeltme**: `app/(tabs)/index.tsx`'te `generateViaAi`, `suggestion.source === 'dice'` olduğunda (yani AI'a düşüş gerçekleştiğinde) `reasoning` alanına açık bir mesaj koyuyor: "Şu an AI önerisi alınamadı, envanterinden bağlama uygun rastgele bir kombin seçtik." Kök sebep (o anki tekil Claude API hatası) tekrarlanabilir değildi ve loglardan kesin teşhis edilemedi — bu yüzden asıl düzeltme "sessizce" değil "dürüstçe" düşmek oldu.
 
+## Bug: internalAnalysis Eklemek Ana Kombin Üretimini Bozdu (max_tokens) — Düzeltildi (2026-07-16)
+Kullanıcı bildirdi: "çalışan bir şey nasıl bozulur" — ana kombin üretimi bağlamı kuramıyor, gerekçe metni oluşturamıyordu (partner kombini çalışırken). **Kök sebep Claude API'sinde DEĞİL, bendim**: `internalAnalysis` alanını eklerken `max_tokens: 1024`'ü güncellememiştim. Şemada `internalAnalysis` İLK alan olduğu için model önce onu üretiyor; büyük (gerçekçi, 20+ ürünlük) envanterde uzun analiz + UUID referansları (her UUID ~15 token) bütçeyi dolduruyor, çıktı yarıda kesiliyor (`stop_reason: max_tokens`), `reasoning`/`itemIds` alanları eksik dönüyordu → client sessizce zar fallback'ine düşüyordu. Küçük test envanterlerimde (5 ürün) çıktı kısa kaldığı için testlerim yakalayamamıştı; canlı olarak 24 ürünlük envanterle yeniden üretildi (3 denemede 1 başarısız).
+
+**Düzeltme (her iki üretim fonksiyonunda)**: `max_tokens` 1024→2500; `internalAnalysis` açıklamasına "KISA TUT (~80 kelime), ürün id'si YAZMA (isimle değin)" kısıtı; ve teşhis katmanı — `stop_reason === 'max_tokens'` ya da `itemIds`/`reasoning` eksikse artık sessizce bozuk veri dönmek yerine açık bir 502 hatası ("AI yanıtı eksik döndü (stop_reason: ...)") dönüyor. Düzeltme sonrası 5/5 deneme başarılı.
+
+**Ders**: tool şemasına yeni (özellikle ilk sırada, uzun metinli) bir alan eklerken `max_tokens` bütçesini birlikte düşün; ve testleri gerçekçi veri boyutuyla yap — 5 ürünlük envanterde geçen test, 25 ürünlükte patlayabiliyor.
+
 ## Partner Kombini: Bağlam Kuralları + "Daha Esnek Öner" Akışı (2026-07-16)
 Kullanıcı iki sorun bildirdi: (1) `generate-partner-outfit` ham "Partnerin envanterinden uygun bir kombin bulunamadı" hatası fırlatıyordu (console error olarak), (2) partner kombini bağlama (mevsim/mekan/saat/konsept) uymayabiliyordu — çünkü partner fonksiyonunun prompt'unda SADECE renk uyumu kuralları vardı, bağlam kuralları (generate-outfit'teki 3-5. kurallar gibi) hiç yoktu; `context` prompt'a JSON olarak ekleniyordu ama modele onunla ne yapacağı söylenmiyordu.
 
