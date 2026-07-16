@@ -7,7 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { RecentOutfitsStrip } from '@/components/ui/RecentOutfitsStrip';
 import { StarRating } from '@/components/ui/StarRating';
+import { WardrobeStats } from '@/components/ui/WardrobeStats';
 import { requestAiOutfit, type PairingNote } from '@/lib/aiOutfit';
 import { showAlert } from '@/lib/alert';
 import type { CategorySlot } from '@/constants/categories';
@@ -15,6 +17,7 @@ import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useCreateOutfit,
   useDailyOutfitCount,
+  useLikedOutfits,
   useLogGenerationEvent,
   useRateOutfit,
   type OutfitContext,
@@ -58,6 +61,7 @@ export default function AnaSayfaScreen() {
   const logEvent = useLogGenerationEvent();
   const createOutfit = useCreateOutfit();
   const rateOutfit = useRateOutfit();
+  const likedOutfits = useLikedOutfits();
 
   useEffect(() => {
     hasSeenOnboarding().then((seen) => {
@@ -256,23 +260,45 @@ export default function AnaSayfaScreen() {
         </View>
 
         {screen === 'idle' && (
-          <View className="gap-3">
-            <PrimaryButton
-              label={limitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
-              disabled={limitReached}
-              onPress={() => setScreen('questions')}
-            />
-            <Pressable
-              onPress={() => rollDice()}
-              disabled={limitReached}
-              className={`flex-row items-center justify-center gap-2 rounded-2xl border py-4 ${
-                limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
-              }`}>
-              <Ionicons name="shuffle-outline" size={20} color={limitReached ? '#9BA1A6' : '#3461FD'} />
-              <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-primary'}`}>
-                Zar At
-              </Text>
-            </Pressable>
+          <View>
+            <View className="gap-3">
+              <PrimaryButton
+                label={limitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
+                disabled={limitReached}
+                onPress={() => setScreen('questions')}
+              />
+              <Pressable
+                onPress={() => rollDice()}
+                disabled={limitReached}
+                className={`flex-row items-center justify-center gap-2 rounded-2xl border py-4 ${
+                  limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
+                }`}>
+                <Ionicons name="shuffle-outline" size={20} color={limitReached ? '#9BA1A6' : '#3461FD'} />
+                <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-primary'}`}>
+                  Zar At
+                </Text>
+              </Pressable>
+            </View>
+
+            {(wishlistItems?.length ?? 0) > 0 && (
+              <Pressable
+                onPress={() => {
+                  setIncludeWishlist(true);
+                  setScreen('questions');
+                }}
+                className="mt-4 flex-row items-center gap-3 rounded-2xl bg-primary/10 p-4">
+                <Ionicons name="heart-outline" size={20} color="#3461FD" />
+                <Text className="flex-1 font-body text-sm text-primary">
+                  İstek listende {wishlistItems?.length} ürün var — bugünkü kombine dahil etmek ister misin?
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#3461FD" />
+              </Pressable>
+            )}
+
+            <View className="mt-6">
+              <WardrobeStats items={items ?? []} />
+              <RecentOutfitsStrip outfits={likedOutfits.data ?? []} />
+            </View>
           </View>
         )}
 
