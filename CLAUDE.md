@@ -169,6 +169,14 @@ Kullanıcı idle ekranın boş göründüğünü fark etti, Figma'daki e-ticaret
 
 Partner Eşleştirme/story/sosyal akış fikri **ertelendi** — kullanıcı kız arkadaşına danışacak. Değerlendirmem: geniş bir kamuya açık sosyal akış yerine zaten planlı olan Partner Eşleştirme'yi (sadece partnerle paylaşım) önceliklendirmek daha az riskli ve zaten yol haritasında.
 
+## Figma Referans İncelemesi + Görsel Cila (2026-07-16)
+Kullanıcı Figma Dev Mode linkini paylaştı ("Shoppe" e-ticaret UI kiti, 2599 görsel) — dosyayı tek tek ekran görüntüsüyle incelemek yerine, kullanıcının verdiği **Figma Personal Access Token** ile REST API'yi (`api.figma.com/v1/files/:key`, `/v1/images/:key`) doğrudan kullandım: dosyanın tüm frame/sayfa isimlerini listeleyip ilgili ekranları (`15 Shop`, `16 Flash Sale + Live`) kendim PNG olarak render edip inceledim. Bu yöntem herhangi bir MCP/entegrasyon kurulumuna gerek kalmadan çalıştı — ileride benzer bir Figma dosyası incelenmek istenirse aynı yaklaşım (PAT + REST API) tekrar kullanılabilir.
+
+**Değerlendirme**: e-ticaret enerjisinden (sayaç/indirim/agresif satış — bilinçli olarak alınmadı) ayrı olarak, saf görsel/düzen fikirleri işe yaradı:
+- Header arkasında yumuşak, yuvarlak renkli blob şekilleri (dekoratif, içerik gürültüsü eklemiyor) → `app/(tabs)/index.tsx`'e eklendi (`primary`/`accent-purple`, düşük opaklık, `pointerEvents="none"`, `SafeAreaView`'a `overflow-hidden`).
+- Kart cilası: `OutfitCard`/`ItemCard`'a hafif `shadow-sm` (dark modda `shadow-none` — RN'de gölge siyaha dayalı olduğu için koyu arka planda görünmüyor, faydasız). **Gotcha**: `ItemCard`'da gölge, `overflow-hidden` olan görsel kutusuna değil dışarıdaki `Pressable`'a eklenmek zorunda kaldı — RN'de `overflow:hidden` aynı view üzerindeki gölgeyi de kırpıyor.
+- Dairesel avatar sırası ("Top Products") deseni not edildi, ileride daha yoğun bir ana sayfa istenirse ("Sık Kullandıkların" gibi) kullanılabilir — şimdilik uygulanmadı.
+
 ## Edge Function'larda Rate-Limit (2026-07-16)
 Daha önce hiçbir korunma yoktu — `generate-outfit`, `tag-item-photo`, `fetch-product-link` üçü de sınırsız çağrılabiliyordu (anon key zaten public, sadece bir oturum yeterliydi), bu gerçek bir Claude API maliyet riskiydi. `tag-item-photo` ve `fetch-product-link`'in ayrıca **hiç auth kontrolü bile yoktu** (Authorization header hiç okunmuyordu) — ikisine de eklendi.
 
