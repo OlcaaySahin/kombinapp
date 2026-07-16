@@ -7,22 +7,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert, showConfirm } from '@/lib/alert';
 import { signOut } from '@/lib/auth';
+import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 type MenuItem = {
   icon: ComponentProps<typeof Ionicons>['name'];
   label: string;
-  route?: '/profile-edit' | '/yardim' | '/bildirimler';
+  route?: '/profile-edit' | '/yardim' | '/bildirimler' | '/partner-eslesme';
   comingSoonMessage?: string;
 };
 
 const MENU_ITEMS: MenuItem[] = [
   { icon: 'person-outline', label: 'Hesap Bilgileri', route: '/profile-edit' },
-  {
-    icon: 'people-outline',
-    label: 'Partner Eşleştirme',
-    comingSoonMessage: 'Partnerinle envanterinizi birleştirip birlikte kombin önerisi alma özelliği yakında.',
-  },
+  { icon: 'people-outline', label: 'Partner Eşleştirme', route: '/partner-eslesme' },
   {
     icon: 'star-outline',
     label: "Premium'a Yükselt",
@@ -36,6 +33,8 @@ export default function ProfilScreen() {
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
   const email = useAuthStore((state) => state.email);
   const [signingOut, setSigningOut] = useState(false);
+  const { data: partnership } = usePartnership();
+  const hasPendingPartnerRequest = partnership?.status === 'pending_incoming';
 
   function handleSignOutPress() {
     showConfirm(
@@ -105,6 +104,9 @@ export default function ProfilScreen() {
             }`}>
             <Ionicons name={item.icon} size={20} color="#687076" />
             <Text className="ml-3 flex-1 font-body text-gray-900 dark:text-gray-100">{item.label}</Text>
+            {item.route === '/partner-eslesme' && hasPendingPartnerRequest && (
+              <View className="mr-2 h-2.5 w-2.5 rounded-full bg-accent-coral" />
+            )}
             <Ionicons name="chevron-forward" size={18} color="#9BA1A6" />
           </Pressable>
         ))}

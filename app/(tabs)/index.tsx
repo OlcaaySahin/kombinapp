@@ -14,6 +14,7 @@ import { requestAiOutfit, type PairingNote } from '@/lib/aiOutfit';
 import { showAlert } from '@/lib/alert';
 import type { CategorySlot } from '@/constants/categories';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
+import { usePartnership } from '@/lib/hooks/usePartnership';
 import {
   useCreateOutfit,
   useDailyOutfitCount,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit } from '@/lib/outfitGenerator';
 import { hasSeenOnboarding } from '@/lib/onboarding';
+import { requestPartnerOutfit } from '@/lib/partnerOutfit';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -62,6 +64,8 @@ export default function AnaSayfaScreen() {
   const createOutfit = useCreateOutfit();
   const rateOutfit = useRateOutfit();
   const likedOutfits = useLikedOutfits();
+  const { data: partnership } = usePartnership();
+  const hasPartner = partnership?.status === 'accepted';
 
   useEffect(() => {
     hasSeenOnboarding().then((seen) => {
@@ -85,6 +89,11 @@ export default function AnaSayfaScreen() {
   const [saved, setSaved] = useState(false);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [partnerGenerating, setPartnerGenerating] = useState(false);
+  const [partnerItems, setPartnerItems] = useState<DbItem[] | null>(null);
+  const [partnerReasoning, setPartnerReasoning] = useState<string | null>(null);
+  const [partnerPairingNotes, setPartnerPairingNotes] = useState<PairingNote[] | null>(null);
+  const [partnerSaved, setPartnerSaved] = useState(false);
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept);
   const count = dailyCount.data ?? 0;
@@ -116,6 +125,10 @@ export default function AnaSayfaScreen() {
     setSaved(false);
     setSavedOutfitId(null);
     setRating(null);
+    setPartnerItems(null);
+    setPartnerReasoning(null);
+    setPartnerPairingNotes(null);
+    setPartnerSaved(false);
     setScreen('result');
     if (userId) logEvent.mutate({ userId, type: 'outfit' });
   }
@@ -145,6 +158,10 @@ export default function AnaSayfaScreen() {
     setGeneratedItems((current) => current!.map((item) => (item.id === itemId ? replacement : item)));
     setGeneratedReasoning(null);
     setGeneratedPairingNotes(null);
+    setPartnerItems(null);
+    setPartnerReasoning(null);
+    setPartnerPairingNotes(null);
+    setPartnerSaved(false);
   }
 
   function rollDice(excludeIds?: Set<string>) {
@@ -220,6 +237,41 @@ export default function AnaSayfaScreen() {
     rateOutfit.mutate({ outfitId: savedOutfitId, rating: value });
   }
 
+  async function generatePartnerOutfit() {
+    if (!generatedItems) return;
+    setPartnerGenerating(true);
+    setPartnerSaved(false);
+    try {
+      const referenceItems = generatedItems.map((item) => ({ name: item.name, slot: item.slot, color: item.color }));
+      const suggestion = await requestPartnerOutfit(referenceItems, generatedContext);
+      setPartnerItems(suggestion.items);
+      setPartnerReasoning(suggestion.reasoning ?? null);
+      setPartnerPairingNotes(suggestion.pairingNotes ?? null);
+    } catch (error) {
+      console.error('Partner kombini oluşturulamadı:', error);
+      showAlert('Oluşturulamadı', error instanceof Error ? error.message : String(error));
+    } finally {
+      setPartnerGenerating(false);
+    }
+  }
+
+  async function handleSavePartnerOutfit() {
+    if (!userId || !partnerItems) return;
+    try {
+      await createOutfit.mutateAsync({
+        userId,
+        itemIds: partnerItems.map((item) => item.id),
+        context: generatedContext,
+        source: 'ai_generated',
+        isLiked: true,
+      });
+      setPartnerSaved(true);
+    } catch (error) {
+      console.error('Partner kombini kaydedilemedi:', error);
+      showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
+    }
+  }
+
   function reset() {
     setScreen('idle');
     setMevsim(null);
@@ -234,6 +286,10 @@ export default function AnaSayfaScreen() {
     setSaved(false);
     setSavedOutfitId(null);
     setRating(null);
+    setPartnerItems(null);
+    setPartnerReasoning(null);
+    setPartnerPairingNotes(null);
+    setPartnerSaved(false);
   }
 
   const hasWishlistItem = generatedItems?.some((item) => wishlistIdSet.has(item.id)) ?? false;
@@ -246,6 +302,16 @@ export default function AnaSayfaScreen() {
         reasoning: generatedReasoning,
         pairingNotes: generatedPairingNotes,
         userNote: generatedSource === 'ai_generated' ? note.trim() || null : null,
+      }
+    : null;
+
+  const partnerOutfitCardData: OutfitCardData | null = partnerItems
+    ? {
+        id: 'partner-preview',
+        context: generatedContext,
+        items: partnerItems,
+        reasoning: partnerReasoning,
+        pairingNotes: partnerPairingNotes,
       }
     : null;
 
@@ -401,6 +467,41 @@ export default function AnaSayfaScreen() {
                 )}
               </View>
             )}
+
+            {hasPartner && !partnerOutfitCardData && (
+              <Pressable
+                onPress={generatePartnerOutfit}
+                disabled={partnerGenerating}
+                className="flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-4">
+                <Ionicons name="heart-outline" size={18} color="#3461FD" />
+                <Text className="font-heading text-base text-primary">
+                  {partnerGenerating ? 'Oluşturuluyor...' : 'Partnerime Uyumlu Kombin Öner'}
+                </Text>
+              </Pressable>
+            )}
+
+            {partnerOutfitCardData && (
+              <View className="gap-3">
+                <Text className="font-heading text-base text-gray-900 dark:text-white">
+                  {partnership?.partnerName ?? 'Partnerin'} İçin Önerilen Kombin
+                </Text>
+                <OutfitCard outfit={partnerOutfitCardData} />
+                {partnerSaved ? (
+                  <View className="flex-row items-center justify-center gap-2 rounded-2xl bg-primary/10 py-4">
+                    <Ionicons name="checkmark-circle" size={20} color="#3461FD" />
+                    <Text className="font-heading text-base text-primary">Kombinlerim&apos;e kaydedildi</Text>
+                  </View>
+                ) : (
+                  <PrimaryButton
+                    label={createOutfit.isPending ? 'Kaydediliyor...' : 'Bu Kombini de Kaydet'}
+                    variant="secondary"
+                    disabled={createOutfit.isPending}
+                    onPress={handleSavePartnerOutfit}
+                  />
+                )}
+              </View>
+            )}
+
             <Pressable onPress={reset}>
               <Text className="text-center font-body-medium text-sm text-gray-500 dark:text-gray-400">
                 Baştan başla
