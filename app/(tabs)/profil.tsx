@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { showAlert } from '@/lib/alert';
+import { showAlert, showConfirm } from '@/lib/alert';
+import { signOut } from '@/lib/auth';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 type MenuItem = {
@@ -33,6 +35,26 @@ const MENU_ITEMS: MenuItem[] = [
 export default function ProfilScreen() {
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
   const email = useAuthStore((state) => state.email);
+  const [signingOut, setSigningOut] = useState(false);
+
+  function handleSignOutPress() {
+    showConfirm(
+      'Çıkış yap',
+      'Hesabından çıkış yapılacak. Verilerin kaybolmaz, tekrar bu hesaba veya başka bir hesaba giriş yapabilirsin.',
+      async () => {
+        setSigningOut(true);
+        try {
+          await signOut();
+        } catch (error) {
+          console.error('Çıkış yapılamadı:', error);
+          showAlert('Çıkış yapılamadı', error instanceof Error ? error.message : String(error));
+        } finally {
+          setSigningOut(false);
+        }
+      },
+      'Çıkış Yap'
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
@@ -87,6 +109,18 @@ export default function ProfilScreen() {
           </Pressable>
         ))}
       </View>
+
+      {!isAnonymous && (
+        <Pressable
+          onPress={handleSignOutPress}
+          disabled={signingOut}
+          className="mx-5 mt-4 flex-row items-center justify-center gap-2 rounded-2xl py-4">
+          <Ionicons name="log-out-outline" size={18} color="#E5484D" />
+          <Text className="font-body-semibold text-sm text-red-500">
+            {signingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap / Hesap Değiştir'}
+          </Text>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }

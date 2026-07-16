@@ -44,6 +44,27 @@ export async function bootstrapSession() {
   syncSession(data.session);
 }
 
+/**
+ * Oturumu kapatır ve yerine hemen yeni bir anonim oturum açar — uygulama her zaman
+ * bir `auth.uid()` bekliyor, boş bir oturum durumuna düşmemesi için. Test amaçlı hesap
+ * değiştirmek isteyen kullanıcı için önbellek temizlemeye gerek bırakmıyor: çıkış yapıp
+ * `sign-in` ekranından istediği hesaba tekrar girebilir.
+ */
+export async function signOut() {
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // Google ile giriş yapılmamış olabilir, önemli değil.
+  }
+
+  await supabase.auth.signOut();
+  queryClient.clear();
+
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  syncSession(data.session);
+}
+
 export type EmailAuthMode = 'upgrade' | 'sign_in';
 
 /**
