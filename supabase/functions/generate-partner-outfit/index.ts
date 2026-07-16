@@ -1,14 +1,18 @@
 // Supabase Edge Function: kullanıcının az önce oluşturduğu kombinle UYUMLU, ama
 // PARTNERİNİN envanterinden bir kombin önerir (ör. çift olarak birlikte giyilecek).
-// Partnerin envanterini okuyabilmek RLS'teki "Accepted partner can view items" policy'sine
-// dayanıyor - çağıranın kendi JWT'siyle (service role YOK) partnerin item'larını çekiyoruz,
-// bu sayede yetkilendirme tamamen veritabanı seviyesinde garanti ediliyor.
+// ÖNEMLİ: partnerin item'ları genel `items` RLS'i ÜZERİNDEN OKUNMUYOR — ilk denemede
+// items tablosuna "kabul edilmiş partner görebilir" policy'si eklenmişti ama bu, user_id
+// filtresi olmayan HER sorguyu (useItems() -> Envanter sekmesi, kombin havuzu, vb.)
+// etkileyip iki kişinin envanterini birbirine karıştırdı. Bunun yerine: partnerlik önce
+// çağıranın kendi JWT'siyle doğrulanıyor (bu satırı SADECE gerçek katılımcılar görebilir),
+// sonra partnerin item'ları service-role ile, sadece BU fonksiyon içinde çekiliyor.
 // Deploy: supabase functions deploy generate-partner-outfit
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 
@@ -165,9 +169,12 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'referenceItems gerekli' }, 400);
   }
 
-  // RLS'teki "Accepted partner can view items" policy'si sayesinde, artık kabul edilmiş
-  // bir partnerimiz olduğu için bu sorgu partnerin ürünlerini döndürebiliyor.
-  const { data: partnerItems, error: itemsError } = await supabase
+  // Partnerlik yukarıda ÇAĞIRANIN KENDİ JWT'siyle doğrulandı (yani bu satırı gerçekten
+  // sadece iki katılımcıdan biri görebilir) - o yüzden burada service-role ile partnerin
+  // item'larını çekmek güvenli. Genel `items` RLS'ini genişletmiyoruz, sadece bu tek,
+  // güvenlik kontrolünden geçmiş sorgu için service-role kullanıyoruz.
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: partnerItems, error: itemsError } = await adminClient
     .from('items')
     .select('id, slot, name, color, pattern, season, brand, image_url')
     .eq('user_id', partnerId);
