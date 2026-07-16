@@ -98,7 +98,12 @@ const SUGGEST_PARTNER_OUTFIT_TOOL = {
         type: 'array',
         items: { type: 'string' },
         description:
-          'Partnerin envanterinden seçilen ürün id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli.',
+          'Partnerin envanterinden seçilen ürün id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli. Makul bir kombin bulunamıyorsa (sadece izin verildiyse) boş bırakılabilir.',
+      },
+      compatibility: {
+        type: 'integer',
+        description:
+          'Önerinin hem diğer kişinin kombiniyle hem de bağlamla (mevsim/mekan/saat/konsept) genel uyumunun DÜRÜST tahmini, 0-100 arası. Zorlama bir eşleşmeyse düşük ver (ör. 50), mükemmel uyumsa yüksek (ör. 90+). Asla nezaketen şişirme.',
       },
       pairingNotes: {
         type: 'array',
@@ -113,7 +118,7 @@ const SUGGEST_PARTNER_OUTFIT_TOOL = {
         description: 'Opsiyonel, en fazla 2 tane: partnerin kombini ile kullanıcının kombini arasındaki somut uyum notu.',
       },
     },
-    required: ['internalAnalysis', 'reasoning', 'itemIds'],
+    required: ['internalAnalysis', 'reasoning', 'itemIds', 'compatibility'],
   },
 };
 
@@ -166,9 +171,10 @@ Deno.serve(async (req: Request) => {
   }
   const partnerId = partnership.requester_id === user.id ? partnership.partner_id : partnership.requester_id;
 
-  const { referenceItems, context } = (await req.json()) as {
+  const { referenceItems, context, relaxed } = (await req.json()) as {
     referenceItems?: ReferenceItem[];
     context?: OutfitContext;
+    relaxed?: boolean;
   };
   if (!referenceItems || referenceItems.length === 0) {
     return jsonResponse({ error: 'referenceItems gerekli' }, 400);
@@ -203,13 +209,18 @@ Deno.serve(async (req: Request) => {
   const requesterName = profileRows?.find((p) => p.id === user.id)?.display_name || 'Kullanıcı';
   const partnerName = profileRows?.find((p) => p.id === partnerId)?.display_name || 'Partner';
 
+  const matchPolicy = relaxed
+    ? `6. ESNEK MOD — EN ÖNEMLİ KURAL, 3. kuralı (bağlam uygunluğu) GEÇERSİZ KILAR: ${requesterName} tam uyumlu kombin bulunamayınca "daha az uyumlu da olsa öner" dedi ve düşük uyumu BİLEREK kabul etti. itemIds'i boş bırakmak YASAK — envanter bağlama hiç uymuyor olsa bile eldeki EN YAKIN parçalardan bir kombin kur (en az üst+alt+ayakkabı ya da tek_parca+ayakkabı), compatibility alanında dürüstçe düşük bir değer ver (ör. 40-55) ve reasoning'de hangi açıdan tam oturmadığını kısaca, doğal bir dille belirt (ör. "Kış gecesi için ideal parçalar yok ama eldekilerin en uyumlusu bu"). Reddetmek, kullanıcının açık isteğini yok saymak olur.`
+    : `6. Eğer ${partnerName}'in envanterinde hem bağlama hem ${requesterName}'in kombinine MAKUL düzeyde (kabaca %60+) uyan bir kombin oluşturulamıyorsa (ör. kış bağlamında sadece yazlık parçalar varsa), itemIds'i BOŞ bırak ve reasoning'e neden bulamadığını tek cümleyle yaz. Zorlama, kötü bir öneri sunma — kullanıcıya "daha esnek öner" seçeneği ayrıca sunulacak.`;
+
   const systemPrompt = `Sen deneyimli bir moda stilistisin. Bir çiftin BİRLİKTE giyeceği kombinlerde uyum sağlıyorsun. ${requesterName} zaten bir kombin seçti; senin görevin ${partnerName}'in envanterinden, bu kombinle birlikte giyildiğinde şık ve uyumlu duracak bir kombin seçmek. Kurallara sıkı sıkıya uy:
 
 1. Sadece ${partnerName}'in envanterinde var olan ürün id'lerini kullan, uydurma.
 2. "Uyumlu" demek AYNI KIYAFETİ giymek değil — renk paletinin aynı aileden olması (ör. ikisi de nötr+lacivert tonlarında) veya bilinçli, zevkli bir kontrast (ör. biri krem biri lacivert, ikisi de "şık" konseptinde) yeterli. Birbiriyle çatışan parlak renklerden kaçın.
-3. ${partnerName}'in envanterinde birebir ideal seçenek olmayabilir — en yakın makul alternatifi seç, asla reddetme.
-4. internalAnalysis alanında iç analiz yap (${requesterName}'in kombini ne renkte/stilde, ${partnerName}'in envanterinde buna en uyumlu hangi parçalar var), sonra reasoning alanına SADECE kullanıcının okuyacağı kısa, doğal bir özet yaz. reasoning'de ${requesterName} ve ${partnerName} isimlerini doğal bir şekilde kullanabilirsin (ör. "${requesterName}'in bej-beyaz kombinine, ${partnerName}'in gardırobundan şu parçalar..."), ama ürün id'si veya "sahiplik/istek_listesi" gibi teknik alan isimleri ASLA yazma.
-5. Eğer ${requesterName}'in kombininin rengi/stili zaten ${partnerName}'in envanteriyle net bir şekilde uyumluysa, reasoning'i uzatma — basit ve doğal bir cümleyle yeterli (ör. "İkiniz de bej-beyaz tonlarında olduğu için doğal bir uyum var.").`;
+3. BAĞLAM UYGUNLUĞU EN AZ RENK UYUMU KADAR ÖNEMLİ: ${partnerName}'in kombini de verilen bağlama (mevsim/mekan/saat/konsept) uygun olmalı. Mevsim Kış/Sonbahar ise şort, tank top, sandalet gibi yazlık parçalardan kaçın ve uygun bir dış giyim varsa ekle; Yaz ise kalın mont/kaban/bot önerme. Konsept Şık/Özel Gün ise eşofman/spor parçalar yerine şık seçenekleri tercih et. Ürünlerin season alanına da bak.
+4. internalAnalysis alanında iç analiz yap (${requesterName}'in kombini ne renkte/stilde, bağlam ne gerektiriyor, ${partnerName}'in envanterinde bunlara en uyumlu hangi parçalar var), sonra reasoning alanına SADECE kullanıcının okuyacağı kısa, doğal bir özet yaz. reasoning'de ${requesterName} ve ${partnerName} isimlerini doğal bir şekilde kullanabilirsin (ör. "${requesterName}'in bej-beyaz kombinine, ${partnerName}'in gardırobundan şu parçalar..."), ama ürün id'si veya "sahiplik/istek_listesi" gibi teknik alan isimleri ASLA yazma.
+5. Eğer ${requesterName}'in kombininin rengi/stili zaten ${partnerName}'in envanteriyle net bir şekilde uyumluysa, reasoning'i uzatma — basit ve doğal bir cümleyle yeterli (ör. "İkiniz de bej-beyaz tonlarında olduğu için doğal bir uyum var.").
+${matchPolicy}`;
 
   const contextNote = context ? `\n\n${requesterName}'in bağlamı (mevsim/mekan/saat/konsept): ${JSON.stringify(context)}` : '';
   const userPrompt = `${requesterName}'in kombini:\n${JSON.stringify(referenceWithColorNames, null, 2)}${contextNote}\n\n${partnerName}'in envanteri:\n${JSON.stringify(partnerItemsWithColorNames, null, 2)}`;
@@ -245,9 +256,47 @@ Deno.serve(async (req: Request) => {
   const selectedIds: string[] = toolUse.input.itemIds ?? [];
   const selectedItems = partnerItems.filter((item) => selectedIds.includes(item.id));
 
+  // ESNEK modda model yine de boş dönerse (canlı testte görüldü — güçlü talimata rağmen
+  // "stilist içgüdüsü" reddedebiliyor), deterministik bir yedek devreye girer: temel
+  // slotlardan (üst+alt+ayakkabı ya da tek_parça+ayakkabı) eldeki ilk parçalarla asgari
+  // bir kombin kur, uyumu dürüstçe düşük işaretle. Esnek mod kullanıcının açık tercihi,
+  // asla boş dönmemeli.
+  if (selectedItems.length === 0 && relaxed) {
+    const firstOf = (slot: string) => partnerItems.find((item) => item.slot === slot) ?? null;
+    const onePiece = firstOf('tek_parca');
+    const top = firstOf('ust_giyim');
+    const bottom = firstOf('alt_giyim');
+    const shoes = firstOf('ayakkabi');
+    const fallbackItems = onePiece && shoes ? [onePiece, shoes] : top && bottom && shoes ? [top, bottom, shoes] : null;
+    if (fallbackItems) {
+      return jsonResponse({
+        items: fallbackItems,
+        reasoning: `${partnerName}'in envanterinde bu bağlama tam uyan parçalar yok — eldeki parçalarla temel bir kombin oluşturduk, uyum sınırlı olabilir.`,
+        pairingNotes: null,
+        compatibility: 40,
+      });
+    }
+  }
+
+  // Model ya bilinçli olarak boş bıraktı (strict modda "makul uyum yok" dedi) ya da
+  // uydurma id'ler döndürdü (filtre eledi) — iki durumda da client'a yapılandırılmış bir
+  // no_match dönüyoruz ki ham hata yerine "daha esnek öner" seçeneği sunulabilsin.
+  // (Esnek modda buraya sadece partnerin temel slotları — üst/alt/ayakkabı — hiç yoksa düşülür.)
+  if (selectedItems.length === 0) {
+    return jsonResponse(
+      {
+        error: `${partnerName}'in envanterinde bu bağlama yeterince uyumlu bir kombin bulunamadı.`,
+        code: 'no_match',
+        detail: toolUse.input.reasoning ?? null,
+      },
+      422
+    );
+  }
+
   return jsonResponse({
     items: selectedItems,
     reasoning: toolUse.input.reasoning,
     pairingNotes: toolUse.input.pairingNotes,
+    compatibility: typeof toolUse.input.compatibility === 'number' ? toolUse.input.compatibility : null,
   });
 });

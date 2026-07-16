@@ -11,7 +11,7 @@ import { RecentOutfitsStrip } from '@/components/ui/RecentOutfitsStrip';
 import { StarRating } from '@/components/ui/StarRating';
 import { WardrobeStats } from '@/components/ui/WardrobeStats';
 import { requestAiOutfit, type PairingNote } from '@/lib/aiOutfit';
-import { showAlert } from '@/lib/alert';
+import { showAlert, showConfirm } from '@/lib/alert';
 import type { CategorySlot } from '@/constants/categories';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import { usePartnership } from '@/lib/hooks/usePartnership';
@@ -25,7 +25,7 @@ import {
 } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit, inferTakiType } from '@/lib/outfitGenerator';
 import { hasSeenOnboarding } from '@/lib/onboarding';
-import { requestPartnerOutfit } from '@/lib/partnerOutfit';
+import { PartnerNoMatchError, requestPartnerOutfit } from '@/lib/partnerOutfit';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -275,17 +275,31 @@ export default function AnaSayfaScreen() {
     rateOutfit.mutate({ outfitId: savedOutfitId, rating: value });
   }
 
-  async function generatePartnerOutfit() {
+  async function generatePartnerOutfit(relaxed = false) {
     if (!generatedItems) return;
     setPartnerGenerating(true);
     setPartnerSaved(false);
     try {
       const referenceItems = generatedItems.map((item) => ({ name: item.name, slot: item.slot, color: item.color }));
-      const suggestion = await requestPartnerOutfit(referenceItems, generatedContext);
+      const suggestion = await requestPartnerOutfit(referenceItems, generatedContext, relaxed);
+      // Esnek modda (veya model uyumu düşük bulduğunda) uyum yüzdesini kullanıcıya dürüstçe göster.
+      const reasoning =
+        typeof suggestion.compatibility === 'number' && suggestion.compatibility < 75
+          ? `${suggestion.reasoning ?? ''}${suggestion.reasoning ? ' ' : ''}(Tahmini uyum: %${suggestion.compatibility})`
+          : (suggestion.reasoning ?? null);
       setPartnerItems(suggestion.items);
-      setPartnerReasoning(suggestion.reasoning ?? null);
+      setPartnerReasoning(reasoning);
       setPartnerPairingNotes(suggestion.pairingNotes ?? null);
     } catch (error) {
+      if (error instanceof PartnerNoMatchError) {
+        showConfirm(
+          'Tam uyumlu kombin bulunamadı',
+          `${error.message}${error.detail ? `\n\n${error.detail}` : ''}\n\nDaha az uyumlu da olsa (örneğin ~%50 uyum) bir öneri isteyelim mi?`,
+          () => generatePartnerOutfit(true),
+          'Daha Esnek Öner'
+        );
+        return;
+      }
       console.error('Partner kombini oluşturulamadı:', error);
       showAlert('Oluşturulamadı', error instanceof Error ? error.message : String(error));
     } finally {
@@ -517,7 +531,7 @@ export default function AnaSayfaScreen() {
 
             {hasPartner && !partnerOutfitCardData && (
               <Pressable
-                onPress={generatePartnerOutfit}
+                onPress={() => generatePartnerOutfit()}
                 disabled={partnerGenerating}
                 className="flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-4">
                 <Ionicons name="heart-outline" size={18} color="#3461FD" />

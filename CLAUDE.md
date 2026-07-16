@@ -295,6 +295,18 @@ Kullanıcı bildirdi: bağlam soruları cevaplanıp kombin oluşturulduğunda ba
 
 **Düzeltme**: `app/(tabs)/index.tsx`'te `generateViaAi`, `suggestion.source === 'dice'` olduğunda (yani AI'a düşüş gerçekleştiğinde) `reasoning` alanına açık bir mesaj koyuyor: "Şu an AI önerisi alınamadı, envanterinden bağlama uygun rastgele bir kombin seçtik." Kök sebep (o anki tekil Claude API hatası) tekrarlanabilir değildi ve loglardan kesin teşhis edilemedi — bu yüzden asıl düzeltme "sessizce" değil "dürüstçe" düşmek oldu.
 
+## Partner Kombini: Bağlam Kuralları + "Daha Esnek Öner" Akışı (2026-07-16)
+Kullanıcı iki sorun bildirdi: (1) `generate-partner-outfit` ham "Partnerin envanterinden uygun bir kombin bulunamadı" hatası fırlatıyordu (console error olarak), (2) partner kombini bağlama (mevsim/mekan/saat/konsept) uymayabiliyordu — çünkü partner fonksiyonunun prompt'unda SADECE renk uyumu kuralları vardı, bağlam kuralları (generate-outfit'teki 3-5. kurallar gibi) hiç yoktu; `context` prompt'a JSON olarak ekleniyordu ama modele onunla ne yapacağı söylenmiyordu.
+
+**Düzeltme — üç katman**:
+1. **Bağlam kuralları eklendi** (kural 3): partner kombini de mevsim/mekan/konsepte uymak zorunda, "bağlam uygunluğu en az renk uyumu kadar önemli".
+2. **Strict/relaxed iki mod**: normal (strict) modda envanterde makul (%60+) uyum yoksa model `itemIds`'i bilinçli boş bırakıyor → fonksiyon yapılandırılmış `{code:'no_match', detail:<neden>}` 422 dönüyor → client (`PartnerNoMatchError`) ham hata yerine `showConfirm` ile "Daha Esnek Öner" seçeneği sunuyor → kabul edilirse `relaxed:true` ile tekrar çağrılıyor. Yeni zorunlu `compatibility` (0-100, dürüst uyum tahmini) alanı; <75 ise client reasoning'e "(Tahmini uyum: %X)" ekliyor.
+3. **Deterministik yedek**: canlı testte görüldü ki relaxed modda bile model (güçlü talimata rağmen) reddedebiliyor — bu durumda fonksiyon kendisi temel slotlardan (üst+alt+ayakkabı ya da tek_parça+ayakkabı) asgari bir kombin kurup `compatibility: 40` ile dönüyor. Esnek mod kullanıcının açık tercihi, asla boş dönmemeli.
+
+**Gotcha**: `onPress={generatePartnerOutfit}` → fonksiyona `relaxed` parametresi eklenince press event'i ilk argüman olarak geçip her çağrıyı relaxed yapardı — `onPress={() => generatePartnerOutfit()}` olarak düzeltildi.
+
+**Canlı test edildi** (kasıtlı senaryolarla): kış/özel-gün bağlamı + sadece-yazlık partner envanteri → strict doğru şekilde no_match döndü (doğal dilli açıklamayla), relaxed %28 uyumla dürüst bir öneri verdi, uyumlu envanterli normal senaryo %95 uyumla eskisi gibi çalışıyor.
+
 ## Kombinlerim'de Cinsiyet Rozeti: Kimin Gardırobundan? (2026-07-16)
 Partner özelliği sayesinde bir kullanıcının "Beğenilenler" listesinde hem kendi kombinleri hem partnerine önerilip kaydedilen kombinler birlikte görünüyor — hangisinin kime ait olduğunu ayırt etmek zorlaştı. Kullanıcı isteği: kendi kombininde kendi cinsiyet rozeti (kadın→pembe `female` ikonu, erkek→mavi `male` ikonu — projede başka yerde kullanılmasa da standart Ionicons glyph'leri), partnerin kombininde partnerin rozeti, önizleme (silüet) ikonunun HEMEN SOLUNDA.
 
