@@ -140,6 +140,15 @@ Her iki dosya da yeni bir geliştirme ortamında **elle yeniden oluşturulmalı*
 
 **Ders**: "daha fazla deneme = daha güvenilir" varsayımı bot-tespiti olan sistemlerde tam tersine çalışabilir — ölçüm yaparken az sayıda örnekle ("başarı arttı görünüyor") aceleci sonuca varmamalı, ve retry/cache-busting gibi "dayanıklılık" iyileştirmeleri bile niyet dışında bir kaçınma/evasion deseni oluşturabileceğinden dikkatli tasarlanmalı.
 
+## Ana Sayfa İçerik Doldurma (2026-07-16)
+Kullanıcı idle ekranın boş göründüğünü fark etti, Figma'daki e-ticaret enerjisiyle bizim "sakin kişisel asistan" pozisyonumuz arasında birlikte karar verdik: **marka/reklam alanı veya agresif alışveriş önerisi YOK** — sadece kullanıcının kendi verisiyle konuşan bloklar:
+
+- **İstek listesi hatırlatıcısı** (istek listesi doluysa) — dokununca soru ekranına geçip `includeWishlist`'i otomatik açıyor.
+- **`WardrobeStats`** — ürün sayısı, en çok kullanılan renk, en kalabalık kategori. `lib/colorNames.ts` (yeni, paylaşılan Türkçe renk-adı modülü — `outfitPreview.ts`'teki İngilizce kopyadan ayrı, o görsel üretim prompt'una hizmet ediyor).
+- **`RecentOutfitsStrip`** — beğenilen kombinlerin yatay 2x2 mozaik şeridi, dokununca Kombinlerim'e gidiyor.
+
+Partner Eşleştirme/story/sosyal akış fikri **ertelendi** — kullanıcı kız arkadaşına danışacak. Değerlendirmem: geniş bir kamuya açık sosyal akış yerine zaten planlı olan Partner Eşleştirme'yi (sadece partnerle paylaşım) önceliklendirmek daha az riskli ve zaten yol haritasında.
+
 ## Edge Function'larda Rate-Limit (2026-07-16)
 Daha önce hiçbir korunma yoktu — `generate-outfit`, `tag-item-photo`, `fetch-product-link` üçü de sınırsız çağrılabiliyordu (anon key zaten public, sadece bir oturum yeterliydi), bu gerçek bir Claude API maliyet riskiydi. `tag-item-photo` ve `fetch-product-link`'in ayrıca **hiç auth kontrolü bile yoktu** (Authorization header hiç okunmuyordu) — ikisine de eklendi.
 
