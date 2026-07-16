@@ -80,16 +80,21 @@ const SUGGEST_OUTFIT_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
+      internalAnalysis: {
+        type: 'string',
+        description:
+          "İÇ ANALİZ (kullanıcıya GÖSTERİLMEZ, sadece senin düşünme alanın): bu bağlam (mevsim/mekan/saat/konsept) için hangi renk paleti ve parça tipleri uygun, envanterde bunlara en yakın hangi parçalar var (ürün id'leriyle referans verebilirsin), seçtiğin parçaların renkleri/desenleri birbirini nasıl tamamlıyor.",
+      },
       reasoning: {
         type: 'string',
         description:
-          'Önce kısaca iç analizini yap: bu bağlam (mevsim/mekan/saat/konsept) için hangi renk paleti ve parça tipleri uygun, envanterde bunlara en yakın hangi parçalar var, seçtiğin parçaların renkleri/desenleri birbirini nasıl tamamlıyor. Sonra bu analize dayanan, kullanıcıya yönelik 1-2 cümlelik Türkçe bir gerekçe yaz.',
+          'internalAnalysis\'a dayanan, SADECE kullanıcıya gösterilecek 1-2 cümlelik Türkçe gerekçe. Ürün ID\'si veya teknik jargon YAZMA — sadece ürün isimlerini (ör. "bordo triko") ve günlük dili kullan, sanki kullanıcıyla sohbet ediyormuşsun gibi doğal yaz.',
       },
       itemIds: {
         type: 'array',
         items: { type: 'string' },
         description:
-          'reasoning alanındaki analize göre seçilen ürünlerin id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli. Mevsim soğuksa ve envanterde uygun bir dis_giyim varsa ekle. İstersen bir taki/tamamlayici/canta ile tamamla.',
+          'internalAnalysis\'taki analize göre seçilen ürünlerin id listesi. En az bir üst_giyim + alt_giyim (ya da tek_parca) + ayakkabi içermeli. Mevsim soğuksa ve envanterde uygun bir dis_giyim varsa ekle. İstersen bir taki/tamamlayici/canta ile tamamla.',
       },
       pairingNotes: {
         type: 'array',
@@ -113,7 +118,7 @@ const SUGGEST_OUTFIT_TOOL = {
           'Opsiyonel, en fazla 3 tane: seçtiğin parçalar arasındaki somut ilişkiler (renk uyumu, doku/desen eşleşmesi, aksesuarın tamamlayıcılığı vb.). Genel geçer laf etme, spesifik ol.',
       },
     },
-    required: ['reasoning', 'itemIds'],
+    required: ['internalAnalysis', 'reasoning', 'itemIds'],
   },
 };
 
@@ -238,10 +243,10 @@ Deno.serve(async (req: Request) => {
 4. Mekan/konsept uygunluğu: mekan Ofis veya konsept Şık/Özel Gün ise mümkünse eşofman/spor ayakkabı gibi aşırı gündelik parçalar yerine daha şık seçenekleri tercih et. mekan Deniz/Tatil veya konsept Spor ise rahat/hafif parçaları tercih et.
 5. Mevsim soğuksa (Kış/Sonbahar) ve envanterde uygun bir dış giyim (mont/kaban/ceket) varsa mutlaka ekle.
 6. Envanterde birebir ideal seçenek olmayabilir — böyle durumda envanterdeki EN YAKIN makul alternatifi seç, asla kombin üretmeyi reddetme.
-7. Bazı ürünlerin "sahiplik" alanı "istek_listesi" olabilir — bunlar kullanıcının satın almayı düşündüğü ama henüz sahip OLMADIĞI ürünlerdir. Bu ürünleri de kombine dahil edebilirsin (bu, kullanıcıyı satın almaya teşvik etmek için isteniyor), ama mümkünse kombinde en az bir "sahip" olunan parça kalsın. reasoning'de istek_listesi'nden seçtiğin parça(lar) varsa bunu açıkça belirt (ör. "X'i satın alırsan Y ile çok iyi gider").
+7. Bazı ürünlerin "sahiplik" alanı "istek_listesi" olabilir — bunlar kullanıcının satın almayı düşündüğü ama henüz sahip OLMADIĞI ürünlerdir. Bu ürünleri de kombine dahil edebilirsin (bu, kullanıcıyı satın almaya teşvik etmek için isteniyor), ama mümkünse kombinde en az bir "sahip" olunan parça kalsın. Eğer istek_listesi'nden bir parça seçtiysen reasoning'de bunu doğal bir cümleyle belirt (ör. "X'i alırsan Y ile çok iyi gider") — "sahiplik", "sahip", "istek_listesi" gibi teknik/veri alanı isimlerini KELİMESİ KELİMESİNE ASLA yazma, bunlar sadece senin iç analizin için, kullanıcıya yönelik cümlede yeri yok.
 8. pairingNotes alanında (opsiyonel, en fazla 3 tane) seçtiğin parçalar arasındaki somut ilişkileri kısaca açıkla — renk uyumu, doku/desen eşleşmesi, aksesuarın tamamlayıcılığı gibi. Genel geçer laf etme ("bu ikisi güzel gider" gibi), spesifik ol ("X'in Y tonu Z'nin rengiyle aynı ailede" gibi).
 
-Önce reasoning alanında kısaca iç analizini yap, sonra itemIds'i o analize göre seç, en son pairingNotes ile detaylandır.`;
+Önce internalAnalysis alanında iç analizini yap, sonra itemIds'i o analize göre seç, sonra reasoning alanına SADECE kullanıcının okuyacağı kısa/doğal bir özet yaz. reasoning alanında ASLA: ürün id'si, "sahiplik/sahip/istek_listesi" gibi veri alanı isimleri, ya da kullanıcının notunu tırnak içinde tekrar etme (uygulama notu zaten ayrı gösteriyor, sen sadece notun isteğine nasıl karşılık verdiğini doğal bir cümleyle anlat). En son pairingNotes ile detaylandır.`;
 
   const excludeNote =
     excludeItemIds && excludeItemIds.length > 0
@@ -255,7 +260,7 @@ Deno.serve(async (req: Request) => {
 
   const userNoteBlock =
     note && note.trim()
-      ? `\n\nKullanıcının bu kombin için özel notu: "${note.trim().slice(0, 300)}". Bu notu diğer bağlam bilgilerinden (mevsim/mekan/saat/konsept) DAHA ÖNCELİKLİ bir sinyal olarak dikkate al, seçimini buna göre şekillendir ve reasoning'de bu nota nasıl karşılık verdiğini belirt.`
+      ? `\n\nKullanıcının bu kombin için özel notu: "${note.trim().slice(0, 300)}". Bu notu diğer bağlam bilgilerinden (mevsim/mekan/saat/konsept) DAHA ÖNCELİKLİ bir sinyal olarak dikkate al, seçimini buna göre şekillendir. reasoning'de notu tırnak içinde TEKRAR ETME veya "özel notun" gibi etiketleme — sadece isteğine nasıl karşılık verdiğini doğal bir cümleyle anlat (ör. "Rahat bir görünüm istediğin için..." gibi, "notunda X dedin" demeden).`
       : '';
 
   const ratingNote =
@@ -298,5 +303,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'AI yanıtı ayrıştırılamadı' }, 502);
   }
 
-  return jsonResponse(toolUse.input);
+  return jsonResponse({
+    itemIds: toolUse.input.itemIds,
+    reasoning: toolUse.input.reasoning,
+    pairingNotes: toolUse.input.pairingNotes,
+  });
 });

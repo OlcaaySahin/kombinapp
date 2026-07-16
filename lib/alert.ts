@@ -21,3 +21,26 @@ export function showConfirm(title: string, message: string, onConfirm: () => voi
     { text: confirmLabel, style: 'destructive', onPress: onConfirm },
   ]);
 }
+
+type ActionSheetOption = { label: string; onPress: () => void; destructive?: boolean };
+
+/** İkiden fazla seçenekli bir eylem menüsü — web'de sırayla confirm'e düşer (native action sheet yok). */
+export function showActionSheet(title: string, message: string, options: ActionSheetOption[]) {
+  if (Platform.OS === 'web') {
+    for (const option of options) {
+      if (window.confirm(`${title}\n\n${message}\n\n"${option.label}" seçilsin mi?`)) {
+        option.onPress();
+        return;
+      }
+    }
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Vazgeç', style: 'cancel' },
+    ...options.map((option) => ({
+      text: option.label,
+      style: option.destructive ? ('destructive' as const) : undefined,
+      onPress: option.onPress,
+    })),
+  ]);
+}

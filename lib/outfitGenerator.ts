@@ -2,6 +2,31 @@ import type { CategorySlot } from '@/constants/categories';
 
 type SlottableItem = { id: string; slot: CategorySlot };
 
+/**
+ * "taki" slotu tek bir kategori ama kolye/küpe/yüzük/bileklik/saat gibi birden fazla alt
+ * türü kapsıyor — şemada ayrı bir alt-tür alanı yok, bu yüzden isimden anahtar kelimeyle
+ * çıkarıyoruz. "Karıştır" ile tek parça değiştirirken aynı türden ikinci bir parça
+ * eklenmesini (ör. kombinde küpe varken değiştirilen kolyenin yerine başka bir küpe gelmesi)
+ * önlemek için kullanılıyor.
+ */
+const TAKI_TYPE_KEYWORDS: Record<string, string[]> = {
+  kolye: ['kolye', 'gerdanlık', 'necklace', 'pendant'],
+  kupe: ['küpe', 'earring'],
+  yuzuk: ['yüzük', 'ring'],
+  bileklik: ['bileklik', 'halhal', 'bracelet'],
+  saat: ['saat', 'watch'],
+  kol_dugmesi: ['kol düğmesi', 'kol düğmeleri', 'cufflink'],
+};
+
+export function inferTakiType(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  for (const [type, keywords] of Object.entries(TAKI_TYPE_KEYWORDS)) {
+    if (keywords.some((keyword) => lower.includes(keyword))) return type;
+  }
+  return null;
+}
+
 /** excludeIds'te olmayanlar arasından seçmeyi tercih eder; alternatif yoksa (tek seçenek varsa) tekrara izin verir. */
 function pickOne<T extends { id: string }>(items: T[], excludeIds?: Set<string>): T | null {
   if (items.length === 0) return null;

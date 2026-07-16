@@ -84,10 +84,15 @@ const SUGGEST_PARTNER_OUTFIT_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
+      internalAnalysis: {
+        type: 'string',
+        description:
+          "İÇ ANALİZ (kullanıcıya GÖSTERİLMEZ): kullanıcının kombini hangi renk paletinde/stilde, partnerin envanterinde buna uyumlu (aynı renk ailesinden veya bilinçli tamamlayıcı kontrast) hangi parçalar var, gerekirse ürün id'leriyle referans ver.",
+      },
       reasoning: {
         type: 'string',
         description:
-          'Önce iç analiz: kullanıcının kombini hangi renk paletinde/stilde, partnerin envanterinde buna uyumlu (aynı renk ailesinden veya bilinçli tamamlayıcı kontrast) hangi parçalar var. Sonra 1-2 cümlelik Türkçe gerekçe.',
+          'internalAnalysis\'a dayanan, SADECE kullanıcıya gösterilecek 1-2 cümlelik Türkçe gerekçe. Ürün ID\'si veya teknik jargon YAZMA — sadece ürün isimlerini kullan, doğal ve sohbet diliyle yaz.',
       },
       itemIds: {
         type: 'array',
@@ -108,7 +113,7 @@ const SUGGEST_PARTNER_OUTFIT_TOOL = {
         description: 'Opsiyonel, en fazla 2 tane: partnerin kombini ile kullanıcının kombini arasındaki somut uyum notu.',
       },
     },
-    required: ['reasoning', 'itemIds'],
+    required: ['internalAnalysis', 'reasoning', 'itemIds'],
   },
 };
 
@@ -189,15 +194,25 @@ Deno.serve(async (req: Request) => {
   const partnerItemsWithColorNames = partnerItems.map((item) => ({ ...item, colorName: closestColorName(item.color) }));
   const referenceWithColorNames = referenceItems.map((item) => ({ ...item, colorName: closestColorName(item.color) }));
 
-  const systemPrompt = `Sen deneyimli bir moda stilistisin. Bir çiftin BİRLİKTE giyeceği kombinlerde uyum sağlıyorsun. Kullanıcının zaten seçtiği bir kombin var; senin görevin PARTNERİNİN envanterinden, bu kombinle birlikte giyildiğinde şık ve uyumlu duracak bir kombin seçmek. Kurallara sıkı sıkıya uy:
+  // İsimleri server-side çekiyoruz (client'a güvenmek yerine) - prompt'ta ve reasoning'de
+  // "kullanıcının kombini" gibi jenerik etiketler yerine gerçek isimler kullanılabilsin diye.
+  const { data: profileRows } = await adminClient
+    .from('profiles')
+    .select('id, display_name')
+    .in('id', [user.id, partnerId]);
+  const requesterName = profileRows?.find((p) => p.id === user.id)?.display_name || 'Kullanıcı';
+  const partnerName = profileRows?.find((p) => p.id === partnerId)?.display_name || 'Partner';
 
-1. Sadece partnerin envanterinde var olan ürün id'lerini kullan, uydurma.
+  const systemPrompt = `Sen deneyimli bir moda stilistisin. Bir çiftin BİRLİKTE giyeceği kombinlerde uyum sağlıyorsun. ${requesterName} zaten bir kombin seçti; senin görevin ${partnerName}'in envanterinden, bu kombinle birlikte giyildiğinde şık ve uyumlu duracak bir kombin seçmek. Kurallara sıkı sıkıya uy:
+
+1. Sadece ${partnerName}'in envanterinde var olan ürün id'lerini kullan, uydurma.
 2. "Uyumlu" demek AYNI KIYAFETİ giymek değil — renk paletinin aynı aileden olması (ör. ikisi de nötr+lacivert tonlarında) veya bilinçli, zevkli bir kontrast (ör. biri krem biri lacivert, ikisi de "şık" konseptinde) yeterli. Birbiriyle çatışan parlak renklerden kaçın.
-3. Partnerin envanterinde birebir ideal seçenek olmayabilir — en yakın makul alternatifi seç, asla reddetme.
-4. reasoning alanında önce iç analiz yap (kullanıcının kombini ne renkte/stilde, partnerin envanterinde buna en uyumlu hangi parçalar var), sonra kısa Türkçe gerekçe yaz.`;
+3. ${partnerName}'in envanterinde birebir ideal seçenek olmayabilir — en yakın makul alternatifi seç, asla reddetme.
+4. internalAnalysis alanında iç analiz yap (${requesterName}'in kombini ne renkte/stilde, ${partnerName}'in envanterinde buna en uyumlu hangi parçalar var), sonra reasoning alanına SADECE kullanıcının okuyacağı kısa, doğal bir özet yaz. reasoning'de ${requesterName} ve ${partnerName} isimlerini doğal bir şekilde kullanabilirsin (ör. "${requesterName}'in bej-beyaz kombinine, ${partnerName}'in gardırobundan şu parçalar..."), ama ürün id'si veya "sahiplik/istek_listesi" gibi teknik alan isimleri ASLA yazma.
+5. Eğer ${requesterName}'in kombininin rengi/stili zaten ${partnerName}'in envanteriyle net bir şekilde uyumluysa, reasoning'i uzatma — basit ve doğal bir cümleyle yeterli (ör. "İkiniz de bej-beyaz tonlarında olduğu için doğal bir uyum var.").`;
 
-  const contextNote = context ? `\n\nBağlam: ${JSON.stringify(context)}` : '';
-  const userPrompt = `Kullanıcının kombini:\n${JSON.stringify(referenceWithColorNames, null, 2)}${contextNote}\n\nPartnerin envanteri:\n${JSON.stringify(partnerItemsWithColorNames, null, 2)}`;
+  const contextNote = context ? `\n\n${requesterName}'in bağlamı (mevsim/mekan/saat/konsept): ${JSON.stringify(context)}` : '';
+  const userPrompt = `${requesterName}'in kombini:\n${JSON.stringify(referenceWithColorNames, null, 2)}${contextNote}\n\n${partnerName}'in envanteri:\n${JSON.stringify(partnerItemsWithColorNames, null, 2)}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

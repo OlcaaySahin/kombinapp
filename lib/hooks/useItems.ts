@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { CategorySlot } from '@/constants/categories';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 export type DbItem = {
   id: string;
@@ -20,13 +21,23 @@ export type DbItem = {
   updated_at: string;
 };
 
+/**
+ * user_id'yi RLS'e bırakmayıp EXPLICIT olarak filtreliyoruz — partner eşleştirmesi
+ * items tablosuna dar bir çapraz-görünürlük policy'si ekledi (kaydedilmiş "partner kombini"
+ * render edilebilsin diye, bkz. migration 20260719020000). Bu policy sadece belirli
+ * item'ları etkiliyor ama yine de bu sorgunun "sadece benim envanterim" niyetini RLS'in
+ * o anki kapsamına bağımlı bırakmamak için ekstra bir güvenlik katmanı.
+ */
 export function useItems() {
+  const userId = useAuthStore((state) => state.userId);
   return useQuery<DbItem[]>({
-    queryKey: ['items'],
+    queryKey: ['items', userId],
+    enabled: Boolean(userId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('items')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as DbItem[];

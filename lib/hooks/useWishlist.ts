@@ -131,3 +131,33 @@ export function useDeleteWishlistItem() {
     },
   });
 }
+
+/** İstek listesindeki bir ürün satın alındığında: envantere kopyalar, istek listesinden kaldırır. */
+export function useMarkWishlistItemPurchased() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (item: DbWishlistItem) => {
+      const { error: insertError } = await supabase.from('items').insert({
+        user_id: item.user_id,
+        category_id: item.category_id,
+        slot: item.slot,
+        name: item.name,
+        color: item.color,
+        pattern: item.pattern,
+        season: item.season,
+        brand: item.brand,
+        image_url: item.image_url,
+        source_type: item.source_type,
+        ai_tags: item.ai_tags,
+      });
+      if (insertError) throw insertError;
+
+      const { error: deleteError } = await supabase.from('wishlist_items').delete().eq('id', item.id);
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist_items'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}

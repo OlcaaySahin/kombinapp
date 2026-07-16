@@ -1,4 +1,4 @@
-import { generateRandomOutfit } from '../outfitGenerator';
+import { generateRandomOutfit, inferTakiType } from '../outfitGenerator';
 
 // CategorySlot'un bir alt kümesi — yapısal olarak uyumlu, import alias'ına bağımlı değil.
 type TestSlot = 'ust_giyim' | 'alt_giyim' | 'ayakkabi' | 'taki';
@@ -38,5 +38,25 @@ describe('generateRandomOutfit', () => {
     const withoutAccessories = FULL_INVENTORY.filter((item) => item.slot !== 'taki');
     const result = generateRandomOutfit(withoutAccessories);
     expect(result).toHaveLength(3);
+  });
+});
+
+describe('inferTakiType', () => {
+  it('recognizes necklace and earring as different types', () => {
+    expect(inferTakiType('Gümüş Zincir Kolye')).toBe('kolye');
+    expect(inferTakiType('Altın Küpe')).toBe('kupe');
+    expect(inferTakiType('Gümüş Zincir Kolye')).not.toBe(inferTakiType('Altın Küpe'));
+  });
+
+  it('recognizes ring, bracelet, and watch', () => {
+    expect(inferTakiType('Altın Renkli İmza Yüzük')).toBe('yuzuk');
+    expect(inferTakiType('Gümüş Bileklik')).toBe('bileklik');
+    expect(inferTakiType('Paslanmaz Çelik Saat')).toBe('saat');
+  });
+
+  it('returns null for unrecognized or missing names', () => {
+    expect(inferTakiType('Mavi Aksesuar')).toBeNull();
+    expect(inferTakiType(null)).toBeNull();
+    expect(inferTakiType(undefined)).toBeNull();
   });
 });

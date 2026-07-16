@@ -6,10 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
-import { showConfirm } from '@/lib/alert';
+import { showActionSheet, showAlert, showConfirm } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
-import { useDeleteWishlistItem, useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
+import {
+  useDeleteWishlistItem,
+  useMarkWishlistItemPurchased,
+  useWishlistItems,
+  type DbWishlistItem,
+} from '@/lib/hooks/useWishlist';
 
 type Tab = 'envanter' | 'istek_listesi';
 
@@ -21,6 +26,7 @@ export default function EnvanterScreen() {
   const deleteItem = useDeleteItem();
   const { data: wishlistItems, isLoading: wishlistLoading, isError: wishlistError } = useWishlistItems();
   const deleteWishlistItem = useDeleteWishlistItem();
+  const markPurchased = useMarkWishlistItemPurchased();
 
   const isLoading = tab === 'envanter' ? itemsLoading : wishlistLoading;
   const isError = tab === 'envanter' ? itemsError : wishlistError;
@@ -31,10 +37,22 @@ export default function EnvanterScreen() {
     );
   }
 
-  function confirmDeleteWishlist(item: DbWishlistItem) {
-    showConfirm('İstek listesinden sil', `"${item.name ?? 'Bu ürün'}" istek listesinden silinsin mi?`, () =>
-      deleteWishlistItem.mutate(item.id)
-    );
+  function handleWishlistLongPress(item: DbWishlistItem) {
+    showActionSheet('İstek listesi', `"${item.name ?? 'Bu ürün'}" için ne yapmak istersin?`, [
+      {
+        label: 'Ürünü Satın Aldım',
+        onPress: () =>
+          markPurchased.mutate(item, {
+            onError: (error) =>
+              showAlert('Taşınamadı', error instanceof Error ? error.message : String(error)),
+          }),
+      },
+      {
+        label: 'Ürünü Sil',
+        destructive: true,
+        onPress: () => deleteWishlistItem.mutate(item.id),
+      },
+    ]);
   }
 
   const items = useMemo(() => {
@@ -60,7 +78,7 @@ export default function EnvanterScreen() {
                 ? `${allItems.length} ürün · düzenlemek için dokun, silmek için basılı tut`
                 : ' '
               : wishlistItems
-                ? `${wishlistItems.length} ürün · düzenlemek için dokun, silmek için basılı tut`
+                ? `${wishlistItems.length} ürün · düzenlemek için dokun, satın aldıysan ya da silmek istiyorsan basılı tut`
                 : ' '}
           </Text>
         </View>
@@ -150,7 +168,7 @@ export default function EnvanterScreen() {
             <ItemCard
               item={item}
               onPress={() => router.push({ pathname: '/add-wishlist-item', params: { itemId: item.id } })}
-              onLongPress={() => confirmDeleteWishlist(item)}
+              onLongPress={() => handleWishlistLongPress(item)}
             />
           )}
         />

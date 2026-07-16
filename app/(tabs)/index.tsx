@@ -23,7 +23,7 @@ import {
   useRateOutfit,
   type OutfitContext,
 } from '@/lib/hooks/useOutfits';
-import { generateRandomOutfit } from '@/lib/outfitGenerator';
+import { generateRandomOutfit, inferTakiType } from '@/lib/outfitGenerator';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { requestPartnerOutfit } from '@/lib/partnerOutfit';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
@@ -94,6 +94,8 @@ export default function AnaSayfaScreen() {
   const [partnerReasoning, setPartnerReasoning] = useState<string | null>(null);
   const [partnerPairingNotes, setPartnerPairingNotes] = useState<PairingNote[] | null>(null);
   const [partnerSaved, setPartnerSaved] = useState(false);
+  const [partnerSavedOutfitId, setPartnerSavedOutfitId] = useState<string | null>(null);
+  const [partnerRating, setPartnerRating] = useState<number | null>(null);
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept);
   const count = dailyCount.data ?? 0;
@@ -129,6 +131,8 @@ export default function AnaSayfaScreen() {
     setPartnerReasoning(null);
     setPartnerPairingNotes(null);
     setPartnerSaved(false);
+    setPartnerSavedOutfitId(null);
+    setPartnerRating(null);
     setScreen('result');
     if (userId) logEvent.mutate({ userId, type: 'outfit' });
   }
@@ -142,16 +146,40 @@ export default function AnaSayfaScreen() {
     const tried = triedIdsBySlotRef.current.get(target.slot) ?? new Set<string>();
     const currentIds = new Set(generatedItems.map((item) => item.id));
 
-    const candidates = pool.filter(
-      (item: DbItem) => item.slot === target.slot && !tried.has(item.id) && !currentIds.has(item.id)
-    );
+    // "taki" (kolye/küpe/yüzük/vb.) için: değiştirilen parçanın dışındaki taki'lerin türlerini
+    // dışarıda bırak — aksi halde ör. kombinde küpe varken kolyeyi değiştirince ikinci bir
+    // küpe önerilebiliyordu (aynı slot, farklı id, ama aynı tür).
+    const targetType = target.slot === 'taki' ? inferTakiType(target.name) : null;
+    const otherTakiTypesInOutfit =
+      target.slot === 'taki'
+        ? new Set(
+            generatedItems
+              .filter((item) => item.id !== itemId && item.slot === 'taki')
+              .map((item) => inferTakiType(item.name))
+              .filter((type): type is string => Boolean(type))
+          )
+        : new Set<string>();
+
+    const candidates = pool.filter((item: DbItem) => {
+      if (item.slot !== target.slot || tried.has(item.id) || currentIds.has(item.id)) return false;
+      if (target.slot === 'taki') {
+        const itemType = inferTakiType(item.name);
+        if (itemType && otherTakiTypesInOutfit.has(itemType)) return false;
+      }
+      return true;
+    });
 
     if (candidates.length === 0) {
       showAlert('Başka seçenek yok', 'Bu kategoride envanterinde/istek listende başka bir ürün bulunmuyor.');
       return;
     }
 
-    const replacement = candidates[Math.floor(Math.random() * candidates.length)];
+    // Mümkünse aynı türden (ör. kolye yerine kolye) bir alternatif tercih et — "değiştir"
+    // isteğine en sadık davranış bu, tür belirlenemiyorsa (veya eşleşen yoksa) tüm adaylardan seç.
+    const sameTypeCandidates = targetType ? candidates.filter((item) => inferTakiType(item.name) === targetType) : [];
+    const finalCandidates = sameTypeCandidates.length > 0 ? sameTypeCandidates : candidates;
+
+    const replacement = finalCandidates[Math.floor(Math.random() * finalCandidates.length)];
     tried.add(replacement.id);
     triedIdsBySlotRef.current.set(target.slot, tried);
 
@@ -162,6 +190,8 @@ export default function AnaSayfaScreen() {
     setPartnerReasoning(null);
     setPartnerPairingNotes(null);
     setPartnerSaved(false);
+    setPartnerSavedOutfitId(null);
+    setPartnerRating(null);
   }
 
   function rollDice(excludeIds?: Set<string>) {
@@ -258,18 +288,25 @@ export default function AnaSayfaScreen() {
   async function handleSavePartnerOutfit() {
     if (!userId || !partnerItems) return;
     try {
-      await createOutfit.mutateAsync({
+      const outfitId = await createOutfit.mutateAsync({
         userId,
         itemIds: partnerItems.map((item) => item.id),
         context: generatedContext,
         source: 'ai_generated',
         isLiked: true,
       });
+      setPartnerSavedOutfitId(outfitId);
       setPartnerSaved(true);
     } catch (error) {
       console.error('Partner kombini kaydedilemedi:', error);
       showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
     }
+  }
+
+  function handleRatePartner(value: number) {
+    if (!partnerSavedOutfitId) return;
+    setPartnerRating(value);
+    rateOutfit.mutate({ outfitId: partnerSavedOutfitId, rating: value });
   }
 
   function reset() {
@@ -290,6 +327,8 @@ export default function AnaSayfaScreen() {
     setPartnerReasoning(null);
     setPartnerPairingNotes(null);
     setPartnerSaved(false);
+    setPartnerSavedOutfitId(null);
+    setPartnerRating(null);
   }
 
   const hasWishlistItem = generatedItems?.some((item) => wishlistIdSet.has(item.id)) ?? false;
@@ -487,9 +526,17 @@ export default function AnaSayfaScreen() {
                 </Text>
                 <OutfitCard outfit={partnerOutfitCardData} />
                 {partnerSaved ? (
-                  <View className="flex-row items-center justify-center gap-2 rounded-2xl bg-primary/10 py-4">
-                    <Ionicons name="checkmark-circle" size={20} color="#3461FD" />
-                    <Text className="font-heading text-base text-primary">Kombinlerim&apos;e kaydedildi</Text>
+                  <View className="items-center gap-3 rounded-2xl bg-primary/10 py-4">
+                    <View className="flex-row items-center gap-2">
+                      <Ionicons name="checkmark-circle" size={20} color="#3461FD" />
+                      <Text className="font-heading text-base text-primary">Kombinlerim&apos;e kaydedildi</Text>
+                    </View>
+                    <View className="items-center gap-1">
+                      <Text className="font-body text-xs text-gray-500 dark:text-gray-400">
+                        Bu kombini nasıl buldun?
+                      </Text>
+                      <StarRating value={partnerRating} onChange={handleRatePartner} />
+                    </View>
                   </View>
                 ) : (
                   <PrimaryButton
