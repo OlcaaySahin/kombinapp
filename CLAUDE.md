@@ -222,6 +222,18 @@ Kullanıcı APK önbelleğini temizledi (yeni bir anonim oturum oluştu), sonra 
 
 **Uçtan uca canlı doğrulandı**: gerçek `busecivelek08@gmail.com` hesabına karşı tam akış test edildi — yeni anonim oturum → test ürünü eklendi → `email_exists` doğru yakalandı → yeni şablonla gerçek kod alındı → `verifyOtp` ile gerçek hesaba geçiş yapıldı (auth.uid() değişti, doğrulandı) → `migrate-anonymous-data` test ürününü doğru şekilde yeni hesaba taşıdı → DB'den doğrulandı → test verisi temizlendi.
 
+## Çıkış Yap / Hesap Değiştir (2026-07-16)
+Yukarıdaki bug'ı test ederken her seferinde önbellek temizlemek gerekiyordu — bunu çözmek için `lib/auth.ts`'e `signOut()` eklendi: Google oturumunu (varsa) kapatır, Supabase oturumunu sonlandırır, `queryClient.clear()` ile önceki kullanıcının cache'ini temizler, hemen yeni bir anonim oturum açar. Profil ekranında (sadece giriş yapılmışken görünen) kırmızı bir "Çıkış Yap / Hesap Değiştir" butonu bunu tetikliyor, `showConfirm` ile onay alıyor. Supabase tarafı canlı test edildi (signOut + signInAnonymously farklı bir `auth.uid()` üretiyor, doğrulandı).
+
+## Test Verisi: 70 Ürünlük Erkek Gardırobu Doldurma (2026-07-16)
+Kullanıcı, Google hesabına (`o.l.c.a.y.s.a.h.i.n5858@gmail.com`, tek hesap — bu e-postaya bağlı başka provider yok) "28 yaşında, old money, spor, şık, erkek" temalı, her kategoriye (Elbise hariç 7 kategori) 10'ar adet, ürün-odaklı görselli 70 ürün eklenmesini istedi.
+
+**Mimari — `admin-seed-item` Edge Function**: kullanıcının Google hesabına client tarafından (kendi oturumumuz yokken) yazamayacağımız için, service-role ile çalışan yeni bir admin fonksiyonu yazıldı (`migrate-anonymous-data` ile aynı desen). `x-admin-secret` header'ında `ADMIN_SEED_SECRET` (Supabase secret, sadece bu oturumda kullanıldı) doğrulaması olmadan hiçbir isteği kabul etmiyor. **Arka planda çalışan otomatik güvenlik incelemesi bir SSRF riski buldu** (fonksiyon verilen HERHANGİ bir `imageUrl`'i sorgusuz indiriyordu) — düzeltildi: sadece `https://images.pexels.com/...` kabul ediliyor, redirect'ler reddediliyor, content-type/boyut doğrulanıyor.
+
+**Görsel kalitesi — kullanıcının asıl şikayeti buydu**: Pexels arama sonuçlarının çoğu "tam giyimli insan" fotoğrafıydı (ör. "beyaz gömlek" araması "Man in white shirt gazing over the harbor" döndürüyordu), tam olarak kullanıcının şikayet ettiği belirsizlik. Basit anahtar kelime skorlaması yetersiz kaldı çünkü Pexels'in `alt` metni genelde alakasız objelerle dolu genel "flat lay" koleksiyonlarını da "flat lay" kelimesiyle yüksek puanlıyordu. Çözüm: (1) her ürün için alt-text'te GERÇEKTEN geçmesi gereken anahtar kelime listesi (zorunlu filtre), (2) kişi-odaklı kelimelere (`man/woman/person/posing/...`) ağır ceza, ürün-fotoğrafçılığı kelimelerine (`flat lay/isolated/folded/studio/...`) bonus puan. 70 üründen 61'i otomatik olarak temiz çıktı, kalan 9'u tekrar arandı; 5 tanesinde (Pexels'te gerçekten uygun bir "ürün odaklı" foto yoktu) görsel elle incelenip (Read tool ile) katalog verisi (isim/renk/desen) gerçekte gördüğüm görsele uydurma tercih edildi — yanlış renk/ürün göstermektense.
+
+**Sonuç**: 70/70 başarıyla eklendi (kategori başına 10, DB'den doğrulandı), Storage'a yüklenen birkaç görsel indirilip gerçekten doğru ürünü gösterdiği teyit edildi. `admin-seed-item` fonksiyonu (ve `ADMIN_SEED_SECRET`) gelecekte benzer toplu-veri işleri için kullanılabilir, dursun diye deploy'da bırakıldı.
+
 ## İstek Listesi: Satın Almak İstediklerinle Kombin Dene (2026-07-15)
 Kullanıcı önerisi: envanterdeki gibi ama "sahip olunmayan" ürünleri listeleyip, bunlarla kombin denemesi yaparak satın almaya teşvik etme. Marketplace/marka API entegrasyonu beklemeden (o ayrı ve çok daha zor bir problem — bkz. "Fikir havuzu") manuel giriş ile bugün tam değer veriyor.
 
