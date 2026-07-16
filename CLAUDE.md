@@ -95,7 +95,26 @@ Anonim kullanıcı, verisini kaybetmeden kalıcı bir hesaba "yükseltiliyor" (a
 4. Link-tabanlı varsayılan şablon (SMTP kurulmadan önce) aslında **arka planda çalışıyordu** — kullanıcı "link çalışmıyor" dese de sunucu tarafında onay gerçekleşmişti (ikinci bir `updateUser` denemesi "already registered" hatası verince anlaşıldı). Yani mobilde link'in görsel olarak "başarılı" görünmemesi, onayın gerçekleşmediği anlamına gelmiyor — şüphede kalınırsa `getUser()` ile kontrol edin.
 5. Gmail nokta-duyarsızdır (`o.l.c.a.y.s.a.h.i.n5858@gmail.com` ile `olcaysahin5858@gmail.com` aynı kutuya düşer) ama **Supabase bunları farklı e-posta olarak görür** — test sırasında "already registered" hatasına takılırsanız nokta varyasyonunu değiştirmek pratik bir geçici çözüm.
 
-**Hâlâ eksik**: Google OAuth girişi — Google Cloud Console'da ayrı kurulum (OAuth Client ID/Secret) gerektirir, kullanıcı henüz bunu sağlamadı, MVP'yi bloklamıyor (email akışı zaten çalışıyor).
+**~~Hâlâ eksik~~ — Google OAuth GİRİŞİ TAMAMLANDI (2026-07-16)**: bkz. "Google ile Giriş" bölümü aşağıda.
+
+## Google ile Giriş (Native SDK) — Yeni EAS Build Gerekiyor (2026-07-16)
+`@react-native-google-signin/google-signin` **13.3.1**'e sabitlendi (`^16.x` **değil** — 14.0.0'dan itibaren `expo >=52.0.40` peer dependency istiyor, biz SDK 51'deyiz; 13.x son `expo >=50.0.0` destekleyen seri). `app.json`'a Expo config plugin eklendi (Firebase'siz, `iosUrlScheme` gerekmiyor çünkü şu an sadece Android test ediliyor).
+
+**Kritik tasarım kararı — anonim veri kaybı riski**: `supabase.auth.signInWithIdToken()` (native SDK'nın kullandığı yöntem), e-posta yükseltme akışının kullandığı `updateUser({email})`'ın aksine, mevcut anonim `auth.uid()`'yi **korumuyor** — Supabase'in henüz çözülmemiş, bilinen bir sınırlaması (`linkIdentity()` OAuth-redirect akışında çalışıyor ama native idToken akışında bir eşdeğeri yok). Yani biri anonim olarak envanter oluşturup sonra Google ile giriş yapsa, naif bir entegrasyon o envanteri sessizce kaybettirirdi.
+
+**Çözüm**: yeni `migrate-anonymous-data` Edge Function'ı, `lib/auth.ts`'teki `signInWithGoogle()`:
+1. Google girişinden ÖNCE, oturum anonimse eski `auth.uid()`'yi (`oldUserId`) hafızaya alıyor.
+2. `GoogleSignin.signIn()` → `idToken` → `supabase.auth.signInWithIdToken()` (yeni bir `auth.uid()` oluşturuyor).
+3. `oldUserId` varsa, `migrate-anonymous-data`'yı çağırıyor — bu fonksiyon **service role** ile `items`/`wishlist_items`/`outfits`'i eski kullanıcıdan yeniye taşıyor, profildeki doldurulmuş alanları (yaş/boy/kilo/cinsiyet/günlük stil) kopyalıyor, sonra eski anonim kullanıcıyı siliyor.
+4. **Güvenlik kontrolü**: fonksiyon önce `oldUserId`'nin GERÇEKTEN anonim (`is_anonymous: true`) olduğunu doğruluyor — aksi halde biri rastgele bir `oldUserId` vererek başka bir gerçek kullanıcının verisini kendi hesabına "çalabilirdi". **Canlı test edildi**: hem var olmayan hem GERÇEK (anonim olmayan, `busecivelek08@gmail.com`) bir `oldUserId` ile deneme doğru şekilde reddedildi; gerçek bir anonim→migrasyon senaryosu (1 ürün + profil alanları) başarıyla taşındı.
+5. Migrasyon sonrası `queryClient.invalidateQueries()` — taşınan veri uygulamada hemen görünsün diye.
+
+**Google Cloud Console tarafı** (proje `kombin-app-502606`):
+- **Web application** OAuth client (`webClientId` olarak kullanılıyor, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — `.env` + `eas.json` development/preview profillerinde) — redirect URI: `https://tvjjwpotqeybtkkvvwox.supabase.co/auth/v1/callback`.
+- **Android** OAuth client — paket adı `com.olcaaysahin.kombinapp` + SHA-1 sertifika parmak izi (kullanıcının EAS build credential'ından alındı) — **bu olmadan native girişte `DEVELOPER_ERROR` alınır**, çok yaygın bir gotcha, önceden kuruldu.
+- Supabase Auth Google provider'ı (`external_google_enabled`, `external_google_client_id`, `external_google_secret`) Management API'nin `/config/auth` endpoint'i üzerinden ayarlandı.
+
+**Önemli — yeni native modül**: mevcut dev-client build'inde ÇALIŞMAZ, yeni bir EAS development build + telefona yeniden kurulum gerekiyor. `app/sign-in.tsx`'e e-posta akışının üstüne "Google ile Devam Et" butonu eklendi.
 
 ## Gerçek Veri Durumu (mock kaldırıldı, `lib/mockData.ts` silindi)
 Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz):
