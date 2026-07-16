@@ -16,6 +16,7 @@ export type OutfitItemSummary = {
   slot: CategorySlot;
   color: string | null;
   image_url: string | null;
+  user_id: string;
 };
 
 export type OutfitWithItems = {
@@ -58,7 +59,7 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
 
 const OUTFIT_SELECT = `
   id, name, is_liked, rating, generation_source, generation_context, user_note, created_at,
-  outfit_items ( items ( id, name, slot, color, image_url ) )
+  outfit_items ( items ( id, name, slot, color, image_url, user_id ) )
 `;
 
 /** Beğenilmiş AMA henüz giyilmemiş kombinler — giyilenler bu listeden otomatik düşer. */
@@ -104,7 +105,7 @@ export function useWornOutfits() {
       const { data, error } = await supabase
         .from('outfit_wears')
         .select(
-          `id, worn_date, photo_url, note, outfits ( id, rating, outfit_items ( items ( id, name, slot, color, image_url ) ) )`
+          `id, worn_date, photo_url, note, outfits ( id, rating, outfit_items ( items ( id, name, slot, color, image_url, user_id ) ) )`
         )
         .order('worn_date', { ascending: false });
       if (error) throw error;

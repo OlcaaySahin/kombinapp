@@ -221,7 +221,15 @@ export default function AnaSayfaScreen() {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
         return;
       }
-      showResult(suggestion.items, context, suggestion.source, suggestion.reasoning, suggestion.pairingNotes);
+      // requestAiOutfit AI çağrısı başarısız olursa sessizce rastgele seçime düşüyor
+      // (bilinçli tasarım — üretmeyi hiç reddetmemek için). Ama bu durumda reasoning
+      // hiç olmuyordu ve kullanıcı "neden açıklama yok?" diye şaşırıyordu — artık en
+      // azından ne olduğunu açıkça söylüyoruz.
+      const reasoning =
+        suggestion.source === 'dice'
+          ? 'Şu an AI önerisi alınamadı, envanterinden bağlama uygun rastgele bir kombin seçtik.'
+          : suggestion.reasoning;
+      showResult(suggestion.items, context, suggestion.source, reasoning, suggestion.pairingNotes);
     } finally {
       setGenerating(false);
     }

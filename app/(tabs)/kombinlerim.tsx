@@ -13,14 +13,40 @@ import {
   type OutfitWithItems,
   type WearEventData,
 } from '@/lib/hooks/useOutfits';
+import { usePartnership } from '@/lib/hooks/usePartnership';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 type Tab = 'gecmis' | 'begenilen';
 
+/** Profildeki 'Kadın'/'Erkek' metnini OutfitCard'ın rozet ikonu tipine çevirir. */
+function toGenderIcon(gender: string | null | undefined): 'kadın' | 'erkek' | null {
+  if (gender === 'Kadın') return 'kadın';
+  if (gender === 'Erkek') return 'erkek';
+  return null;
+}
+
 export default function KombinlerimScreen() {
   const [tab, setTab] = useState<Tab>('gecmis');
+  const userId = useAuthStore((state) => state.userId);
   const worn = useWornOutfits();
   const liked = useLikedOutfits();
   const rateOutfit = useRateOutfit();
+  const { data: profile } = useProfile(userId);
+  const { data: partnership } = usePartnership();
+
+  const ownGenderIcon = toGenderIcon(profile?.gender);
+  const partnerGenderIcon =
+    partnership?.status === 'accepted' ? toGenderIcon(partnership.partnerGender) : null;
+
+  /** Kombinin item'ları kimin envanterindense (kendi/partner) o kişinin cinsiyet rozetini döndürür. */
+  function genderIconFor(outfit: OutfitWithItems): 'kadın' | 'erkek' | null {
+    const ownerId = outfit.items[0]?.user_id;
+    if (!ownerId) return null;
+    if (ownerId === userId) return ownGenderIcon;
+    if (partnership?.status === 'accepted' && ownerId === partnership.partnerId) return partnerGenderIcon;
+    return null;
+  }
 
   const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
   const isEmpty = tab === 'gecmis' ? (worn.data ?? []).length === 0 : (liked.data ?? []).length === 0;
@@ -81,6 +107,7 @@ export default function KombinlerimScreen() {
                   userNote: outfit.user_note,
                 }}
                 onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
+                genderIcon={genderIconFor(outfit)}
               />
               <Pressable
                 onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
