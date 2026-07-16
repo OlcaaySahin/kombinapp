@@ -44,18 +44,60 @@ export async function bootstrapSession() {
   syncSession(data.session);
 }
 
+export type EmailAuthMode = 'upgrade' | 'sign_in';
+
 /**
  * Anonim kullanıcıyı e-posta ile kalıcı bir hesaba "yükseltir" — auth.uid() değişmediği için
  * mevcut envanter/kombin/fotoğraf verisi kaybolmaz. E-postaya 6 haneli bir doğrulama kodu gönderir.
+ *
+ * E-posta zaten başka bir hesaba kayıtlıysa (`email_exists` — ör. kullanıcı önbelleği temizleyip
+ * yeniden yüklediğinde), bunun yerine o hesaba GİRİŞ için bir kod gönderir. Bu durumda
+ * `verifyAccountUpgradeCode` auth.uid()'yi değiştirir, bu yüzden mevcut (yeni/boş) anonim oturumun
+ * verisi varsa `migrate-anonymous-data` ile taşınır — signInWithGoogle()'daki mantığın aynısı.
  */
-export async function sendAccountUpgradeCode(email: string) {
+export async function sendAccountUpgradeCode(email: string): Promise<EmailAuthMode> {
   const { error } = await supabase.auth.updateUser({ email });
-  if (error) throw error;
+  if (!error) return 'upgrade';
+
+  if (error.code === 'email_exists') {
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (otpError) throw otpError;
+    return 'sign_in';
+  }
+
+  throw error;
 }
 
-export async function verifyAccountUpgradeCode(email: string, token: string) {
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email_change' });
+export async function verifyAccountUpgradeCode(email: string, token: string, mode: EmailAuthMode) {
+  if (mode === 'upgrade') {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email_change' });
+    if (error) throw error;
+    return;
+  }
+
+  const {
+    data: { session: currentSession },
+  } = await supabase.auth.getSession();
+  const oldUserId = currentSession?.user.is_anonymous ? currentSession.user.id : null;
+
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw error;
+
+  if (oldUserId) {
+    const { error: migrateError } = await supabase.functions.invoke('migrate-anonymous-data', {
+      body: { oldUserId },
+    });
+    if (migrateError) {
+      console.error('Anonim veri taşınamadı:', migrateError);
+      throw new Error(
+        'Hesabına giriş yapıldı ama bu cihazdaki verilerin taşınmasında bir sorun oluştu. Lütfen tekrar dene veya destekle iletişime geç.'
+      );
+    }
+    await queryClient.invalidateQueries();
+  }
 }
 
 /**

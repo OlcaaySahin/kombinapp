@@ -6,12 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { showAlert } from '@/lib/alert';
-import { sendAccountUpgradeCode, signInWithGoogle, verifyAccountUpgradeCode } from '@/lib/auth';
+import { EmailAuthMode, sendAccountUpgradeCode, signInWithGoogle, verifyAccountUpgradeCode } from '@/lib/auth';
 
 type Step = 'email' | 'code';
 
 export default function SignInScreen() {
   const [step, setStep] = useState<Step>('email');
+  const [mode, setMode] = useState<EmailAuthMode>('upgrade');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,8 @@ export default function SignInScreen() {
     if (!email.trim()) return;
     setLoading(true);
     try {
-      await sendAccountUpgradeCode(email.trim());
+      const resultMode = await sendAccountUpgradeCode(email.trim());
+      setMode(resultMode);
       setStep('code');
     } catch (error) {
       console.error('Kod gönderilemedi:', error);
@@ -49,8 +51,12 @@ export default function SignInScreen() {
     if (!code.trim()) return;
     setLoading(true);
     try {
-      await verifyAccountUpgradeCode(email.trim(), code.trim());
-      showAlert('Hesabın oluşturuldu!', 'Envanterin ve kombinlerin artık bu e-postaya bağlı, güvende.');
+      await verifyAccountUpgradeCode(email.trim(), code.trim(), mode);
+      if (mode === 'sign_in') {
+        showAlert('Hoş geldin!', 'Hesabına giriş yapıldı, envanterin ve kombinlerin burada.');
+      } else {
+        showAlert('Hesabın oluşturuldu!', 'Envanterin ve kombinlerin artık bu e-postaya bağlı, güvende.');
+      }
       router.back();
     } catch (error) {
       console.error('Kod doğrulanamadı:', error);
@@ -106,6 +112,11 @@ export default function SignInScreen() {
           </View>
         ) : (
           <View>
+            {mode === 'sign_in' && (
+              <Text className="mb-3 font-body text-xs text-gray-500 dark:text-gray-400">
+                Bu e-posta zaten kayıtlı — hesabına giriş yapman için sana bir kod gönderdik.
+              </Text>
+            )}
             <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
               {email} adresine gönderilen kod
             </Text>
