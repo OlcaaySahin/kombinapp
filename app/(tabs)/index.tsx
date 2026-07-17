@@ -17,6 +17,7 @@ import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import {
   useCreateOutfit,
+  useSetOutfitPair,
   useDailyOutfitCount,
   useLikedOutfits,
   useLogGenerationEvent,
@@ -65,6 +66,7 @@ export default function AnaSayfaScreen() {
   const logEvent = useLogGenerationEvent();
   const createOutfit = useCreateOutfit();
   const rateOutfit = useRateOutfit();
+  const setOutfitPair = useSetOutfitPair();
   const likedOutfits = useLikedOutfits();
   const { data: partnership } = usePartnership();
   const hasPartner = partnership?.status === 'accepted';
@@ -278,6 +280,10 @@ export default function AnaSayfaScreen() {
       });
       setSavedOutfitId(outfitId);
       setSaved(true);
+      // Partner kombini ana kombinden ÖNCE kaydedildiyse çift bağını şimdi kur.
+      if (partnerSavedOutfitId) {
+        setOutfitPair.mutate({ outfitId: partnerSavedOutfitId, pairOutfitId: outfitId });
+      }
     } catch (error) {
       console.error('Kombin kaydedilemedi:', error);
       showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
@@ -338,6 +344,8 @@ export default function AnaSayfaScreen() {
         isLiked: true,
         reasoning: partnerReasoning,
         pairingNotes: partnerPairingNotes,
+        // Ana kombin kaydedildiyse çift bağı: partner kombini -> ana kombin.
+        pairOutfitId: savedOutfitId,
       });
       setPartnerSavedOutfitId(outfitId);
       setPartnerSaved(true);

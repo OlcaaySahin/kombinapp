@@ -315,6 +315,13 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Kombin Çiftleri: Ana + Partner Kombini Bağlı Gösterim (2026-07-17)
+Partnere önerilip kaydedilen kombin artık ana kombinle DB'de bağlı ve Beğenilenler'de birlikte gösteriliyor:
+- **`outfits.pair_outfit_id`** (`20260722000000_add_outfit_pair.sql`, Management API ile çalıştırıldı) — yön: partner kombini → ana kombin; `on delete set null` (ana silinirse partner kombini bağımsız kombin olarak yaşar).
+- `useCreateOutfit` → `pairOutfitId`; `handleSavePartnerOutfit` ana kombin kaydedildiyse bağı yazıyor. **Ters sıra da kapsandı**: partner ÖNCE kaydedilip ana SONRA beğenilirse, `handleLike` yeni `useSetOutfitPair` mutation'ıyla bağı sonradan kuruyor.
+- **Beğenilenler gruplaması** (`kombinlerim.tsx`): her iki kombin de listedeyse mor çerçeveli tek bir "Kombin Çifti" bloğunda üst üste gösteriliyor (her birinin kendi puanlama + Giydim butonu korunuyor); ana kombin listede değilse (ör. giyilip Geçmiş'e düştüyse) partner kombini normal tekil kart olarak kalıyor.
+- **Canlı test edildi** (geçici anon kullanıcı + 2 test ürünü, sonra tamamen silindi): bağ `useLikedOutfits`'in birebir sorgusuyla doğru döndü, ana kombin silinince bağın null'a düştüğü doğrulandı.
+
 ## Profil Resmi Yükleme (2026-07-17)
 `profiles.avatar_url` kolonu ilk şemadan beri vardı, hiç kullanılmıyordu — artık gerçek:
 - **`avatars` Storage bucket'ı** (`20260721000000_avatars_bucket.sql`, Management API ile çalıştırıldı) — diğer bucket'larla aynı desen: public, yol `avatars/{user_id}/{dosya}`, RLS ilk klasörü `auth.uid()` ile karşılaştırıyor. **Canlı test edildi** (geçici anon kullanıcı, sonra silindi): kendi klasörüne yükleme OK, BAŞKASININ klasörüne yükleme doğru reddedildi, public URL 200, silme OK.

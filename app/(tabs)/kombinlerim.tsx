@@ -51,6 +51,47 @@ export default function KombinlerimScreen() {
   const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
   const isEmpty = tab === 'gecmis' ? (worn.data ?? []).length === 0 : (liked.data ?? []).length === 0;
 
+  // Kombin çiftleri: partner kombini pair_outfit_id ile ana kombine işaret eder. İkisi de
+  // listedeyse tek bir "Kombin Çifti" bloğunda birlikte gösterilir; ana kombin listede yoksa
+  // (ör. giyilmiş ve Geçmiş'e düşmüş) partner kombini normal tekil kart olarak kalır.
+  const likedList: OutfitWithItems[] = liked.data ?? [];
+  const likedIds = new Set(likedList.map((outfit: OutfitWithItems) => outfit.id));
+  const partnerByMainId = new Map<string, OutfitWithItems>();
+  for (const outfit of likedList) {
+    if (outfit.pair_outfit_id && likedIds.has(outfit.pair_outfit_id)) {
+      partnerByMainId.set(outfit.pair_outfit_id, outfit);
+    }
+  }
+  const likedRows = likedList.filter(
+    (outfit: OutfitWithItems) => !(outfit.pair_outfit_id && likedIds.has(outfit.pair_outfit_id))
+  );
+
+  function renderLikedOutfit(outfit: OutfitWithItems) {
+    return (
+      <>
+        <OutfitCard
+          outfit={{
+            id: outfit.id,
+            context: outfit.generation_context,
+            items: outfit.items,
+            rating: outfit.rating,
+            userNote: outfit.user_note,
+            reasoning: outfit.reasoning,
+            pairingNotes: outfit.pairing_notes,
+          }}
+          onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
+          genderIcon={genderIconFor(outfit)}
+        />
+        <Pressable
+          onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
+          className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
+          <Ionicons name="checkmark-circle-outline" size={18} color="#3461FD" />
+          <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
+        </Pressable>
+      </>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
       {/* h-11 içerikli başlık — Envanter başlığıyla aynı yükseklik, switcher iki ekranda aynı hizada. */}
@@ -99,29 +140,23 @@ export default function KombinlerimScreen() {
 
       {!isLoading && !isEmpty && tab === 'begenilen' && (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
-          {(liked.data ?? []).map((outfit: OutfitWithItems) => (
-            <View key={outfit.id}>
-              <OutfitCard
-                outfit={{
-                  id: outfit.id,
-                  context: outfit.generation_context,
-                  items: outfit.items,
-                  rating: outfit.rating,
-                  userNote: outfit.user_note,
-                  reasoning: outfit.reasoning,
-                  pairingNotes: outfit.pairing_notes,
-                }}
-                onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
-                genderIcon={genderIconFor(outfit)}
-              />
-              <Pressable
-                onPress={() => router.push({ pathname: '/mark-worn', params: { outfitId: outfit.id } })}
-                className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
-                <Ionicons name="checkmark-circle-outline" size={18} color="#3461FD" />
-                <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
-              </Pressable>
-            </View>
-          ))}
+          {likedRows.map((outfit: OutfitWithItems) => {
+            const pairedPartner = partnerByMainId.get(outfit.id);
+            if (!pairedPartner) {
+              return <View key={outfit.id}>{renderLikedOutfit(outfit)}</View>;
+            }
+            return (
+              <View key={outfit.id} className="rounded-3xl border border-accent-purple/40 p-3">
+                <View className="mb-3 flex-row items-center justify-center gap-2">
+                  <Ionicons name="people" size={15} color="#8B3FE8" />
+                  <Text className="font-heading text-sm text-accent-purple">Kombin Çifti</Text>
+                </View>
+                {renderLikedOutfit(outfit)}
+                <View className="my-3" />
+                {renderLikedOutfit(pairedPartner)}
+              </View>
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>

@@ -32,6 +32,8 @@ export type OutfitWithItems = {
   user_note: string | null;
   reasoning: string | null;
   pairing_notes: PairingNote[] | null;
+  /** Partner kombiniyse: birlikte üretildiği ana kombinin id'si (kombin çifti bağı). */
+  pair_outfit_id: string | null;
   created_at: string;
   items: OutfitItemSummary[];
 };
@@ -46,6 +48,7 @@ type RawOutfitRow = {
   user_note: string | null;
   reasoning: string | null;
   pairing_notes: PairingNote[] | null;
+  pair_outfit_id: string | null;
   created_at: string;
   outfit_items: { items: OutfitItemSummary }[];
 };
@@ -61,13 +64,14 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
     user_note: row.user_note,
     reasoning: row.reasoning,
     pairing_notes: row.pairing_notes,
+    pair_outfit_id: row.pair_outfit_id,
     created_at: row.created_at,
     items: row.outfit_items.map((entry) => entry.items),
   };
 }
 
 const OUTFIT_SELECT = `
-  id, name, is_liked, rating, generation_source, generation_context, user_note, reasoning, pairing_notes, created_at,
+  id, name, is_liked, rating, generation_source, generation_context, user_note, reasoning, pairing_notes, pair_outfit_id, created_at,
   outfit_items ( items ( id, name, slot, color, image_url, user_id ) )
 `;
 
@@ -141,6 +145,7 @@ export type CreateOutfitInput = {
   userNote?: string;
   reasoning?: string | null;
   pairingNotes?: PairingNote[] | null;
+  pairOutfitId?: string | null;
 };
 
 export function useCreateOutfit() {
@@ -157,6 +162,7 @@ export function useCreateOutfit() {
           user_note: input.userNote ?? null,
           reasoning: input.reasoning ?? null,
           pairing_notes: input.pairingNotes ?? null,
+          pair_outfit_id: input.pairOutfitId ?? null,
         })
         .select()
         .single();
@@ -168,6 +174,20 @@ export function useCreateOutfit() {
       if (itemsError) throw itemsError;
 
       return outfit.id as string;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outfits'] });
+    },
+  });
+}
+
+/** Kaydedilmiş bir kombine sonradan çift bağı kurar (partner kombini ana kombinden önce kaydedilmişse). */
+export function useSetOutfitPair() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ outfitId, pairOutfitId }: { outfitId: string; pairOutfitId: string }) => {
+      const { error } = await supabase.from('outfits').update({ pair_outfit_id: pairOutfitId }).eq('id', outfitId);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['outfits'] });
