@@ -558,7 +558,7 @@ export default function AnaSayfaScreen() {
             {partnerOutfitCardData && (
               <View className="gap-3">
                 <Text className="font-heading text-base text-gray-900 dark:text-white">
-                  {partnership?.partnerName ?? 'Partnerin'} İçin Önerilen Kombin
+                  {partnership?.partnerName?.trim().split(/\s+/)[0] ?? 'Partnerin'} İçin Önerilen Kombin
                 </Text>
                 <OutfitCard outfit={partnerOutfitCardData} />
                 {partnerSaved ? (

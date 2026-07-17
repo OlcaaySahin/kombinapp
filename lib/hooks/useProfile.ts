@@ -30,6 +30,7 @@ export function useProfile(userId: string | null) {
 
 export type UpdateProfileInput = {
   userId: string;
+  displayName?: string | null;
   gender?: string | null;
   age?: number | null;
   heightCm?: number | null;
@@ -44,6 +45,7 @@ export function useUpdateProfile() {
       const { data, error } = await supabase
         .from('profiles')
         .update({
+          display_name: input.displayName,
           gender: input.gender,
           age: input.age,
           height_cm: input.heightCm,
@@ -58,6 +60,7 @@ export function useUpdateProfile() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['profile', variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ['partnership'] });
     },
   });
 }

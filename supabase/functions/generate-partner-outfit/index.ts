@@ -202,12 +202,21 @@ Deno.serve(async (req: Request) => {
 
   // İsimleri server-side çekiyoruz (client'a güvenmek yerine) - prompt'ta ve reasoning'de
   // "kullanıcının kombini" gibi jenerik etiketler yerine gerçek isimler kullanılabilsin diye.
+  // Sadece İLK isim kullanılıyor ("Olcay Şahin" değil "Olcay") — sohbet dilinde ad+soyad
+  // resmi/yapay duruyor. İsteği yapanın adı kayıtlı değilse (e-posta hesaplarında Google'daki
+  // gibi otomatik isim gelmiyor) yapay bir "Kullanıcı" etiketi yerine ikinci tekil şahıs
+  // ("sen") kullanılıyor — gerekçeyi zaten isteği yapan kişi okuyor.
+  const firstNameOf = (fullName: string | null | undefined) => fullName?.trim().split(/\s+/)[0] || null;
   const { data: profileRows } = await adminClient
     .from('profiles')
     .select('id, display_name')
     .in('id', [user.id, partnerId]);
-  const requesterName = profileRows?.find((p) => p.id === user.id)?.display_name || 'Kullanıcı';
-  const partnerName = profileRows?.find((p) => p.id === partnerId)?.display_name || 'Partner';
+  const requesterFirstName = firstNameOf(profileRows?.find((p) => p.id === user.id)?.display_name);
+  const partnerName = firstNameOf(profileRows?.find((p) => p.id === partnerId)?.display_name) || 'Partnerin';
+  const requesterName = requesterFirstName ?? 'kombin sahibi';
+  const addressingNote = requesterFirstName
+    ? `reasoning'de ${requesterFirstName} ve ${partnerName} isimlerini doğal bir şekilde kullanabilirsin (ör. "${requesterFirstName}'in bej-beyaz kombinine, ${partnerName}'in gardırobundan şu parçalar...")`
+    : `reasoning'i OKUYAN KİŞİ kombin sahibinin kendisi — ondan bahsederken İKİNCİ TEKİL ŞAHIS kullan ("senin kombinin", "kombinine uyumlu" gibi), asla "kullanıcı" veya "kombin sahibi" deme; ${partnerName}'den isminle bahsedebilirsin`;
 
   const matchPolicy = relaxed
     ? `6. ESNEK MOD — EN ÖNEMLİ KURAL, 3. kuralı (bağlam uygunluğu) GEÇERSİZ KILAR: ${requesterName} tam uyumlu kombin bulunamayınca "daha az uyumlu da olsa öner" dedi ve düşük uyumu BİLEREK kabul etti. itemIds'i boş bırakmak YASAK — envanter bağlama hiç uymuyor olsa bile eldeki EN YAKIN parçalardan bir kombin kur (en az üst+alt+ayakkabı ya da tek_parca+ayakkabı), compatibility alanında dürüstçe düşük bir değer ver (ör. 40-55) ve reasoning'de hangi açıdan tam oturmadığını kısaca, doğal bir dille belirt (ör. "Kış gecesi için ideal parçalar yok ama eldekilerin en uyumlusu bu"). Reddetmek, kullanıcının açık isteğini yok saymak olur.`
@@ -218,7 +227,7 @@ Deno.serve(async (req: Request) => {
 1. Sadece ${partnerName}'in envanterinde var olan ürün id'lerini kullan, uydurma.
 2. "Uyumlu" demek AYNI KIYAFETİ giymek değil — renk paletinin aynı aileden olması (ör. ikisi de nötr+lacivert tonlarında) veya bilinçli, zevkli bir kontrast (ör. biri krem biri lacivert, ikisi de "şık" konseptinde) yeterli. Birbiriyle çatışan parlak renklerden kaçın.
 3. BAĞLAM UYGUNLUĞU EN AZ RENK UYUMU KADAR ÖNEMLİ: ${partnerName}'in kombini de verilen bağlama (mevsim/mekan/saat/konsept) uygun olmalı. Mevsim Kış/Sonbahar ise şort, tank top, sandalet gibi yazlık parçalardan kaçın ve uygun bir dış giyim varsa ekle; Yaz ise kalın mont/kaban/bot önerme. Konsept Şık/Özel Gün ise eşofman/spor parçalar yerine şık seçenekleri tercih et. Ürünlerin season alanına da bak.
-4. internalAnalysis alanında iç analiz yap (${requesterName}'in kombini ne renkte/stilde, bağlam ne gerektiriyor, ${partnerName}'in envanterinde bunlara en uyumlu hangi parçalar var), sonra reasoning alanına SADECE kullanıcının okuyacağı kısa, doğal bir özet yaz. reasoning'de ${requesterName} ve ${partnerName} isimlerini doğal bir şekilde kullanabilirsin (ör. "${requesterName}'in bej-beyaz kombinine, ${partnerName}'in gardırobundan şu parçalar..."), ama ürün id'si veya "sahiplik/istek_listesi" gibi teknik alan isimleri ASLA yazma.
+4. internalAnalysis alanında iç analiz yap (${requesterName}'in kombini ne renkte/stilde, bağlam ne gerektiriyor, ${partnerName}'in envanterinde bunlara en uyumlu hangi parçalar var), sonra reasoning alanına SADECE kullanıcının okuyacağı kısa, doğal bir özet yaz. ${addressingNote}; ürün id'si veya "sahiplik/istek_listesi" gibi teknik alan isimleri ASLA yazma.
 5. Eğer ${requesterName}'in kombininin rengi/stili zaten ${partnerName}'in envanteriyle net bir şekilde uyumluysa, reasoning'i uzatma — basit ve doğal bir cümleyle yeterli (ör. "İkiniz de bej-beyaz tonlarında olduğu için doğal bir uyum var.").
 ${matchPolicy}`;
 

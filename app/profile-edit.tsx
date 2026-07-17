@@ -18,6 +18,7 @@ export default function ProfileEditScreen() {
   const updateProfile = useUpdateProfile();
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
+  const [displayName, setDisplayName] = useState('');
   const [gender, setGender] = useState<string | null>(null);
   const [dailyStyle, setDailyStyle] = useState<string | null>(null);
   const [age, setAge] = useState('');
@@ -27,6 +28,7 @@ export default function ProfileEditScreen() {
 
   useEffect(() => {
     if (hasPrefilled || !profile) return;
+    setDisplayName(profile.display_name ?? '');
     setGender(profile.gender);
     setDailyStyle(profile.daily_style);
     setAge(profile.age ? String(profile.age) : '');
@@ -41,6 +43,7 @@ export default function ProfileEditScreen() {
     try {
       await updateProfile.mutateAsync({
         userId,
+        displayName: displayName.trim() || null,
         gender,
         dailyStyle,
         age: age.trim() ? Number(age) : null,
@@ -63,6 +66,16 @@ export default function ProfileEditScreen() {
         <Text className="mb-6 font-body text-sm text-gray-500 dark:text-gray-400">
           Bu bilgiler kombin önerilerini sana göre uyarlamamıza yardımcı olur. Hepsi opsiyonel.
         </Text>
+
+        <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">Adın</Text>
+        <TextInput
+          value={displayName}
+          onChangeText={setDisplayName}
+          placeholder="Örn. Buse"
+          placeholderTextColor="#9BA1A6"
+          autoCapitalize="words"
+          className="mb-6 rounded-2xl border border-gray-200 px-4 py-3 font-body text-base text-gray-900 dark:border-gray-700 dark:text-gray-100"
+        />
 
         <OptionChipRow label="Cinsiyet" options={GENDER_OPTIONS} value={gender} onChange={setGender} />
         <OptionChipRow

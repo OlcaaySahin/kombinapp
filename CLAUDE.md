@@ -310,6 +310,11 @@ Kullanıcı bildirdi: ana kombinde "Karıştır" ile parça değiştirdikten son
 ## İstek Listesi Eylem Menüsü: Marka Diline Uygun Bottom Sheet (2026-07-16)
 OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `components/ui/ActionSheetModal.tsx` eklendi: alttan kayarak açılan (RN `Modal`, `animationType="slide"`, web dahil her platformda çalışıyor), yuvarlak köşeli, ikonlu, primary/kırmızı renkli seçenek satırları + "Vazgeç". `envanter.tsx`'teki istek listesi uzun-bası artık bunu kullanıyor; `lib/alert.ts`'teki Alert-tabanlı `showActionSheet` helper'ı kaldırıldı (tek kullanıcısı buydu). Genel amaçlı — ileride başka çok-seçenekli menüler de bunu kullanabilir.
 
+## Partner Gerekçesinde İsim Kullanımı: İlk İsim + "Sen" Hitabı (2026-07-16)
+Kullanıcı bildirdi: gerekçede ana hesaptan "Kullanıcı'in" diye bahsediliyordu (e-posta hesaplarında `display_name` otomatik gelmediği için null → yapay fallback), partnerden ise ad+soyad ("Olcay Şahin") ile.
+
+**Düzeltme**: `generate-partner-outfit` artık (1) sadece İLK ismi kullanıyor (`split(/\s+/)[0]`), (2) isteği yapanın adı kayıtlı değilse "Kullanıcı" gibi yapay bir etiket yerine İKİNCİ TEKİL ŞAHIS ("senin kombinin") hitabı talimatı veriyor — gerekçeyi zaten isteği yapan okuyor. Ana Sayfa'daki partner kartı başlığı da ilk isme indirildi (eşleşme onay ekranında ad+soyad bilerek korundu — doğru kişiyi teyit etmek için). Ayrıca `app/profile-edit.tsx`'e "Adın" alanı eklendi (`useUpdateProfile` artık `display_name` de yazıyor, partnership sorgusu invalidate ediliyor) — e-posta hesapları da isim kaydedebilsin diye. Gerçek Buse hesabına (`display_name` null'du) 'Buse' yazıldı. Canlı test: isimli senaryoda sadece ilk isimler ("Buse", "Olcay") geçiyor, isimsiz senaryoda doğal "ikiniz" hitabı kullanılıyor, "Kullanıcı" hiçbir yerde geçmiyor.
+
 ## Partner Kombini: Bağlam Kuralları + "Daha Esnek Öner" Akışı (2026-07-16)
 Kullanıcı iki sorun bildirdi: (1) `generate-partner-outfit` ham "Partnerin envanterinden uygun bir kombin bulunamadı" hatası fırlatıyordu (console error olarak), (2) partner kombini bağlama (mevsim/mekan/saat/konsept) uymayabiliyordu — çünkü partner fonksiyonunun prompt'unda SADECE renk uyumu kuralları vardı, bağlam kuralları (generate-outfit'teki 3-5. kurallar gibi) hiç yoktu; `context` prompt'a JSON olarak ekleniyordu ama modele onunla ne yapacağı söylenmiyordu.
 
