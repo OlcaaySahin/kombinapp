@@ -105,6 +105,8 @@ export default function KombinlerimScreen() {
                   items: outfit.items,
                   rating: outfit.rating,
                   userNote: outfit.user_note,
+                  reasoning: outfit.reasoning,
+                  pairingNotes: outfit.pairing_notes,
                 }}
                 onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
                 genderIcon={genderIconFor(outfit)}

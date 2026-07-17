@@ -268,6 +268,10 @@ export default function AnaSayfaScreen() {
         source: generatedSource,
         isLiked: true,
         userNote: note.trim() || undefined,
+        // Zar ve AI-fallback yolunda (source 'dice') reasoning ya hiç yok ya da geçici
+        // "AI alınamadı" mesajı — kalıcı kayda sadece gerçek AI gerekçesi girsin.
+        reasoning: generatedSource === 'ai_generated' ? generatedReasoning : null,
+        pairingNotes: generatedSource === 'ai_generated' ? generatedPairingNotes : null,
       });
       setSavedOutfitId(outfitId);
       setSaved(true);
@@ -329,6 +333,8 @@ export default function AnaSayfaScreen() {
         context: generatedContext,
         source: 'ai_generated',
         isLiked: true,
+        reasoning: partnerReasoning,
+        pairingNotes: partnerPairingNotes,
       });
       setPartnerSavedOutfitId(outfitId);
       setPartnerSaved(true);

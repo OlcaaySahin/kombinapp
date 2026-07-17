@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { CategorySlot } from '@/constants/categories';
+import type { PairingNote } from '@/lib/aiOutfit';
 import { supabase } from '@/lib/supabase';
 
 export type OutfitContext = {
@@ -27,6 +28,8 @@ export type OutfitWithItems = {
   generation_source: 'ai_generated' | 'dice' | 'manual';
   generation_context: OutfitContext;
   user_note: string | null;
+  reasoning: string | null;
+  pairing_notes: PairingNote[] | null;
   created_at: string;
   items: OutfitItemSummary[];
 };
@@ -39,6 +42,8 @@ type RawOutfitRow = {
   generation_source: 'ai_generated' | 'dice' | 'manual';
   generation_context: OutfitContext;
   user_note: string | null;
+  reasoning: string | null;
+  pairing_notes: PairingNote[] | null;
   created_at: string;
   outfit_items: { items: OutfitItemSummary }[];
 };
@@ -52,13 +57,15 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
     generation_source: row.generation_source,
     generation_context: row.generation_context,
     user_note: row.user_note,
+    reasoning: row.reasoning,
+    pairing_notes: row.pairing_notes,
     created_at: row.created_at,
     items: row.outfit_items.map((entry) => entry.items),
   };
 }
 
 const OUTFIT_SELECT = `
-  id, name, is_liked, rating, generation_source, generation_context, user_note, created_at,
+  id, name, is_liked, rating, generation_source, generation_context, user_note, reasoning, pairing_notes, created_at,
   outfit_items ( items ( id, name, slot, color, image_url, user_id ) )
 `;
 
@@ -130,6 +137,8 @@ export type CreateOutfitInput = {
   source: 'ai_generated' | 'dice' | 'manual';
   isLiked?: boolean;
   userNote?: string;
+  reasoning?: string | null;
+  pairingNotes?: PairingNote[] | null;
 };
 
 export function useCreateOutfit() {
@@ -144,6 +153,8 @@ export function useCreateOutfit() {
           generation_context: input.context,
           is_liked: input.isLiked ?? true,
           user_note: input.userNote ?? null,
+          reasoning: input.reasoning ?? null,
+          pairing_notes: input.pairingNotes ?? null,
         })
         .select()
         .single();
