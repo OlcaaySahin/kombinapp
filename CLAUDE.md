@@ -315,6 +315,13 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Tema Seçimi: Sistem / Açık / Koyu (2026-07-17)
+Kullanıcının yeni listesindeki "tema butonu" maddesi. Profil'de menünün altında "Tema" kartı: Sistem/Açık/Koyu üçlü seçim.
+
+- **`lib/theme.ts`** — `ThemePreference` (`'system'|'light'|'dark'`), AsyncStorage'da `kombin_theme_pref`; `setThemePreference()` NativeWind'in `colorScheme.set()`'iyle anında uygular + kalıcılaştırır; `applyStoredThemePreference()` açılışta `app/_layout.tsx`'ten çağrılıyor (fire-and-forget).
+- **`hooks/useColorScheme.ts` artık NativeWind'in hook'unu sarıyor** (react-native'inki yerine) — böylece React Navigation teması ve tab bar da manuel tema geçişini anında takip ediyor. `hooks/useColorScheme.web.ts` SİLİNDİ: web'de sabit 'light' döndürüyordu (Expo şablonunun SSR önlemi), biz SPA olduğumuz için gereksizdi ve tema geçişini web'de kırardı. `hooks/useThemeColor.ts` de artık paylaşılan hook'u kullanıyor.
+- Bu manuel geçiş `darkMode: 'class'` sayesinde çalışıyor (bkz. tailwind.config.js notu — 'media' olsaydı "Cannot manually set color scheme" hatası). **Dikkat**: export runtime hatalarını yakalamaz (bilinen ders) — tema geçişi cihazda/tarayıcıda bir kez elle denenmeli.
+
 ## Switcher Hizalaması + Profilde İsim Gösterimi (2026-07-17)
 Kullanıcının yeni geliştirme listesinden iki küçük UI maddesi:
 - **Switcher hizalaması**: Envanter (Envanterim/İstek Listem) ve Kombinlerim (Geçmiş/Beğenilenler) ikili switcher'ları farklı hizadaydı — Envanter başlığının altındaki uzun alt yazı switcher'ı aşağı itiyordu. Kullanıcının önerdiği çözüm uygulandı: alt yazı ("X ürün · düzenlemek için dokun...") kategori şeridinin ALTINA taşındı (`text-xs`), iki ekranın başlık satırı da aynı içerik yüksekliğine (h-11) sabitlendi — switcher artık iki ekranda aynı konumda.

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +10,7 @@ import { signOut } from '@/lib/auth';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { getThemePreference, setThemePreference, type ThemePreference } from '@/lib/theme';
 
 type MenuItem = {
   icon: ComponentProps<typeof Ionicons>['name'];
@@ -17,6 +18,12 @@ type MenuItem = {
   route?: '/profile-edit' | '/yardim' | '/bildirimler' | '/partner-eslesme';
   comingSoonMessage?: string;
 };
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
+  { value: 'system', label: 'Sistem', icon: 'phone-portrait-outline' },
+  { value: 'light', label: 'Açık', icon: 'sunny-outline' },
+  { value: 'dark', label: 'Koyu', icon: 'moon-outline' },
+];
 
 const MENU_ITEMS: MenuItem[] = [
   { icon: 'person-outline', label: 'Hesap Bilgileri', route: '/profile-edit' },
@@ -40,6 +47,16 @@ export default function ProfilScreen() {
   const hasPendingPartnerRequest = partnership?.status === 'pending_incoming';
   // İsim kaydedilmişse başlıkta isim, altta e-posta; isim yoksa eskisi gibi e-posta başlıkta.
   const displayName = profile?.display_name?.trim() || null;
+  const [themePref, setThemePref] = useState<ThemePreference>('system');
+
+  useEffect(() => {
+    getThemePreference().then(setThemePref);
+  }, []);
+
+  function handleThemeSelect(value: ThemePreference) {
+    setThemePref(value);
+    setThemePreference(value);
+  }
 
   function handleSignOutPress() {
     showConfirm(
@@ -117,6 +134,33 @@ export default function ProfilScreen() {
             <Ionicons name="chevron-forward" size={18} color="#9BA1A6" />
           </Pressable>
         ))}
+      </View>
+
+      <View className="mx-5 mt-4 rounded-2xl bg-gray-50 p-4 dark:bg-gray-800">
+        <Text className="mb-3 font-body-semibold text-sm text-gray-700 dark:text-gray-300">Tema</Text>
+        <View className="flex-row gap-2">
+          {THEME_OPTIONS.map((option) => {
+            const selected = themePref === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => handleThemeSelect(option.value)}
+                className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border py-2.5 ${
+                  selected
+                    ? 'border-primary bg-primary'
+                    : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+                }`}>
+                <Ionicons name={option.icon} size={15} color={selected ? '#FFFFFF' : '#687076'} />
+                <Text
+                  className={`font-body-medium text-sm ${
+                    selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                  }`}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {!isAnonymous && (

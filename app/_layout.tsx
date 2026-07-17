@@ -13,6 +13,7 @@ import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { syncReminderFromPreferences } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
+import { applyStoredThemePreference } from '@/lib/theme';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -34,6 +35,8 @@ export default function RootLayout() {
     // Hatırlatıcı tercihini OS zamanlamasıyla senkronla (yeni build/yeniden kurulum sonrası
     // OS tarafı sıfırlanır) — fire-and-forget, açılışı asla bloklamaz.
     syncReminderFromPreferences();
+    // Kayıtlı tema tercihi (Profil > Tema) varsa uygula — fire-and-forget.
+    applyStoredThemePreference();
   }, []);
 
   useEffect(() => {
