@@ -61,6 +61,7 @@ export default function RootLayout() {
           <Stack.Screen name="profile-edit" options={{ presentation: 'modal', title: 'Bilgilerini Tamamla' }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="yardim" options={{ presentation: 'modal', title: 'Yardım' }} />
+          <Stack.Screen name="gardirop-analiz" options={{ presentation: 'modal', title: 'Gardırop Analizi' }} />
           <Stack.Screen name="bildirimler" options={{ presentation: 'modal', title: 'Bildirimler' }} />
           <Stack.Screen name="+not-found" />
         </Stack>

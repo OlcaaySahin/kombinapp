@@ -315,6 +315,14 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Akıllı Gardırop Analizi Ekranı (2026-07-17)
+Yeni **`app/gardirop-analiz.tsx`** (modal; giriş: Ana Sayfa'daki `WardrobeStats` kartının altındaki "Detaylı gardırop analizi" linki). Üç bölüm, hepsi mevcut hook'lardan client-side hesap (yeni sorgu/tablo yok):
+1. **Renk Dağılımı** — `closestColorName` ile gruplanıp **react-native-svg pasta grafiği** olarak çiziliyor (`lib/colorNames.ts`'e `namedColorHex()` eklendi). **Önemli desen**: react-native-svg native modülü ESKİ build'de yok — Expo Router tüm route dosyalarını açılışta import ettiği için statik import app'i AÇILIŞTA çökertirdi. Çözüm: lazy `require` + try/catch (notifications ile aynı desen) + render hatalarına karşı küçük bir ErrorBoundary; svg kullanılamıyorsa aynı veri **düz View'lerle oranlı yatay bar** olarak çiziliyor (eski build + web bugün bile çalışır). Tek renk (%100) pasta diliminde arc çizilemez — tam daireye (`Circle`) düşülüyor.
+2. **En Çok Giydiğin Kombinler** — `useWornOutfits()` olayları `outfitId`'ye göre sayılıp top 3 (küçük ürün küpürleri + "N kez" rozeti).
+3. **Hiç Giymediklerin** — hiçbir `outfit_wears` kaydının kombinine girmemiş envanter ürünleri (ilk 12 küpür + kalan sayısı).
+
+**Gotcha — typed routes bayatlaması**: yeni route eklendiğinde `.expo/types/router.d.ts` sadece Metro çalışırken yenileniyor (`expo export` YENİLEMİYOR) — tsc "not assignable to Href" hatası verirse ya Metro'yu bir kez başlatmak ya da (bu oturumda yapıldığı gibi) üretilen dosyadaki `StaticRoutes` union'ına yeni route'u elle eklemek gerekiyor; Metro sonraki açılışta aynı içeriği kendisi üretiyor.
+
 ## Kombin Çiftleri: Ana + Partner Kombini Bağlı Gösterim (2026-07-17)
 Partnere önerilip kaydedilen kombin artık ana kombinle DB'de bağlı ve Beğenilenler'de birlikte gösteriliyor:
 - **`outfits.pair_outfit_id`** (`20260722000000_add_outfit_pair.sql`, Management API ile çalıştırıldı) — yön: partner kombini → ana kombin; `on delete set null` (ana silinirse partner kombini bağımsız kombin olarak yaşar).

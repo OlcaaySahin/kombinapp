@@ -32,6 +32,11 @@ function hexToRgb(hex: string) {
   };
 }
 
+/** Türkçe renk adının temsil hex'i (grafik/legend için). */
+export function namedColorHex(name: string): string | null {
+  return NAMED_COLORS.find((candidate) => candidate.name === name)?.hex ?? null;
+}
+
 export function closestColorName(hex: string | null | undefined): string | null {
   if (!hex || !/^#?[0-9a-fA-F]{6}$/.test(hex)) return null;
   const target = hexToRgb(hex);
