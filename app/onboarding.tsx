@@ -31,7 +31,7 @@ const STEPS: Step[] = [
     icon: 'chatbubble-ellipses-outline',
     title: 'Bağlamı Anlat, Kombini Al',
     description:
-      'Ana Sayfa\'da "Kombin Oluştur"a bas, mevsim/mekan/saat/konsept sorularını yanıtla — istersen "iş görüşmesi" gibi özel bir not da ekle. Yapay zeka sana uygun bir kombin önersin.',
+      'Ana Sayfa\'da "Kombin Oluştur"a bas; mevsim, hava durumu, mekan, saat ve konsept sorularını yanıtla — istersen "iş görüşmesi" gibi özel bir not da ekle. Yapay zeka sana uygun bir kombin önersin.',
   },
   {
     icon: 'shuffle-outline',
@@ -47,7 +47,19 @@ const STEPS: Step[] = [
     icon: 'heart-outline',
     title: 'İstek Listeni Ekle',
     description:
-      'Almak istediğin ürünleri İstek Listesi\'ne ekle, mevcut kıyafetlerinle nasıl kombinlenebileceğini gör — satın almadan önce dene.',
+      'Almak istediğin ürünleri İstek Listesi\'ne ekle — ürün linkini yapıştırırsan "Linkten Doldur" bilgileri senin yerine getirir. Kombin oluştururken dahil edip satın almadan önce dene.',
+  },
+  {
+    icon: 'star-outline',
+    title: 'Kaydet, Puanla, Giy',
+    description:
+      'Beğendiğin kombini kaydet ve yıldızla puanla — yüksek puanladığın tarzlar sonraki önerileri kişiselleştirir. Giydiğin gün "Giydim" işaretleyip fotoğrafla arşivle.',
+  },
+  {
+    icon: 'people-outline',
+    title: 'Partnerinle Eşleş',
+    description:
+      'Profil\'den partnerinin e-postasıyla eşleş. Kombinini oluşturduktan sonra tek dokunuşla, partnerinin kendi gardırobundan senin kombinine uyumlu bir kombin önerelim.',
   },
 ];
 

@@ -8,7 +8,22 @@ const FAQ_ITEMS: { question: string; answer: string }[] = [
   {
     question: 'Kombin önerileri nasıl oluşuyor?',
     answer:
-      'Ana Sayfa\'da bağlamsal soruları (mevsim/mekan/saat/konsept) yanıtladığında, yapay zeka envanterindeki ürünlerden bağlama en uygun ve renk/stil olarak tutarlı kombini seçer. Zar At butonu ise yapay zekaya hiç gitmez, envanterinden anında rastgele-uyumlu bir seçim yapar.',
+      'Ana Sayfa\'da bağlamsal soruları (mevsim/hava/mekan/saat/konsept) yanıtladığında, yapay zeka envanterindeki ürünlerden bağlama en uygun ve renk/stil olarak tutarlı kombini seçer. Zar At butonu ise yapay zekaya hiç gitmez, envanterinden anında rastgele-uyumlu bir seçim yapar.',
+  },
+  {
+    question: 'Kombinleri puanlamak ne işe yarıyor?',
+    answer:
+      'Kaydettiğin kombinlere verdiğin yıldızlar zamanla tarzını öğretir: 4-5 yıldız verdiğin kombinlerdeki renk ve marka tercihleri, sonraki önerilerde hafif bir öncelik olarak dikkate alınır — ama bağlama uygunluk her zaman önde gelir.',
+  },
+  {
+    question: 'Partner eşleştirme nasıl çalışıyor?',
+    answer:
+      'Profil > Partner Eşleştirme\'den partnerinin e-postasını gir; o da uygulamadan isteği onaylayınca eşleşirsiniz. Kombinini oluşturduktan sonra "Partnerime Uyumlu Kombin Öner" butonuyla, partnerinin kendi gardırobundan senin kombinine uyumlu bir öneri alırsın. Envanterleriniz asla birleşmez, herkes sadece kendi ürünlerini görür.',
+  },
+  {
+    question: 'Günlük hatırlatıcıyı nasıl açarım?',
+    answer:
+      'Profil > Bildirimler\'den hatırlatıcıyı açıp saatini seçebilirsin — seçtiğin saatte her gün "Bugün ne giysem?" bildirimi gelir. İstediğin zaman kapatabilirsin.',
   },
   {
     question: 'Bir parçayı beğenmedim, ne yapabilirim?',
