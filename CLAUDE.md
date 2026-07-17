@@ -315,6 +315,11 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Switcher Hizalaması + Profilde İsim Gösterimi (2026-07-17)
+Kullanıcının yeni geliştirme listesinden iki küçük UI maddesi:
+- **Switcher hizalaması**: Envanter (Envanterim/İstek Listem) ve Kombinlerim (Geçmiş/Beğenilenler) ikili switcher'ları farklı hizadaydı — Envanter başlığının altındaki uzun alt yazı switcher'ı aşağı itiyordu. Kullanıcının önerdiği çözüm uygulandı: alt yazı ("X ürün · düzenlemek için dokun...") kategori şeridinin ALTINA taşındı (`text-xs`), iki ekranın başlık satırı da aynı içerik yüksekliğine (h-11) sabitlendi — switcher artık iki ekranda aynı konumda.
+- **Profilde isim**: `app/(tabs)/profil.tsx` artık `useProfile`'dan `display_name` okuyor — isim kayıtlıysa kartta büyük yazı isim, altta e-posta; isim yoksa eskisi gibi e-posta başlıkta. Ayrıca karttaki bayat "Günde 3 kombin hakkı" metni kaldırıldı (limit zaten uygulanmıyor, sadece "Ücretsiz Plan" kaldı). Ayrı bir soyad kolonu bilinçli olarak eklenmedi — tek `display_name` alanına "Ad Soyad" yazılıyor (profil düzenlemedeki "Adın" alanı), partner akışları zaten ilk ismi ayıklıyor.
+
 ## Partner Gerekçesinde İsim Kullanımı: İlk İsim + "Sen" Hitabı (2026-07-16)
 Kullanıcı bildirdi: gerekçede ana hesaptan "Kullanıcı'in" diye bahsediliyordu (e-posta hesaplarında `display_name` otomatik gelmediği için null → yapay fallback), partnerden ise ad+soyad ("Olcay Şahin") ile.
 

@@ -56,19 +56,11 @@ export default function EnvanterScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
-      <View className="flex-row items-start justify-between px-5 pb-4 pt-2">
-        {/* flex-1 olmazsa uzun alt yazı + butonunu ekran dışına itiyor (canlıda görüldü) */}
-        <View className="flex-1 pr-3">
+      {/* Başlık satırı Kombinlerim ile birebir aynı yükseklikte (h-11 içerik) — ikili switcher
+          iki ekranda da aynı hizada dursun diye alt yazı buradan kategori şeridinin altına taşındı. */}
+      <View className="flex-row items-center justify-between px-5 pb-4 pt-2">
+        <View className="h-11 flex-1 justify-center pr-3">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Envanter</Text>
-          <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
-            {tab === 'envanter'
-              ? allItems
-                ? `${allItems.length} ürün · düzenlemek için dokun, seçenekler için basılı tut`
-                : ' '
-              : wishlistItems
-                ? `${wishlistItems.length} ürün · düzenlemek için dokun, satın aldıysan ya da silmek istiyorsan basılı tut`
-                : ' '}
-          </Text>
         </View>
         <Pressable
           onPress={() => router.push(tab === 'envanter' ? '/add-item' : '/add-wishlist-item')}
@@ -101,6 +93,16 @@ export default function EnvanterScreen() {
           />
         ))}
       </ScrollView>
+
+      <Text className="mb-2 px-5 font-body text-xs text-gray-500 dark:text-gray-400">
+        {tab === 'envanter'
+          ? allItems
+            ? `${allItems.length} ürün · düzenlemek için dokun, seçenekler için basılı tut`
+            : ' '
+          : wishlistItems
+            ? `${wishlistItems.length} ürün · düzenlemek için dokun, satın aldıysan ya da silmek istiyorsan basılı tut`
+            : ' '}
+      </Text>
 
       {isLoading && (
         <View className="flex-1 items-center justify-center">
