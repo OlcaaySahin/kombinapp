@@ -302,6 +302,14 @@ Kullanıcı bildirdi: "çalışan bir şey nasıl bozulur" — ana kombin üreti
 
 **Ders**: tool şemasına yeni (özellikle ilk sırada, uzun metinli) bir alan eklerken `max_tokens` bütçesini birlikte düşün; ve testleri gerçekçi veri boyutuyla yap — 5 ürünlük envanterde geçen test, 25 ürünlükte patlayabiliyor.
 
+## Bug: Parça Değişince Partner Önerisi Eski Kombine Göre Gelebiliyordu (Race) — Düzeltildi (2026-07-16)
+Kullanıcı bildirdi: ana kombinde "Karıştır" ile parça değiştirdikten sonra partner önerisi, kombinin SON haline değil İLK üretilmiş haline göre geliyordu (partner gerekçesi, çoktan değiştirilmiş "beyaz bluz"a atıfta bulunuyordu). Kod okuması state'in doğru okunduğunu gösterdi — asıl sebep **yarış durumu**: partner üretimi (Claude çağrısı) ~5-10 sn sürüyor; istek uçuştayken kullanıcı ana kombinde parça değiştirirse `replaceItem` partner kartını temizliyor AMA eski kombine göre üretilmiş yanıt dönünce `setPartnerItems` onu yine de ekrana yazıyordu.
+
+**Düzeltme**: `outfitVersionRef` sayacı — her `showResult`/`replaceItem`/`reset`'te artıyor; `generatePartnerOutfit` isteğe başlarken versiyonu kaydediyor, yanıt (veya hata/no_match diyaloğu) döndüğünde versiyon değişmişse sonucu sessizce çöpe atıyor. **Ders**: sonucu state'e yazılan her uzun süren async akışta, "bu yanıt hâlâ geçerli mi" kontrolü (versiyon/istek kimliği) olmalı — özellikle kullanıcının beklerken durumu değiştirebildiği ekranlarda.
+
+## İstek Listesi Eylem Menüsü: Marka Diline Uygun Bottom Sheet (2026-07-16)
+OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `components/ui/ActionSheetModal.tsx` eklendi: alttan kayarak açılan (RN `Modal`, `animationType="slide"`, web dahil her platformda çalışıyor), yuvarlak köşeli, ikonlu, primary/kırmızı renkli seçenek satırları + "Vazgeç". `envanter.tsx`'teki istek listesi uzun-bası artık bunu kullanıyor; `lib/alert.ts`'teki Alert-tabanlı `showActionSheet` helper'ı kaldırıldı (tek kullanıcısı buydu). Genel amaçlı — ileride başka çok-seçenekli menüler de bunu kullanabilir.
+
 ## Partner Kombini: Bağlam Kuralları + "Daha Esnek Öner" Akışı (2026-07-16)
 Kullanıcı iki sorun bildirdi: (1) `generate-partner-outfit` ham "Partnerin envanterinden uygun bir kombin bulunamadı" hatası fırlatıyordu (console error olarak), (2) partner kombini bağlama (mevsim/mekan/saat/konsept) uymayabiliyordu — çünkü partner fonksiyonunun prompt'unda SADECE renk uyumu kuralları vardı, bağlam kuralları (generate-outfit'teki 3-5. kurallar gibi) hiç yoktu; `context` prompt'a JSON olarak ekleniyordu ama modele onunla ne yapacağı söylenmiyordu.
 

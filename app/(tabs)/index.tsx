@@ -105,6 +105,12 @@ export default function AnaSayfaScreen() {
   // ürünleri hariç tutmak için — her yeni kombin üretiminde sıfırlanır.
   const triedIdsBySlotRef = useRef<Map<CategorySlot, Set<string>>>(new Map());
 
+  // Ana kombinin "versiyonu": her üretim/parça değişimi/sıfırlamada artar. Partner kombini
+  // üretimi uzun sürüyor (Claude çağrısı) — istek uçuştayken kullanıcı ana kombinde parça
+  // değiştirirse, ESKİ kombine göre üretilmiş yanıt döndüğünde çöpe atılmalı; yoksa yeni
+  // ana kombinin yanında eski kombine göre yazılmış bir partner önerisi belirir (canlıda görüldü).
+  const outfitVersionRef = useRef(0);
+
   function showResult(
     picked: DbItem[],
     context: OutfitContext,
@@ -118,6 +124,7 @@ export default function AnaSayfaScreen() {
       triedMap.get(item.slot)!.add(item.id);
     }
     triedIdsBySlotRef.current = triedMap;
+    outfitVersionRef.current += 1;
 
     setGeneratedItems(picked);
     setGeneratedContext(context);
@@ -183,6 +190,7 @@ export default function AnaSayfaScreen() {
     tried.add(replacement.id);
     triedIdsBySlotRef.current.set(target.slot, tried);
 
+    outfitVersionRef.current += 1;
     setGeneratedItems((current) => current!.map((item) => (item.id === itemId ? replacement : item)));
     setGeneratedReasoning(null);
     setGeneratedPairingNotes(null);
@@ -277,11 +285,15 @@ export default function AnaSayfaScreen() {
 
   async function generatePartnerOutfit(relaxed = false) {
     if (!generatedItems) return;
+    const requestVersion = outfitVersionRef.current;
     setPartnerGenerating(true);
     setPartnerSaved(false);
     try {
       const referenceItems = generatedItems.map((item) => ({ name: item.name, slot: item.slot, color: item.color }));
       const suggestion = await requestPartnerOutfit(referenceItems, generatedContext, relaxed);
+      // Yanıt beklerken kullanıcı ana kombinde parça değiştirdiyse bu öneri artık ESKİ
+      // kombine ait — sessizce çöpe at, kullanıcı isterse butondan tekrar üretir.
+      if (requestVersion !== outfitVersionRef.current) return;
       // Esnek modda (veya model uyumu düşük bulduğunda) uyum yüzdesini kullanıcıya dürüstçe göster.
       const reasoning =
         typeof suggestion.compatibility === 'number' && suggestion.compatibility < 75
@@ -291,6 +303,7 @@ export default function AnaSayfaScreen() {
       setPartnerReasoning(reasoning);
       setPartnerPairingNotes(suggestion.pairingNotes ?? null);
     } catch (error) {
+      if (requestVersion !== outfitVersionRef.current) return;
       if (error instanceof PartnerNoMatchError) {
         showConfirm(
           'Tam uyumlu kombin bulunamadı',
@@ -332,6 +345,7 @@ export default function AnaSayfaScreen() {
   }
 
   function reset() {
+    outfitVersionRef.current += 1;
     setScreen('idle');
     setMevsim(null);
     setMekan(null);

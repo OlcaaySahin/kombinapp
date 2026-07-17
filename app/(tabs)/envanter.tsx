@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
-import { showActionSheet, showAlert, showConfirm } from '@/lib/alert';
+import { showAlert, showConfirm } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
@@ -21,6 +22,7 @@ type Tab = 'envanter' | 'istek_listesi';
 export default function EnvanterScreen() {
   const [tab, setTab] = useState<Tab>('envanter');
   const [selected, setSelected] = useState<CategorySlot | null>(null);
+  const [sheetItem, setSheetItem] = useState<DbWishlistItem | null>(null);
 
   const { data: allItems, isLoading: itemsLoading, isError: itemsError } = useItems();
   const deleteItem = useDeleteItem();
@@ -38,21 +40,7 @@ export default function EnvanterScreen() {
   }
 
   function handleWishlistLongPress(item: DbWishlistItem) {
-    showActionSheet('İstek listesi', `"${item.name ?? 'Bu ürün'}" için ne yapmak istersin?`, [
-      {
-        label: 'Ürünü Satın Aldım',
-        onPress: () =>
-          markPurchased.mutate(item, {
-            onError: (error) =>
-              showAlert('Taşınamadı', error instanceof Error ? error.message : String(error)),
-          }),
-      },
-      {
-        label: 'Ürünü Sil',
-        destructive: true,
-        onPress: () => deleteWishlistItem.mutate(item.id),
-      },
-    ]);
+    setSheetItem(item);
   }
 
   const items = useMemo(() => {
@@ -173,6 +161,34 @@ export default function EnvanterScreen() {
           )}
         />
       )}
+
+      <ActionSheetModal
+        visible={sheetItem !== null}
+        title={sheetItem?.name ?? 'İstek listesi'}
+        message="Bu ürün için ne yapmak istersin?"
+        onClose={() => setSheetItem(null)}
+        options={[
+          {
+            label: 'Ürünü Satın Aldım',
+            icon: 'bag-check-outline',
+            onPress: () => {
+              if (!sheetItem) return;
+              markPurchased.mutate(sheetItem, {
+                onError: (error) =>
+                  showAlert('Taşınamadı', error instanceof Error ? error.message : String(error)),
+              });
+            },
+          },
+          {
+            label: 'Ürünü Sil',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => {
+              if (sheetItem) deleteWishlistItem.mutate(sheetItem.id);
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
