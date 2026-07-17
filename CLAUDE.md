@@ -98,7 +98,7 @@ Anonim kullanıcı, verisini kaybetmeden kalıcı bir hesaba "yükseltiliyor" (a
 
 **~~Hâlâ eksik~~ — Google OAuth GİRİŞİ TAMAMLANDI (2026-07-16)**: bkz. "Google ile Giriş" bölümü aşağıda.
 
-## Google ile Giriş (Native SDK) — Yeni EAS Build Gerekiyor (2026-07-16)
+## Google ile Giriş (Native SDK) — Cihazda Canlı Doğrulandı (2026-07-16)
 `@react-native-google-signin/google-signin` **13.3.1**'e sabitlendi (`^16.x` **değil** — 14.0.0'dan itibaren `expo >=52.0.40` peer dependency istiyor, biz SDK 51'deyiz; 13.x son `expo >=50.0.0` destekleyen seri). `app.json`'a Expo config plugin eklendi (Firebase'siz, `iosUrlScheme` gerekmiyor çünkü şu an sadece Android test ediliyor).
 
 **Kritik tasarım kararı — anonim veri kaybı riski**: `supabase.auth.signInWithIdToken()` (native SDK'nın kullandığı yöntem), e-posta yükseltme akışının kullandığı `updateUser({email})`'ın aksine, mevcut anonim `auth.uid()`'yi **korumuyor** — Supabase'in henüz çözülmemiş, bilinen bir sınırlaması (`linkIdentity()` OAuth-redirect akışında çalışıyor ama native idToken akışında bir eşdeğeri yok). Yani biri anonim olarak envanter oluşturup sonra Google ile giriş yapsa, naif bir entegrasyon o envanteri sessizce kaybettirirdi.
@@ -115,7 +115,7 @@ Anonim kullanıcı, verisini kaybetmeden kalıcı bir hesaba "yükseltiliyor" (a
 - **Android** OAuth client — paket adı `com.olcaaysahin.kombinapp` + SHA-1 sertifika parmak izi (kullanıcının EAS build credential'ından alındı) — **bu olmadan native girişte `DEVELOPER_ERROR` alınır**, çok yaygın bir gotcha, önceden kuruldu.
 - Supabase Auth Google provider'ı (`external_google_enabled`, `external_google_client_id`, `external_google_secret`) Management API'nin `/config/auth` endpoint'i üzerinden ayarlandı.
 
-**Önemli — yeni native modül**: mevcut dev-client build'inde ÇALIŞMAZ, yeni bir EAS development build + telefona yeniden kurulum gerekiyor. `app/sign-in.tsx`'e e-posta akışının üstüne "Google ile Devam Et" butonu eklendi.
+**Yeni native modül + build durumu**: native modül eski dev-client build'inde çalışmadığı için yeni bir EAS development build alındı ve telefona kuruldu — **Google girişi kullanıcı tarafından cihazda gerçekten yapıldı** (2026-07-16; `auth.identities`'te `provider: google` kimliği 07:49 UTC'de oluşmuş, aynı gün 10:05'te tekrar giriş var — 2026-07-17'de Management API sorgusuyla doğrulandı, bu not önce yazılıp build sonrası güncellenmeyi unutulmuştu). `app/sign-in.tsx`'e e-posta akışının üstüne "Google ile Devam Et" butonu eklendi. Not: ileride başka bir native modül (ör. `expo-notifications`) eklenirse yine yeni bir EAS build gerekir — mevcut build sadece bugünkü native modül setini içeriyor.
 
 ## Gerçek Veri Durumu (mock kaldırıldı, `lib/mockData.ts` silindi)
 Tüm ekranlar gerçek Supabase sorgularıyla çalışıyor (`npx tsc --noEmit`, `npx expo export -p web`, `npm test` hepsi temiz):

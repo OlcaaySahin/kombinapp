@@ -33,6 +33,9 @@ yarn-error.*
 .env
 .env*.local
 
+# kişisel notlar — asla commit'lenmeyecek (içinde secrets var)
+notlar.txt
+
 # typescript
 *.tsbuildinfo
 
