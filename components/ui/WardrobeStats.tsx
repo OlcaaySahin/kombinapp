@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { getCategory } from '@/constants/categories';
 import { closestColorName } from '@/lib/colorNames';
@@ -22,18 +21,10 @@ export function WardrobeStats({ items }: { items: DbItem[] }) {
   const topSlotLabel = topSlotEntry ? getCategory(topSlotEntry[0] as DbItem['slot']).label : null;
 
   return (
-    <View className="mb-6">
-      <View className="flex-row gap-3">
-        <StatCard icon="shirt-outline" label="Ürün" value={String(items.length)} />
-        {topColor && <StatCard icon="color-palette-outline" label="En Çok" value={topColor} />}
-        {topSlotLabel && <StatCard icon="albums-outline" label="Kategori" value={topSlotLabel} />}
-      </View>
-      <Pressable
-        onPress={() => router.push('/gardirop-analiz')}
-        className="mt-2 flex-row items-center justify-center gap-1 py-1">
-        <Text className="font-body-medium text-xs text-primary">Detaylı gardırop analizi</Text>
-        <Ionicons name="chevron-forward" size={12} color="#3461FD" />
-      </Pressable>
+    <View className="mb-6 flex-row gap-3">
+      <StatCard icon="shirt-outline" label="Ürün" value={String(items.length)} />
+      {topColor && <StatCard icon="color-palette-outline" label="En Çok" value={topColor} />}
+      {topSlotLabel && <StatCard icon="albums-outline" label="Kategori" value={topSlotLabel} />}
     </View>
   );
 }

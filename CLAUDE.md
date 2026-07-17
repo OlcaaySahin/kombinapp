@@ -330,6 +330,8 @@ Yeni **`app/gardirop-analiz.tsx`** (modal; giriş: Ana Sayfa'daki `WardrobeStats
 
 **Gotcha — typed routes bayatlaması**: yeni route eklendiğinde `.expo/types/router.d.ts` sadece Metro çalışırken yenileniyor (`expo export` YENİLEMİYOR) — tsc "not assignable to Href" hatası verirse ya Metro'yu bir kez başlatmak ya da (bu oturumda yapıldığı gibi) üretilen dosyadaki `StaticRoutes` union'ına yeni route'u elle eklemek gerekiyor; Metro sonraki açılışta aynı içeriği kendisi üretiyor.
 
+**Güncelleme (2026-07-18, kullanıcı isteği)**: "En Çok Giydiklerin" ve "Hiç Giymediklerin" bölümleri **Ana Sayfa'ya da taşındı** (idle ekranda `RecentOutfitsStrip`'in altında; amaç ana sayfayı boş göstermemek), "Detaylı gardırop analizi" linki ana sayfanın **en altına** alındı (WardrobeStats içindeki linki kaldırıldı). Ortak hesaplar `lib/wardrobeInsights.ts`'e (`topWornOutfits`/`unwornItems`), ortak görünümler `components/ui/TopWornOutfitRows.tsx` + `components/ui/UnwornItemThumbs.tsx`'e (analizde grid, ana sayfada yatay şerit) çıkarıldı. Analiz ekranına ayrıca **Kategori Dağılımı** bölümü eklendi (renk bölümündeki gibi sayılarla: "Elbise (5)" chip'leri). Kullanıcının analiz ekranında gördüğü hata eski build'den (react-native-svg yok) — LogBox dev overlay'i; ErrorBoundary sayesinde app çökmüyor, bar fallback çiziliyor, yeni build'de svg gelince kendiliğinden çözülür.
+
 ## Kombin Çiftleri: Ana + Partner Kombini Bağlı Gösterim (2026-07-17)
 Partnere önerilip kaydedilen kombin artık ana kombinle DB'de bağlı ve Beğenilenler'de birlikte gösteriliyor:
 - **`outfits.pair_outfit_id`** (`20260722000000_add_outfit_pair.sql`, Management API ile çalıştırıldı) — yön: partner kombini → ana kombin; `on delete set null` (ana silinirse partner kombini bağımsız kombin olarak yaşar).

@@ -1,11 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Component, type ReactNode } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { TopWornOutfitRows } from '@/components/ui/TopWornOutfitRows';
+import { UnwornItemThumbs } from '@/components/ui/UnwornItemThumbs';
+import { getCategory } from '@/constants/categories';
 import { closestColorName, namedColorHex } from '@/lib/colorNames';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
-import { useWornOutfits, type OutfitItemSummary, type WearEventData } from '@/lib/hooks/useOutfits';
+import { useWornOutfits, type WearEventData } from '@/lib/hooks/useOutfits';
+import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
 
 // react-native-svg NATIVE modül: pasta grafiği için kullanılıyor ama modülü içermeyen eski
 // dev-client build'de require/render patlayabilir. lib/notifications.ts'teki desenle lazy
@@ -43,25 +47,16 @@ export default function GardiropAnalizScreen() {
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count, hex: namedColorHex(name) ?? '#8E8E93' }));
 
-  // 2) En çok giyilen kombinler (outfit_wears'tan sayılır)
-  const wearsByOutfit = new Map<string, { count: number; items: OutfitItemSummary[] }>();
-  for (const wear of wornEvents) {
-    if (!wear.outfitId) continue;
-    const existing = wearsByOutfit.get(wear.outfitId);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      wearsByOutfit.set(wear.outfitId, { count: 1, items: wear.items });
-    }
+  // 2) Kategori dağılımı (renk bölümündeki gibi sayılarla)
+  const slotCounts = new Map<DbItem['slot'], number>();
+  for (const item of itemList) {
+    slotCounts.set(item.slot, (slotCounts.get(item.slot) ?? 0) + 1);
   }
-  const topWorn = [...wearsByOutfit.values()].sort((a, b) => b.count - a.count).slice(0, 3);
+  const categoryCounts = [...slotCounts.entries()].sort((a, b) => b[1] - a[1]);
 
-  // 3) Hiç giyilmemiş ürünler: hiçbir "giydim" kaydının kombinine girmemiş envanter ürünleri
-  const wornItemIds = new Set<string>();
-  for (const wear of wornEvents) {
-    for (const item of wear.items) wornItemIds.add(item.id);
-  }
-  const unwornItems = itemList.filter((item: DbItem) => !wornItemIds.has(item.id));
+  // 3) En çok giyilen kombinler + 4) hiç giyilmemiş ürünler — Ana Sayfa ile paylaşılan hesaplar
+  const topWorn = topWornOutfits(wornEvents, 3);
+  const neverWorn = unwornItems(itemList, wornEvents);
 
   const isLoading = itemsLoading || worn.isLoading;
 
@@ -110,80 +105,45 @@ export default function GardiropAnalizScreen() {
               ))}
             </View>
 
+            <SectionTitle icon="albums-outline" title="Kategori Dağılımı" />
+            <View className="mb-8 flex-row flex-wrap gap-2">
+              {categoryCounts.map(([slot, count]) => {
+                const category = getCategory(slot);
+                return (
+                  <View
+                    key={slot}
+                    className="flex-row items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1.5 dark:bg-gray-800">
+                    <Ionicons name={category.icon} size={13} color="#3461FD" />
+                    <Text className="font-body text-xs text-gray-700 dark:text-gray-300">
+                      {category.label} ({count})
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
             <SectionTitle icon="trophy-outline" title="En Çok Giydiğin Kombinler" />
             {topWorn.length === 0 ? (
               <Text className="mb-8 font-body text-sm text-gray-500 dark:text-gray-400">
                 Henüz "Giydim" olarak işaretlediğin bir kombin yok — giydikçe burada sıralanacak.
               </Text>
             ) : (
-              <View className="mb-8 gap-3">
-                {topWorn.map((entry, index) => (
-                  <View
-                    key={index}
-                    className="flex-row items-center rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
-                    <View className="flex-row">
-                      {entry.items.slice(0, 4).map((item: OutfitItemSummary) => (
-                        <View
-                          key={item.id}
-                          className="-mr-2 h-10 w-10 overflow-hidden rounded-lg border border-white bg-gray-200 dark:border-gray-900 dark:bg-gray-700">
-                          {item.image_url ? (
-                            <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
-                          ) : (
-                            <View className="h-full w-full items-center justify-center">
-                              <Ionicons name="shirt-outline" size={14} color="#9BA1A6" />
-                            </View>
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                    <Text
-                      numberOfLines={2}
-                      className="ml-4 flex-1 font-body text-xs text-gray-700 dark:text-gray-300">
-                      {entry.items.map((item: OutfitItemSummary) => item.name).filter(Boolean).join(' · ')}
-                    </Text>
-                    <View className="ml-2 rounded-full bg-primary/10 px-2.5 py-1">
-                      <Text className="font-body-semibold text-xs text-primary">{entry.count} kez</Text>
-                    </View>
-                  </View>
-                ))}
+              <View className="mb-8">
+                <TopWornOutfitRows entries={topWorn} />
               </View>
             )}
 
             <SectionTitle icon="eye-off-outline" title="Hiç Giymediklerin" />
-            {unwornItems.length === 0 ? (
+            {neverWorn.length === 0 ? (
               <Text className="font-body text-sm text-gray-500 dark:text-gray-400">
                 Harika — envanterindeki her ürünü en az bir kez giymişsin! 🎉
               </Text>
             ) : (
               <>
                 <Text className="mb-3 font-body text-sm text-gray-500 dark:text-gray-400">
-                  {unwornItems.length} ürün henüz hiç "Giydim" kaydına girmemiş. Belki bir sonraki kombinde?
+                  {neverWorn.length} ürün henüz hiç "Giydim" kaydına girmemiş. Belki bir sonraki kombinde?
                 </Text>
-                <View className="flex-row flex-wrap gap-3">
-                  {unwornItems.slice(0, 12).map((item: DbItem) => (
-                    <View key={item.id} className="w-[30%]">
-                      <View className="aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
-                        {item.image_url ? (
-                          <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
-                        ) : (
-                          <View className="h-full w-full items-center justify-center">
-                            <Ionicons name="shirt-outline" size={22} color="#9BA1A6" />
-                          </View>
-                        )}
-                      </View>
-                      <Text
-                        numberOfLines={1}
-                        className="mt-1 text-center font-body text-[11px] text-gray-600 dark:text-gray-400">
-                        {item.name ?? 'Ürün'}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                {unwornItems.length > 12 && (
-                  <Text className="mt-3 font-body text-xs text-gray-400 dark:text-gray-500">
-                    + {unwornItems.length - 12} ürün daha
-                  </Text>
-                )}
+                <UnwornItemThumbs items={neverWorn} layout="grid" />
               </>
             )}
           </>

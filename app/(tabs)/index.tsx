@@ -9,6 +9,8 @@ import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { RecentOutfitsStrip } from '@/components/ui/RecentOutfitsStrip';
 import { StarRating } from '@/components/ui/StarRating';
+import { TopWornOutfitRows } from '@/components/ui/TopWornOutfitRows';
+import { UnwornItemThumbs } from '@/components/ui/UnwornItemThumbs';
 import { WardrobeStats } from '@/components/ui/WardrobeStats';
 import { requestAiOutfit, type PairingNote } from '@/lib/aiOutfit';
 import { showAlert, showConfirm } from '@/lib/alert';
@@ -22,6 +24,7 @@ import {
   useLikedOutfits,
   useLogGenerationEvent,
   useRateOutfit,
+  useWornOutfits,
   type OutfitContext,
 } from '@/lib/hooks/useOutfits';
 import { generateRandomOutfit, inferTakiType } from '@/lib/outfitGenerator';
@@ -29,6 +32,7 @@ import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PartnerNoMatchError, requestPartnerOutfit } from '@/lib/partnerOutfit';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
 
 const MEVSIM = ['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'];
 const MEKAN = ['Şehir içi', 'Ofis', 'Deniz/Tatil', 'Ev'];
@@ -68,6 +72,10 @@ export default function AnaSayfaScreen() {
   const rateOutfit = useRateOutfit();
   const setOutfitPair = useSetOutfitPair();
   const likedOutfits = useLikedOutfits();
+  const wornOutfits = useWornOutfits();
+  // Ana sayfa içerik blokları (gardırop analiziyle paylaşılan hesaplar)
+  const homeTopWorn = topWornOutfits(wornOutfits.data ?? [], 3);
+  const homeNeverWorn = unwornItems(items ?? [], wornOutfits.data ?? []);
   const { data: partnership } = usePartnership();
   const hasPartner = partnership?.status === 'accepted';
 
@@ -467,6 +475,29 @@ export default function AnaSayfaScreen() {
             <View className="mt-6">
               <WardrobeStats items={items ?? []} />
               <RecentOutfitsStrip outfits={likedOutfits.data ?? []} />
+              {homeTopWorn.length > 0 && (
+                <View className="mb-6">
+                  <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
+                    En Çok Giydiklerin
+                  </Text>
+                  <TopWornOutfitRows entries={homeTopWorn} />
+                </View>
+              )}
+              {homeNeverWorn.length > 0 && (
+                <View className="mb-6">
+                  <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
+                    Hiç Giymediklerin
+                  </Text>
+                  <UnwornItemThumbs items={homeNeverWorn} layout="strip" maxCount={10} />
+                </View>
+              )}
+              {/* Ana sayfanın en altında — kullanıcı isteği: sayfa boş görünmesin, analiz linki sonda. */}
+              <Pressable
+                onPress={() => router.push('/gardirop-analiz')}
+                className="flex-row items-center justify-center gap-1 py-2">
+                <Text className="font-body-medium text-xs text-primary">Detaylı gardırop analizi</Text>
+                <Ionicons name="chevron-forward" size={12} color="#3461FD" />
+              </Pressable>
             </View>
           </View>
         )}
