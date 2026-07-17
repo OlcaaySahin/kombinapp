@@ -315,6 +315,12 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Profil Resmi Yükleme (2026-07-17)
+`profiles.avatar_url` kolonu ilk şemadan beri vardı, hiç kullanılmıyordu — artık gerçek:
+- **`avatars` Storage bucket'ı** (`20260721000000_avatars_bucket.sql`, Management API ile çalıştırıldı) — diğer bucket'larla aynı desen: public, yol `avatars/{user_id}/{dosya}`, RLS ilk klasörü `auth.uid()` ile karşılaştırıyor. **Canlı test edildi** (geçici anon kullanıcı, sonra silindi): kendi klasörüne yükleme OK, BAŞKASININ klasörüne yükleme doğru reddedildi, public URL 200, silme OK.
+- `lib/storage.ts` → `StorageBucket`'a `'avatars'` eklendi; `useUpdateProfile` → `avatarUrl` alanı (undefined ise alana hiç dokunulmaz — diğer alanlar gibi).
+- `app/profile-edit.tsx` — formun tepesinde yuvarlak avatar seçici (galeri, 1:1 kırpma, kaydete basınca yüklenir). `app/(tabs)/profil.tsx` hesap kartında avatar varsa onay ikonu yerine foto gösteriliyor.
+
 ## Tema Seçimi: Sistem / Açık / Koyu (2026-07-17)
 Kullanıcının yeni listesindeki "tema butonu" maddesi. Profil'de menünün altında "Tema" kartı: Sistem/Açık/Koyu üçlü seçim.
 

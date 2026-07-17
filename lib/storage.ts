@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export type StorageBucket = 'item-photos' | 'outfit-wear-photos';
+export type StorageBucket = 'item-photos' | 'outfit-wear-photos' | 'avatars';
 
 function extensionFromMimeType(mimeType: string | undefined) {
   if (!mimeType) return 'jpg';

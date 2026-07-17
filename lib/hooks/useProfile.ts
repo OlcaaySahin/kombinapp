@@ -36,6 +36,7 @@ export type UpdateProfileInput = {
   heightCm?: number | null;
   weightKg?: number | null;
   dailyStyle?: string | null;
+  avatarUrl?: string | null;
 };
 
 export function useUpdateProfile() {
@@ -51,6 +52,8 @@ export function useUpdateProfile() {
           height_cm: input.heightCm,
           weight_kg: input.weightKg,
           daily_style: input.dailyStyle,
+          // undefined ise JSON'a hiç girmez (alan dokunulmaz) — null ise bilinçli temizleme.
+          avatar_url: input.avatarUrl,
         })
         .eq('id', input.userId)
         .select()

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert, showConfirm } from '@/lib/alert';
@@ -100,8 +100,12 @@ export default function ProfilScreen() {
         </Pressable>
       ) : (
         <View className="mx-5 mb-6 flex-row items-center rounded-2xl bg-gray-50 p-4 dark:bg-gray-800">
-          <View className="h-14 w-14 items-center justify-center rounded-full bg-primary">
-            <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+          <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary">
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} className="h-full w-full" resizeMode="cover" />
+            ) : (
+              <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+            )}
           </View>
           <View className="ml-4 flex-1">
             <Text className="font-body-semibold text-base text-gray-900 dark:text-white">
