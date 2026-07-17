@@ -395,6 +395,13 @@ Kullanıcının orijinal fikrindeki (notlar.txt) hava durumu sorusu nihayet ekle
 - **Partner isteği push bildirimi BİLİNÇLİ kapsam dışı**: Android'de remote push FCM (Firebase projesi + google-services.json + EAS credential) gerektirir — kullanıcı console işi + build'e girmesi gereken dosya. Karar verilmedi; verilirse build ÖNCESİ yapılmalı (yoksa bir build daha gerekir). Uygulama içi rozet çalışmaya devam ediyor.
 - Cihaz testi build sonrasına bekliyor (lokal bildirim simülatör/gerçek cihaz ister, Metro'dan test edilemez).
 
+## Build Öncesi Native Paket Hazırlığı (2026-07-17)
+Yaklaşan EAS build'e (expo-notifications için zaten gerekli) girecek şekilde, planlanan özelliklerin native bağımlılıkları ÖNCEDEN eklendi — özelliklerin kendisi henüz YAZILMADI, sadece paketler build'e girsin diye kuruldu (yoksa her özellik ayrı build gerektirirdi):
+- `react-native-svg@15.2.0` — Akıllı Gardırop İstatistikleri'ndeki renk pasta grafiği için
+- `react-native-view-shot@3.8.0` + `expo-sharing@~12.0.1` — Kombin Paylaşım Kartları (kartı görsele çevir + paylaşım menüsü) için
+
+Üçü de `npx expo install` ile SDK 51 uyumlu sürümlerde; hiçbiri `app.json` config plugin gerektirmiyor. FCM (partner push) kararı bilinçli olarak yine ertelendi — kullanıcı istemedi, bu build'e girmiyor. **Not**: bu paketleri import eden kod yazılana kadar mevcut eski build'de hiçbir etkisi yok; import edilmeye başlandığında (istatistik/paylaşım özellikleri yazılınca) yeni build şart olacak.
+
 ## Kombin Önizleme (Silüet) — Ücretsiz Çözüm (2026-07-15)
 `OutfitCard`'ın sağ üstünde küçük bir "body-outline" ikon butonu var ("Önizlemeyi Göster") — basınca kombindeki ürünlerin isimlerinden metin bir prompt kurup jenerik bir insan silüeti/manken üzerinde giyilmiş halini gösteren bir görsel üretiyor. `lib/outfitPreview.ts` → `buildOutfitPreviewUrl()`.
 
