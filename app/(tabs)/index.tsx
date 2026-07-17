@@ -472,6 +472,16 @@ export default function AnaSayfaScreen() {
               </Pressable>
             )}
 
+            <Pressable
+              onPress={() => router.push('/bavul-hazirla')}
+              className="mt-4 flex-row items-center gap-3 rounded-2xl bg-accent-purple/10 p-4">
+              <Ionicons name="briefcase-outline" size={20} color="#8B3FE8" />
+              <Text className="flex-1 font-body text-sm text-accent-purple">
+                Seyahate mi çıkıyorsun? Minimum parçayla bavulunu hazırlayalım.
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#8B3FE8" />
+            </Pressable>
+
             <View className="mt-6">
               <WardrobeStats items={items ?? []} />
               <RecentOutfitsStrip outfits={likedOutfits.data ?? []} />

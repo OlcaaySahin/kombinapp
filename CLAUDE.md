@@ -315,6 +315,14 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Bavul Hazırla: Seyahat Kapsül Gardırop Modu (2026-07-18)
+Kullanıcının 10 maddelik listesindeki son büyük özellik. Ana Sayfa'daki mor "Seyahate mi çıkıyorsun?" kartından açılan **`app/bavul-hazirla.tsx`** (modal): gün sayısı (2/3/4/5/7) + mevsim + konsept zorunlu, beklenen hava **bilerek opsiyonel** (seyahat ileri tarihli olabilir, kullanıcı havayı bilmeyebilir) + opsiyonel not.
+
+- **Yeni `generate-packing-list` Edge Function** (deploy edildi): `generate-outfit`'le aynı iskelet (JWT auth + saatlik 30 `ai_call` rate-limit havuzu — ortak havuz, ayrı sayaç değil). Claude'a KAPSÜL prensibi kuralları: bavul parça sayısı ≤ gün×2, her parça mümkünse 2+ kombinde, 1-2 ayakkabı, dar renk paleti; mevsim/hava/konsept kuralları generate-outfit'ten uyarlandı. `max_tokens: 4000` (gün başına kombin ürettiği için 2500'den fazla — max_tokens dersi uygulandı). Sunucu tarafı tutarlılık düzeltmesi: envanterde olmayan id'ler elenir, kombinlerde geçen her id bavul setine eklenir.
+- **`lib/packing.ts`** — `requestPackingList()`. **Yerel fallback bilerek YOK** (zar mantığıyla anlamlı bavul kurulamaz); hata olursa Edge Function'ın gerçek hata gövdesi kullanıcıya gösteriliyor ("sessiz fallback" dersinin tersi yönde bilinçli karar).
+- Sonuç UI: bavul grid'i (parça sayısıyla) + ampul ikonlu gerekçe + gün gün plan kartları + "Yeniden Hazırla". DB'ye kaydedilmiyor (v1 bilinçli sınır — istenirse `outfits`'a `generation_source: 'manual'` ile kaydetme eklenebilir).
+- **Canlı test edildi** (geçici anon kullanıcı + 8 ürünlük kasıtlı karışık envanter, sonra silindi): 3 günlük Yaz/Güneşli/Karışık + "deniz kenarında tatil" notu → 7 parçalık kapsül bavul, kışlık mont doğru elendi, parçalar günler arasında yeniden kullanıldı (şort 2 gün, sneaker 2 gün), gün notları ve gerekçe doğal Türkçe.
+
 ## Kombin Paylaşım Kartları (2026-07-17)
 Yeni **`app/kombin-paylas.tsx`** (modal; giriş: Beğenilenler'de her kartın yanındaki paylaş ikonu). Kombini 9:16 (Instagram Story) formatında markalı bir karta çevirip **sistem paylaşım menüsüyle** paylaşıyor:
 - Kart: sabit lacivert zemin + marka blob'ları + bağlam chip'leri + ürün görselleri grid'i + "Kombin App" imzası — temadan bağımsız sabit tasarım. `useOutfit(outfitId)` hook'u eklendi (`useOutfits.ts`, tek kombini id ile çeker).
