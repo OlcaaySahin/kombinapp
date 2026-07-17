@@ -12,6 +12,7 @@ import { showAlert } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { COLOR_SWATCHES } from '@/constants/colorSwatches';
 import { useAddItem, useItems, useUpdateItem, type DbItem } from '@/lib/hooks/useItems';
+import { fetchProductFromLink } from '@/lib/productLink';
 import { uploadPhoto } from '@/lib/storage';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -33,6 +34,9 @@ export default function AddItemScreen() {
   const [slot, setSlot] = useState<CategorySlot | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Link burada sadece formu doldurma aracı — items tablosunda product_url kolonu yok, kaydedilmez.
+  const [productUrl, setProductUrl] = useState('');
+  const [fetchingLink, setFetchingLink] = useState(false);
 
   useEffect(() => {
     if (!isEditing || hasPrefilled || !items) return;
@@ -80,6 +84,34 @@ export default function AddItemScreen() {
       }
     } finally {
       setTagging(false);
+    }
+  }
+
+  async function handleFetchLink() {
+    if (!productUrl.trim() || fetchingLink) return;
+    setFetchingLink(true);
+    try {
+      const result = await fetchProductFromLink(productUrl.trim());
+      if (!result.ok) {
+        if (result.reason === 'not_clothing') {
+          showAlert('Bu bir giyim ürünü değil', 'Bu link bir giyim/aksesuar ürünü gibi görünmüyor, elle doldurabilirsin.');
+        } else {
+          showAlert('Linkten veri çekilemedi', result.reason === 'error' ? result.message : 'Bilinmeyen hata');
+        }
+        return;
+      }
+
+      const { data } = result;
+      if (data.name) setName(data.name);
+      if (data.color) setColor(data.color);
+      if (data.slot) {
+        const matchedSlot = CATEGORIES.find((category) => category.slot === data.slot);
+        if (matchedSlot) setSlot(matchedSlot.slot);
+      }
+      setPhotoUri(data.imageUrl);
+      setPhotoChanged(true);
+    } finally {
+      setFetchingLink(false);
     }
   }
 
@@ -136,6 +168,37 @@ export default function AddItemScreen() {
               <Text className="mt-2 font-body-medium text-sm text-white">AI etiketliyor...</Text>
             </View>
           )}
+        </Pressable>
+
+        <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
+          Ya da ürün linkinden doldur (opsiyonel)
+        </Text>
+        <TextInput
+          value={productUrl}
+          onChangeText={setProductUrl}
+          placeholder="https://..."
+          placeholderTextColor="#9BA1A6"
+          autoCapitalize="none"
+          keyboardType="url"
+          className="mb-3 rounded-2xl border border-gray-200 px-4 py-3 font-body text-base text-gray-900 dark:border-gray-700 dark:text-gray-100"
+        />
+        <Pressable
+          onPress={handleFetchLink}
+          disabled={!productUrl.trim() || fetchingLink}
+          className={`mb-6 flex-row items-center justify-center gap-2 rounded-2xl border py-3 ${
+            !productUrl.trim() || fetchingLink ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
+          }`}>
+          {fetchingLink ? (
+            <ActivityIndicator color="#3461FD" />
+          ) : (
+            <Ionicons name="download-outline" size={18} color={!productUrl.trim() ? '#9BA1A6' : '#3461FD'} />
+          )}
+          <Text
+            className={`font-heading text-sm ${
+              !productUrl.trim() || fetchingLink ? 'text-gray-400' : 'text-primary'
+            }`}>
+            {fetchingLink ? 'Linkten çekiliyor...' : 'Linkten Doldur'}
+          </Text>
         </Pressable>
 
         <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">Ürün Adı</Text>
