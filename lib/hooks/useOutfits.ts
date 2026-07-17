@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 
 export type OutfitContext = {
   mevsim: string;
+  /** Hava durumu (Güneşli/Yağmurlu/Rüzgarlı/Karlı) — 2026-07-17'de eklendi; eski kayıtlarda ve zar bağlamında bulunmaz. */
+  hava?: string;
   mekan: string;
   saat: string;
   konsept: string;

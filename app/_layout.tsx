@@ -11,6 +11,7 @@ import '../global.css';
 
 import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { syncReminderFromPreferences } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -30,6 +31,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     bootstrapSession().finally(() => setSessionReady(true));
+    // Hatırlatıcı tercihini OS zamanlamasıyla senkronla (yeni build/yeniden kurulum sonrası
+    // OS tarafı sıfırlanır) — fire-and-forget, açılışı asla bloklamaz.
+    syncReminderFromPreferences();
   }, []);
 
   useEffect(() => {

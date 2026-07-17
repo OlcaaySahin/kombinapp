@@ -33,10 +33,12 @@ const MEVSIM = ['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'];
 const MEKAN = ['Şehir içi', 'Ofis', 'Deniz/Tatil', 'Ev'];
 const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
+const HAVA = ['Güneşli', 'Yağmurlu', 'Rüzgarlı', 'Karlı'];
 
 const DAILY_LIMIT = 3;
-// Demo/test aşamasında bilinçli olarak pasif — mekanizma (sayaç, sorgu, UI) tamamen duruyor,
-// tekrar aktif etmek için sadece bunu true yapmak yeterli. 2026-07-15.
+// Kullanıcı kararı (2026-07-17): günlük limit uygulanmayacak, sayaç yazısı da UI'dan
+// gizlendi (header'da yorum satırında duruyor). Fikir değişirse: bunu true yap + header'daki
+// yorumlu sayaç Text'ini geri aç — mekanizma (generation_events, useDailyOutfitCount) duruyor.
 const DAILY_LIMIT_ENABLED = false;
 const DICE_CONTEXT: OutfitContext = {
   mevsim: 'İlkbahar',
@@ -78,6 +80,7 @@ export default function AnaSayfaScreen() {
   const [mekan, setMekan] = useState<string | null>(null);
   const [saat, setSaat] = useState<string | null>(null);
   const [konsept, setKonsept] = useState<string | null>(null);
+  const [hava, setHava] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [includeWishlist, setIncludeWishlist] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -97,7 +100,7 @@ export default function AnaSayfaScreen() {
   const [partnerSavedOutfitId, setPartnerSavedOutfitId] = useState<string | null>(null);
   const [partnerRating, setPartnerRating] = useState<number | null>(null);
 
-  const allAnswered = Boolean(mevsim && mekan && saat && konsept);
+  const allAnswered = Boolean(mevsim && mekan && saat && konsept && hava);
   const count = dailyCount.data ?? 0;
   const limitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
 
@@ -245,7 +248,7 @@ export default function AnaSayfaScreen() {
 
   function generateFromQuestions() {
     if (!allAnswered) return;
-    generateViaAi({ mevsim: mevsim!, mekan: mekan!, saat: saat!, konsept: konsept! });
+    generateViaAi({ mevsim: mevsim!, hava: hava!, mekan: mekan!, saat: saat!, konsept: konsept! });
   }
 
   function retry() {
@@ -357,6 +360,7 @@ export default function AnaSayfaScreen() {
     setMekan(null);
     setSaat(null);
     setKonsept(null);
+    setHava(null);
     setNote('');
     setIncludeWishlist(false);
     setGeneratedItems(null);
@@ -409,9 +413,11 @@ export default function AnaSayfaScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <View className="pb-6 pt-2">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Bugün ne giysem?</Text>
+          {/* Günlük limit sayacı — kullanıcı kararıyla gizlendi (2026-07-17), kod bilerek silinmedi:
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
             Günlük {count}/{DAILY_LIMIT} kombin hakkı kullanıldı
           </Text>
+          */}
         </View>
 
         {screen === 'idle' && (
@@ -460,6 +466,7 @@ export default function AnaSayfaScreen() {
         {screen === 'questions' && (
           <View>
             <OptionChipRow label="Mevsim" options={MEVSIM} value={mevsim} onChange={setMevsim} />
+            <OptionChipRow label="Hava" options={HAVA} value={hava} onChange={setHava} />
             <OptionChipRow label="Mekan" options={MEKAN} value={mekan} onChange={setMekan} />
             <OptionChipRow label="Saat" options={SAAT} value={saat} onChange={setSaat} />
             <OptionChipRow label="Konsept" options={KONSEPT} value={konsept} onChange={setKonsept} />

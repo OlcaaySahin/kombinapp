@@ -4,8 +4,15 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const REMINDER_ENABLED_KEY = 'kombin_reminder_enabled';
-const REMINDER_TIME_KEY = 'kombin_reminder_time';
+import { showAlert } from '@/lib/alert';
+import {
+  REMINDER_ENABLED_KEY,
+  REMINDER_TIME_KEY,
+  cancelDailyReminder,
+  ensureNotificationPermission,
+  scheduleDailyReminder,
+} from '@/lib/notifications';
+
 const TIME_OPTIONS = ['09:00', '12:00', '18:00', '20:00'];
 
 export default function BildirimlerScreen() {
@@ -25,6 +32,23 @@ export default function BildirimlerScreen() {
 
   async function toggleEnabled() {
     const next = !enabled;
+    if (next) {
+      const granted = await ensureNotificationPermission();
+      if (!granted) {
+        showAlert(
+          'Bildirim izni alınamadı',
+          'Hatırlatıcı için bildirim izni gerekiyor. Uygulamanın güncel sürümünü kullandığından ve telefon ayarlarından bildirim izni verdiğinden emin ol.'
+        );
+        return;
+      }
+      const scheduled = await scheduleDailyReminder(time);
+      if (!scheduled) {
+        showAlert('Kurulamadı', 'Hatırlatıcı bu cihazda kurulamadı, lütfen tekrar dene.');
+        return;
+      }
+    } else {
+      await cancelDailyReminder();
+    }
     setEnabled(next);
     await AsyncStorage.setItem(REMINDER_ENABLED_KEY, String(next));
   }
@@ -32,6 +56,8 @@ export default function BildirimlerScreen() {
   async function selectTime(value: string) {
     setTime(value);
     await AsyncStorage.setItem(REMINDER_TIME_KEY, value);
+    // Hatırlatıcı açıksa yeni saate göre hemen yeniden kur (kapalıysa sadece tercih saklanır).
+    if (enabled) await scheduleDailyReminder(value);
   }
 
   if (!loaded) return null;
@@ -41,8 +67,7 @@ export default function BildirimlerScreen() {
       <View className="p-5">
         <Text className="mb-2 font-heading-bold text-2xl text-gray-900 dark:text-white">Bildirimler</Text>
         <Text className="mb-6 font-body text-sm text-gray-500 dark:text-gray-400">
-          Bildirim gönderimi yakında aktif olacak — tercihini şimdiden ayarlayabilirsin, uygulama güncellenince
-          otomatik devreye girer.
+          Hatırlatıcıyı açtığında, seçtiğin saatte her gün telefonuna bildirim gelir.
         </Text>
 
         <Pressable

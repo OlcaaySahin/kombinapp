@@ -76,7 +76,7 @@ function closestColorName(hex: string | null): string | null {
 }
 
 type ReferenceItem = { name: string | null; slot: string; color: string | null };
-type OutfitContext = { mevsim: string; mekan: string; saat: string; konsept: string };
+type OutfitContext = { mevsim: string; hava?: string; mekan: string; saat: string; konsept: string };
 
 const SUGGEST_PARTNER_OUTFIT_TOOL = {
   name: 'suggest_partner_outfit',
@@ -103,7 +103,7 @@ const SUGGEST_PARTNER_OUTFIT_TOOL = {
       compatibility: {
         type: 'integer',
         description:
-          'Önerinin hem diğer kişinin kombiniyle hem de bağlamla (mevsim/mekan/saat/konsept) genel uyumunun DÜRÜST tahmini, 0-100 arası. Zorlama bir eşleşmeyse düşük ver (ör. 50), mükemmel uyumsa yüksek (ör. 90+). Asla nezaketen şişirme.',
+          'Önerinin hem diğer kişinin kombiniyle hem de bağlamla (mevsim/hava/mekan/saat/konsept) genel uyumunun DÜRÜST tahmini, 0-100 arası. Zorlama bir eşleşmeyse düşük ver (ör. 50), mükemmel uyumsa yüksek (ör. 90+). Asla nezaketen şişirme.',
       },
       pairingNotes: {
         type: 'array',
@@ -226,12 +226,12 @@ Deno.serve(async (req: Request) => {
 
 1. Sadece ${partnerName}'in envanterinde var olan ürün id'lerini kullan, uydurma.
 2. "Uyumlu" demek AYNI KIYAFETİ giymek değil — renk paletinin aynı aileden olması (ör. ikisi de nötr+lacivert tonlarında) veya bilinçli, zevkli bir kontrast (ör. biri krem biri lacivert, ikisi de "şık" konseptinde) yeterli. Birbiriyle çatışan parlak renklerden kaçın.
-3. BAĞLAM UYGUNLUĞU EN AZ RENK UYUMU KADAR ÖNEMLİ: ${partnerName}'in kombini de verilen bağlama (mevsim/mekan/saat/konsept) uygun olmalı. Mevsim Kış/Sonbahar ise şort, tank top, sandalet gibi yazlık parçalardan kaçın ve uygun bir dış giyim varsa ekle; Yaz ise kalın mont/kaban/bot önerme. Konsept Şık/Özel Gün ise eşofman/spor parçalar yerine şık seçenekleri tercih et. Ürünlerin season alanına da bak.
+3. BAĞLAM UYGUNLUĞU EN AZ RENK UYUMU KADAR ÖNEMLİ: ${partnerName}'in kombini de verilen bağlama (mevsim/hava/mekan/saat/konsept) uygun olmalı. Mevsim Kış/Sonbahar ise şort, tank top, sandalet gibi yazlık parçalardan kaçın ve uygun bir dış giyim varsa ekle; Yaz ise kalın mont/kaban/bot önerme. Konsept Şık/Özel Gün ise eşofman/spor parçalar yerine şık seçenekleri tercih et. Ürünlerin season alanına da bak. Bağlamda "hava" alanı varsa ona da uy: Yağmurlu/Karlı ise süet gibi hassas malzemelerden ve açık ayakkabılardan kaçın, uygun dış giyim varsa ekle; Rüzgarlı ise çok ince/uçuşan parçalardan kaçın.
 4. internalAnalysis alanında iç analiz yap (${requesterName}'in kombini ne renkte/stilde, bağlam ne gerektiriyor, ${partnerName}'in envanterinde bunlara en uyumlu hangi parçalar var), sonra reasoning alanına SADECE kullanıcının okuyacağı kısa, doğal bir özet yaz. ${addressingNote}; ürün id'si veya "sahiplik/istek_listesi" gibi teknik alan isimleri ASLA yazma.
 5. Eğer ${requesterName}'in kombininin rengi/stili zaten ${partnerName}'in envanteriyle net bir şekilde uyumluysa, reasoning'i uzatma — basit ve doğal bir cümleyle yeterli (ör. "İkiniz de bej-beyaz tonlarında olduğu için doğal bir uyum var.").
 ${matchPolicy}`;
 
-  const contextNote = context ? `\n\n${requesterName}'in bağlamı (mevsim/mekan/saat/konsept): ${JSON.stringify(context)}` : '';
+  const contextNote = context ? `\n\n${requesterName}'in bağlamı (mevsim/hava/mekan/saat/konsept): ${JSON.stringify(context)}` : '';
   const userPrompt = `${requesterName}'in kombini:\n${JSON.stringify(referenceWithColorNames, null, 2)}${contextNote}\n\n${partnerName}'in envanteri:\n${JSON.stringify(partnerItemsWithColorNames, null, 2)}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
