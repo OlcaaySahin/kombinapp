@@ -315,6 +315,13 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Kombin Paylaşım Kartları (2026-07-17)
+Yeni **`app/kombin-paylas.tsx`** (modal; giriş: Beğenilenler'de her kartın yanındaki paylaş ikonu). Kombini 9:16 (Instagram Story) formatında markalı bir karta çevirip **sistem paylaşım menüsüyle** paylaşıyor:
+- Kart: sabit lacivert zemin + marka blob'ları + bağlam chip'leri + ürün görselleri grid'i + "Kombin App" imzası — temadan bağımsız sabit tasarım. `useOutfit(outfitId)` hook'u eklendi (`useOutfits.ts`, tek kombini id ile çeker).
+- `react-native-view-shot` (`captureRef`, 1080x1919 px çıktı) + `expo-sharing` (`shareAsync`) — ikisi de NATIVE, ikisi de lazy require + no-op korumalı (svg ile aynı desen); eski build/web'de buton açıklayıcı alert veriyor, app çökmüyor. **Instagram'a DOĞRUDAN story paylaşımı bilinçli yapılmadı** — Facebook SDK entegrasyonu gerektirir; sistem paylaşım menüsü v1 için yeterli (kullanıcı menüden Instagram'ı seçiyor).
+- **Android gotcha**: yakalanan View'a `collapsable={false}` verilmeli — Android view düzleştirmesi yüzünden ref'siz kalan View `captureRef`'i patlatır.
+- Cihaz testi YENİ BUILD sonrasına bekliyor (native modüller eski build'de yok).
+
 ## Akıllı Gardırop Analizi Ekranı (2026-07-17)
 Yeni **`app/gardirop-analiz.tsx`** (modal; giriş: Ana Sayfa'daki `WardrobeStats` kartının altındaki "Detaylı gardırop analizi" linki). Üç bölüm, hepsi mevcut hook'lardan client-side hesap (yeni sorgu/tablo yok):
 1. **Renk Dağılımı** — `closestColorName` ile gruplanıp **react-native-svg pasta grafiği** olarak çiziliyor (`lib/colorNames.ts`'e `namedColorHex()` eklendi). **Önemli desen**: react-native-svg native modülü ESKİ build'de yok — Expo Router tüm route dosyalarını açılışta import ettiği için statik import app'i AÇILIŞTA çökertirdi. Çözüm: lazy `require` + try/catch (notifications ile aynı desen) + render hatalarına karşı küçük bir ErrorBoundary; svg kullanılamıyorsa aynı veri **düz View'lerle oranlı yatay bar** olarak çiziliyor (eski build + web bugün bile çalışır). Tek renk (%100) pasta diliminde arc çizilemez — tam daireye (`Circle`) düşülüyor.

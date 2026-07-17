@@ -75,6 +75,23 @@ const OUTFIT_SELECT = `
   outfit_items ( items ( id, name, slot, color, image_url, user_id ) )
 `;
 
+/** Tek bir kombini id ile çeker (paylaşım kartı ekranı için). */
+export function useOutfit(outfitId: string | null) {
+  return useQuery<OutfitWithItems | null>({
+    queryKey: ['outfits', 'single', outfitId],
+    enabled: Boolean(outfitId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('outfits')
+        .select(OUTFIT_SELECT)
+        .eq('id', outfitId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? mapOutfit(data as unknown as RawOutfitRow) : null;
+    },
+  });
+}
+
 /** Beğenilmiş AMA henüz giyilmemiş kombinler — giyilenler bu listeden otomatik düşer. */
 export function useLikedOutfits() {
   return useQuery<OutfitWithItems[]>({
