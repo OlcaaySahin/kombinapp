@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { signOut } from '@/lib/auth';
 import { usePartnership } from '@/lib/hooks/usePartnership';
+import { useProfile } from '@/lib/hooks/useProfile';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 type MenuItem = {
@@ -32,9 +33,13 @@ const MENU_ITEMS: MenuItem[] = [
 export default function ProfilScreen() {
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
   const email = useAuthStore((state) => state.email);
+  const userId = useAuthStore((state) => state.userId);
   const [signingOut, setSigningOut] = useState(false);
   const { data: partnership } = usePartnership();
+  const { data: profile } = useProfile(userId);
   const hasPendingPartnerRequest = partnership?.status === 'pending_incoming';
+  // İsim kaydedilmişse başlıkta isim, altta e-posta; isim yoksa eskisi gibi e-posta başlıkta.
+  const displayName = profile?.display_name?.trim() || null;
 
   function handleSignOutPress() {
     showConfirm(
@@ -82,9 +87,11 @@ export default function ProfilScreen() {
             <Ionicons name="checkmark" size={24} color="#FFFFFF" />
           </View>
           <View className="ml-4 flex-1">
-            <Text className="font-body-semibold text-base text-gray-900 dark:text-white">{email}</Text>
+            <Text className="font-body-semibold text-base text-gray-900 dark:text-white">
+              {displayName ?? email}
+            </Text>
             <Text className="font-body text-sm text-gray-500 dark:text-gray-400">
-              Ücretsiz Plan · Günde 3 kombin hakkı
+              {displayName ? email : 'Ücretsiz Plan'}
             </Text>
           </View>
         </View>
