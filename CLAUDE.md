@@ -310,6 +310,11 @@ Kullanıcı bildirdi: ana kombinde "Karıştır" ile parça değiştirdikten son
 ## İstek Listesi Eylem Menüsü: Marka Diline Uygun Bottom Sheet (2026-07-16)
 OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `components/ui/ActionSheetModal.tsx` eklendi: alttan kayarak açılan (RN `Modal`, `animationType="slide"`, web dahil her platformda çalışıyor), yuvarlak köşeli, ikonlu, primary/kırmızı renkli seçenek satırları + "Vazgeç". `envanter.tsx`'teki istek listesi uzun-bası artık bunu kullanıyor; `lib/alert.ts`'teki Alert-tabanlı `showActionSheet` helper'ı kaldırıldı (tek kullanıcısı buydu). Genel amaçlı — ileride başka çok-seçenekli menüler de bunu kullanabilir.
 
+## Envanter Uzun-Bas Menüsü + İki Layout Bug'ı (2026-07-16/17)
+- Envanter sekmesi uzun-bası da (istek listesindeki gibi) `ActionSheetModal`'a taşındı: "Gizle / Önerme" (henüz işlevsiz — "Yakında" alerti; kullanıcının ileride kombin önerilerinden ürün gizleme planı için yer tutucu) + "Ürünü Sil". `showConfirm` tabanlı eski silme onayı kaldırıldı.
+- **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
+- **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
+
 ## Partner Gerekçesinde İsim Kullanımı: İlk İsim + "Sen" Hitabı (2026-07-16)
 Kullanıcı bildirdi: gerekçede ana hesaptan "Kullanıcı'in" diye bahsediliyordu (e-posta hesaplarında `display_name` otomatik gelmediği için null → yapay fallback), partnerden ise ad+soyad ("Olcay Şahin") ile.
 

@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
-import { showAlert, showConfirm } from '@/lib/alert';
+import { showAlert } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
@@ -23,6 +23,7 @@ export default function EnvanterScreen() {
   const [tab, setTab] = useState<Tab>('envanter');
   const [selected, setSelected] = useState<CategorySlot | null>(null);
   const [sheetItem, setSheetItem] = useState<DbWishlistItem | null>(null);
+  const [envanterSheetItem, setEnvanterSheetItem] = useState<DbItem | null>(null);
 
   const { data: allItems, isLoading: itemsLoading, isError: itemsError } = useItems();
   const deleteItem = useDeleteItem();
@@ -33,10 +34,8 @@ export default function EnvanterScreen() {
   const isLoading = tab === 'envanter' ? itemsLoading : wishlistLoading;
   const isError = tab === 'envanter' ? itemsError : wishlistError;
 
-  function confirmDelete(item: DbItem) {
-    showConfirm('Ürünü sil', `"${item.name ?? 'Bu ürün'}" envanterden silinsin mi?`, () =>
-      deleteItem.mutate(item.id)
-    );
+  function handleEnvanterLongPress(item: DbItem) {
+    setEnvanterSheetItem(item);
   }
 
   function handleWishlistLongPress(item: DbWishlistItem) {
@@ -58,12 +57,13 @@ export default function EnvanterScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-[#151718]" edges={['top']}>
       <View className="flex-row items-start justify-between px-5 pb-4 pt-2">
-        <View>
+        {/* flex-1 olmazsa uzun alt yazı + butonunu ekran dışına itiyor (canlıda görüldü) */}
+        <View className="flex-1 pr-3">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Envanter</Text>
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
             {tab === 'envanter'
               ? allItems
-                ? `${allItems.length} ürün · düzenlemek için dokun, silmek için basılı tut`
+                ? `${allItems.length} ürün · düzenlemek için dokun, seçenekler için basılı tut`
                 : ' '
               : wishlistItems
                 ? `${wishlistItems.length} ürün · düzenlemek için dokun, satın aldıysan ya da silmek istiyorsan basılı tut`
@@ -85,7 +85,9 @@ export default function EnvanterScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
+        // flexShrink: 0 şart — kalabalık envanterde alttaki FlatList alan için sıkıştırınca
+        // bu şerit daralıp ikon altı yazıları kırpıyordu (istek listesinde 1 ürünle görünmüyordu).
+        style={{ flexGrow: 0, flexShrink: 0 }}
         contentContainerStyle={{ paddingHorizontal: 20 }}
         className="mb-2">
         <CategoryChip icon="grid-outline" label="Tümü" selected={selected === null} onPress={() => setSelected(null)} />
@@ -139,7 +141,7 @@ export default function EnvanterScreen() {
             <ItemCard
               item={item}
               onPress={() => router.push({ pathname: '/add-item', params: { itemId: item.id } })}
-              onLongPress={() => confirmDelete(item)}
+              onLongPress={() => handleEnvanterLongPress(item)}
             />
           )}
         />
@@ -161,6 +163,29 @@ export default function EnvanterScreen() {
           )}
         />
       )}
+
+      <ActionSheetModal
+        visible={envanterSheetItem !== null}
+        title={envanterSheetItem?.name ?? 'Envanter'}
+        message="Bu ürün için ne yapmak istersin?"
+        onClose={() => setEnvanterSheetItem(null)}
+        options={[
+          {
+            label: 'Gizle / Önerme',
+            icon: 'eye-off-outline',
+            onPress: () =>
+              showAlert('Yakında', 'Bu ürünü kombin önerilerinden gizleme özelliği yakında eklenecek.'),
+          },
+          {
+            label: 'Ürünü Sil',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => {
+              if (envanterSheetItem) deleteItem.mutate(envanterSheetItem.id);
+            },
+          },
+        ]}
+      />
 
       <ActionSheetModal
         visible={sheetItem !== null}
