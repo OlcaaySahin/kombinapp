@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OutfitCard } from '@/components/ui/OutfitCard';
+import { StarRating } from '@/components/ui/StarRating';
 import { WearEventCard } from '@/components/ui/WearEventCard';
+import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useLikedOutfits,
   useRateOutfit,
@@ -13,6 +15,7 @@ import {
   type OutfitWithItems,
   type WearEventData,
 } from '@/lib/hooks/useOutfits';
+import { usePackingLists, type DbPackingList } from '@/lib/hooks/usePackingLists';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -31,6 +34,8 @@ export default function KombinlerimScreen() {
   const userId = useAuthStore((state) => state.userId);
   const worn = useWornOutfits();
   const liked = useLikedOutfits();
+  const packingLists = usePackingLists();
+  const { data: inventory } = useItems();
   const rateOutfit = useRateOutfit();
   const { data: profile } = useProfile(userId);
   const { data: partnership } = usePartnership();
@@ -49,7 +54,10 @@ export default function KombinlerimScreen() {
   }
 
   const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
-  const isEmpty = tab === 'gecmis' ? (worn.data ?? []).length === 0 : (liked.data ?? []).length === 0;
+  const isEmpty =
+    tab === 'gecmis'
+      ? (worn.data ?? []).length === 0
+      : (liked.data ?? []).length === 0 && (packingLists.data ?? []).length === 0;
 
   // Kombin çiftleri: partner kombini pair_outfit_id ile ana kombine işaret eder. İkisi de
   // listedeyse tek bir "Kombin Çifti" bloğunda birlikte gösterilir; ana kombin listede yoksa
@@ -65,6 +73,70 @@ export default function KombinlerimScreen() {
   const likedRows = likedList.filter(
     (outfit: OutfitWithItems) => !(outfit.pair_outfit_id && likedIds.has(outfit.pair_outfit_id))
   );
+
+  // Beğenilenler = kombinler + kaydedilmiş bavullar, tarihe göre karışık sıralı tek liste.
+  type BegenilenEntry = { kind: 'outfit'; outfit: OutfitWithItems } | { kind: 'bavul'; plan: DbPackingList };
+  const begenilenEntries: BegenilenEntry[] = [
+    ...likedRows.map((outfit: OutfitWithItems) => ({ kind: 'outfit' as const, outfit })),
+    ...(packingLists.data ?? []).map((plan: DbPackingList) => ({ kind: 'bavul' as const, plan })),
+  ].sort((a, b) => {
+    const aDate = a.kind === 'outfit' ? a.outfit.created_at : a.plan.created_at;
+    const bDate = b.kind === 'outfit' ? b.outfit.created_at : b.plan.created_at;
+    return aDate < bDate ? 1 : -1;
+  });
+
+  const inventoryById = new Map((inventory ?? []).map((item: DbItem) => [item.id, item]));
+
+  /** Bavul kartı: OutfitCard'la aynı ölçü/çerçeve, bavul ikonu + parça küpürleriyle. */
+  function renderBavulCard(plan: DbPackingList) {
+    const suitcaseItems = plan.suitcase_item_ids
+      .map((id) => inventoryById.get(id))
+      .filter((item): item is DbItem => Boolean(item));
+    return (
+      <Pressable
+        onPress={() => router.push({ pathname: '/bavul-hazirla', params: { packingListId: plan.id } })}
+        className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+        <View className="mb-3 flex-row items-center gap-2">
+          <View className="h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+            <Ionicons name="briefcase-outline" size={16} color="#3461FD" />
+          </View>
+          <View className="flex-1">
+            <Text className="font-body-semibold text-sm text-gray-900 dark:text-white">
+              Bavul · {plan.days} Gün
+            </Text>
+            <Text className="font-body text-xs text-gray-500 dark:text-gray-400">
+              {[plan.context.mevsim, plan.context.konsept].filter(Boolean).join(' · ')} ·{' '}
+              {plan.suitcase_item_ids.length} parça
+            </Text>
+          </View>
+          {plan.rating != null && <StarRating value={Math.round(plan.rating)} size={13} />}
+          <Ionicons name="chevron-forward" size={16} color="#9BA1A6" />
+        </View>
+        <View className="flex-row">
+          {suitcaseItems.slice(0, 6).map((item: DbItem) => (
+            <View
+              key={item.id}
+              className="-mr-2 h-14 w-14 overflow-hidden rounded-xl border border-white bg-gray-200 dark:border-gray-900 dark:bg-gray-700">
+              {item.image_url ? (
+                <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
+              ) : (
+                <View className="h-full w-full items-center justify-center">
+                  <Ionicons name="shirt-outline" size={18} color="#9BA1A6" />
+                </View>
+              )}
+            </View>
+          ))}
+          {suitcaseItems.length > 6 && (
+            <View className="ml-4 h-14 items-center justify-center">
+              <Text className="font-body text-xs text-gray-500 dark:text-gray-400">
+                +{suitcaseItems.length - 6}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Pressable>
+    );
+  }
 
   function renderLikedOutfit(outfit: OutfitWithItems) {
     return (
@@ -147,7 +219,11 @@ export default function KombinlerimScreen() {
 
       {!isLoading && !isEmpty && tab === 'begenilen' && (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
-          {likedRows.map((outfit: OutfitWithItems) => {
+          {begenilenEntries.map((entry) => {
+            if (entry.kind === 'bavul') {
+              return <View key={entry.plan.id}>{renderBavulCard(entry.plan)}</View>;
+            }
+            const outfit = entry.outfit;
             const pairedPartner = partnerByMainId.get(outfit.id);
             if (!pairedPartner) {
               return <View key={outfit.id}>{renderLikedOutfit(outfit)}</View>;

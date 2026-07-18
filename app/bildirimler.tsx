@@ -1,16 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert } from '@/lib/alert';
+import { usePartnership } from '@/lib/hooks/usePartnership';
 import {
   REMINDER_ENABLED_KEY,
   REMINDER_TIME_KEY,
   cancelDailyReminder,
   ensureNotificationPermission,
   scheduleDailyReminder,
+  sendTestNotification,
 } from '@/lib/notifications';
 
 const TIME_OPTIONS = ['09:00', '12:00', '18:00', '20:00'];
@@ -19,6 +22,31 @@ export default function BildirimlerScreen() {
   const [enabled, setEnabled] = useState(false);
   const [time, setTime] = useState('20:00');
   const [loaded, setLoaded] = useState(false);
+  const [testSending, setTestSending] = useState(false);
+  const { data: partnership } = usePartnership();
+  const hasPendingPartnerRequest = partnership?.status === 'pending_incoming';
+
+  async function handleTestNotification() {
+    setTestSending(true);
+    try {
+      const granted = await ensureNotificationPermission();
+      if (!granted) {
+        showAlert('Bildirim izni alınamadı', 'Telefon ayarlarından bildirim izni verdiğinden emin ol.');
+        return;
+      }
+      const ok = await sendTestNotification();
+      if (ok) {
+        showAlert(
+          'Test bildirimi kuruldu',
+          '10 saniye içinde gelecek — bildirim tepsisine düştüğünü görmek için uygulamayı hemen arka plana al (ana ekrana dön).'
+        );
+      } else {
+        showAlert('Kurulamadı', 'Test bildirimi bu cihazda kurulamadı (uygulamanın güncel sürümü gerekiyor olabilir).');
+      }
+    } finally {
+      setTestSending(false);
+    }
+  }
 
   useEffect(() => {
     Promise.all([AsyncStorage.getItem(REMINDER_ENABLED_KEY), AsyncStorage.getItem(REMINDER_TIME_KEY)]).then(
@@ -85,7 +113,7 @@ export default function BildirimlerScreen() {
         </Pressable>
 
         {enabled && (
-          <View>
+          <View className="mb-6">
             <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">Saat</Text>
             <View className="flex-row flex-wrap gap-2">
               {TIME_OPTIONS.map((option) => {
@@ -105,6 +133,28 @@ export default function BildirimlerScreen() {
               })}
             </View>
           </View>
+        )}
+
+        <Pressable
+          onPress={handleTestNotification}
+          disabled={testSending}
+          className="mb-6 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
+          <Ionicons name="notifications-outline" size={16} color="#3461FD" />
+          <Text className="font-heading text-sm text-primary">
+            {testSending ? 'Kuruluyor...' : 'Test Bildirimi Gönder (10 sn)'}
+          </Text>
+        </Pressable>
+
+        {hasPendingPartnerRequest && (
+          <Pressable
+            onPress={() => router.push('/partner-eslesme')}
+            className="flex-row items-center gap-3 rounded-2xl bg-accent-coral/10 p-4">
+            <Ionicons name="people-outline" size={20} color="#FF4757" />
+            <Text className="flex-1 font-body text-sm text-gray-900 dark:text-gray-100">
+              Bekleyen bir partner isteğin var — görüntülemek için dokun.
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#FF4757" />
+          </Pressable>
         )}
       </View>
     </SafeAreaView>

@@ -83,6 +83,34 @@ export async function scheduleDailyReminder(time: string): Promise<boolean> {
   }
 }
 
+/**
+ * Teşhis amaçlı: 10 saniye sonrasına tek seferlik bir bildirim kurar. Kullanıcı butona
+ * basıp uygulamayı arka plana alarak sistem tepsisine bildirim düşüp düşmediğini test eder
+ * — günlük hatırlatıcının saatini beklemeden zamanlama boru hattını doğrulamanın tek yolu.
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return false;
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+        name: 'Günlük kombin hatırlatıcısı',
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Test bildirimi 🔔',
+        body: 'Bunu görüyorsan bildirimler çalışıyor demektir.',
+      },
+      trigger: { channelId: ANDROID_CHANNEL_ID, seconds: 10 },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function cancelDailyReminder(): Promise<void> {
   const Notifications = loadNotifications();
   if (!Notifications) return;

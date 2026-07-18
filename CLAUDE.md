@@ -315,6 +315,24 @@ OS-varsayılan `Alert.alert` menüsü kullanıcıya sırıtıyordu — `componen
 - **Layout bug 1**: Envanter başlığındaki `+` butonu bazen ekran dışına kayıyordu — başlık/alt-yazı kapsayıcısında `flex-1` yoktu, uzun alt yazı butonu itiyordu. `flex-1 pr-3` eklendi.
 - **Layout bug 2**: kategori şeridindeki ikon-altı yazılar kalabalık envanterde kayboluyordu (istek listesinde görünüyordu) — yatay `ScrollView`'da `flexShrink: 0` yoktu, 85 ürünlük FlatList alan için sıkıştırınca şerit daralıp yazıları kırpıyordu. RN'de `flexGrow: 0` verilen ama `flexShrink` verilmeyen elemanlar sıkışma altında ezilebiliyor — sabit kalması gereken şeritlere ikisi birlikte verilmeli.
 
+## Kullanıcı Geri Bildirimi Turu (2026-07-18, yeni build sonrası cihaz testi)
+Kullanıcı yeni EAS build'i kendisi alıp cihazda test etti, geri bildirimlerine göre yapılanlar:
+
+- **Renk pasta grafiği KALDIRILDI** — kullanıcı bar'ı tercih etti ("bir önceki grafik daha iyiydi"). `gardirop-analiz.tsx` artık her zaman düz View'lerle oranlı yatay bar çiziyor; svg lazy-require/ErrorBoundary kodu silindi. `react-native-svg` paketi build'de duruyor (ileride başka grafik için kullanılabilir) — kaldırılırsa yeni build gerekmez ama dursun.
+- **Paylaşım kartı dinamik yerleşim**: parça sayısına göre 1 sütun (tek parça, %62) / 2 sütun (2-4 parça, %45) / 3 sütun (5-6, %30), dikeyde ortalı, isimler pill içinde; 6'dan fazlası "+N parça daha".
+- **Bildirim teşhisi**: kullanıcı günlük hatırlatıcının sistem tepsisine düşmediğini bildirdi (uygulama kapalı/arka planda). Uzaktan kesin teşhis mümkün değil — `bildirimler.tsx`'e "Test Bildirimi Gönder (10 sn)" butonu eklendi (`sendTestNotification()`, `seconds: 10` trigger): kullanıcı basıp uygulamayı arka plana alarak boru hattını test edecek. Test çalışıp günlük tetik çalışmazsa sorun DailyTriggerInput/exact-alarm tarafındadır (Android 12+ SCHEDULE_EXACT_ALARM kısıtı olası şüpheli). Ayrıca bekleyen partner isteği artık Bildirimler sayfasında da bir satır olarak görünüyor. **Partner isteği için GERÇEK push hâlâ FCM gerektiriyor** (Firebase projesi + google-services.json + yeni build) — kullanıcı isterse ayrıca kurulacak.
+- **Tema geçişi yavaşlığı**: kod sorunu değil — dev build'de JS minify'sız + dev mode overhead'i. Production/preview build'de hızlanır.
+
+## Bavul: Düzenleme + Yıldız + Kalıcı Kayıt (2026-07-18)
+Kullanıcının bavul geri bildirimleri uygulandı — bavul artık düzenlenebilir ve kalıcı:
+
+- **`packing_lists` tablosu** (`20260723000000_add_packing_lists.sql`, Management API ile çalıştırıldı): `days`, `context` (jsonb), `suitcase_item_ids` (uuid[]), `day_outfits` (jsonb: `{day, itemIds, note, rating?}[]`), `reasoning`, `rating` (ortalama). Ürünlere FK YOK (bilinçli sadelik — silinen ürün render'da atlanır). RLS: `auth.uid() = user_id` (canlı test: ikinci kullanıcı 0 satır görüyor).
+- **Yıldızlama (kullanıcı seçimi bana bırakmıştı)**: her günün kombinine ayrı yıldız verilir, bavulun puanı gün puanlarının ORTALAMASI (başlık altında gösteriliyor, DB'de `rating` kolonu).
+- **Gün düzenleme popup'ı**: gün kartına BASILI TUT → alttan açılan Modal: günün parçaları (-) rozetiyle günden silinir, (+) kutusu envanter listesini açar (o günde olmayanlar), dokununca güne eklenir. **Bavul listesi ayrı tutulmuyor — her zaman günlerin BİRLEŞİMİNDEN türetiliyor** (`suitcaseFromDays`): böylece kullanıcının iki kuralı bedavaya geliyor (bir parça hiçbir günde kalmadıysa bavuldan da düşer; eklenen parça bavula da girer).
+- **Kaydet**: plan üretilince "Bavulu Kaydet" butonu; kayıttan sonra "Değişiklikleri Kaydet" (update). `lib/hooks/usePackingLists.ts`: `usePackingLists/usePackingList/useCreatePackingList/useUpdatePackingList`.
+- **Beğenilenler'de bavul kartı** (`kombinlerim.tsx`): kombinler + bavullar tarihe göre tek listede; bavul kartı OutfitCard'la aynı çerçeve ölçüsünde, bavul ikonu + "Bavul · N Gün" + bağlam/parça sayısı + üst üste binen parça küpürleri + (varsa) yıldız. Dokununca `/bavul-hazirla?packingListId=...` açılıyor — aynı ekran kayıtlı planı düzenleme modunda yüklüyor (soru formu gizli, düzenleme + puanlama + güncelleme aktif).
+- Canlı test: insert/select/update + RLS izolasyonu doğrulandı (geçici 2 anon kullanıcı, sonra silindi). Cihaz testi: mevcut build'de çalışır (native modül yok — RN Modal).
+
 ## Bavul Hazırla: Seyahat Kapsül Gardırop Modu (2026-07-18)
 Kullanıcının 10 maddelik listesindeki son büyük özellik. Ana Sayfa'daki mor "Seyahate mi çıkıyorsun?" kartından açılan **`app/bavul-hazirla.tsx`** (modal): gün sayısı (2/3/4/5/7) + mevsim + konsept zorunlu, beklenen hava **bilerek opsiyonel** (seyahat ileri tarihli olabilir, kullanıcı havayı bilmeyebilir) + opsiyonel not.
 

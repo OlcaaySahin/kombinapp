@@ -132,23 +132,43 @@ export default function KombinPaylasScreen() {
                 ))}
               </View>
 
-              <View className="mt-4 flex-1 flex-row flex-wrap content-start justify-between">
-                {outfit.items.slice(0, 6).map((item: OutfitItemSummary) => (
-                  <View key={item.id} className="mb-3" style={{ width: '48%' }}>
-                    <View className="aspect-square overflow-hidden rounded-2xl bg-white/10">
-                      {item.image_url ? (
-                        <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
-                      ) : (
-                        <View className="h-full w-full items-center justify-center">
-                          <Ionicons name="shirt-outline" size={28} color="rgba(255,255,255,0.5)" />
+              {/* Parça sayısına göre dinamik yerleşim: 1 parça büyük tek kare, 2-4 parça 2 sütun,
+                  5-6 parça 3 sütun — kart yüksekliği ne olursa olsun dikeyde ortalanır. */}
+              <View className="mt-3 flex-1 justify-center">
+                {(() => {
+                  const shown = outfit.items.slice(0, 6);
+                  const columns = shown.length <= 1 ? 1 : shown.length <= 4 ? 2 : 3;
+                  const width = columns === 1 ? '62%' : columns === 2 ? '45%' : '30%';
+                  const rows: OutfitItemSummary[][] = [];
+                  for (let i = 0; i < shown.length; i += columns) rows.push(shown.slice(i, i + columns));
+                  return rows.map((row, rowIndex) => (
+                    <View key={rowIndex} className="mb-3 flex-row justify-center gap-3">
+                      {row.map((item: OutfitItemSummary) => (
+                        <View key={item.id} style={{ width }}>
+                          <View className="aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+                            {item.image_url ? (
+                              <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
+                            ) : (
+                              <View className="h-full w-full items-center justify-center">
+                                <Ionicons name="shirt-outline" size={28} color="rgba(255,255,255,0.5)" />
+                              </View>
+                            )}
+                          </View>
+                          <View className="mt-1 self-center rounded-full bg-white/10 px-2 py-0.5">
+                            <Text numberOfLines={1} className="text-center font-body text-[9px] text-white/90">
+                              {item.name ?? ''}
+                            </Text>
+                          </View>
                         </View>
-                      )}
+                      ))}
                     </View>
-                    <Text numberOfLines={1} className="mt-1 text-center font-body text-[10px] text-white/80">
-                      {item.name ?? ''}
-                    </Text>
-                  </View>
-                ))}
+                  ));
+                })()}
+                {outfit.items.length > 6 && (
+                  <Text className="text-center font-body text-[10px] text-white/60">
+                    + {outfit.items.length - 6} parça daha
+                  </Text>
+                )}
               </View>
 
               <View className="items-center pb-1">

@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Component, type ReactNode } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,23 +10,9 @@ import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import { useWornOutfits, type WearEventData } from '@/lib/hooks/useOutfits';
 import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
 
-// react-native-svg NATIVE modül: pasta grafiği için kullanılıyor ama modülü içermeyen eski
-// dev-client build'de require/render patlayabilir. lib/notifications.ts'teki desenle lazy
-// require + hata sınırı: svg yoksa/patlarsa aynı veriyi düz View'lerle (yatay bar) çizeriz.
-type SvgModule = typeof import('react-native-svg');
-
-let cachedSvg: SvgModule | null | undefined;
-
-function loadSvg(): SvgModule | null {
-  if (cachedSvg !== undefined) return cachedSvg;
-  try {
-    cachedSvg = require('react-native-svg') as SvgModule;
-  } catch {
-    cachedSvg = null;
-  }
-  return cachedSvg;
-}
-
+// Renk dağılımı bilinçli olarak DÜZ View'lerle oranlı yatay bar (react-native-svg pasta
+// grafiği denendi, kullanıcı bar'ı tercih etti — 2026-07-18). svg paketi build'de duruyor,
+// ileride başka bir grafik için kullanılabilir.
 type ColorSlice = { name: string; count: number; hex: string };
 
 export default function GardiropAnalizScreen() {
@@ -86,10 +71,8 @@ export default function GardiropAnalizScreen() {
         {!isLoading && itemList.length > 0 && (
           <>
             <SectionTitle icon="color-palette-outline" title="Renk Dağılımı" />
-            <View className="mb-2 items-center">
-              <PieFallbackBoundary fallback={<ColorBar slices={colorSlices} />}>
-                <ColorPie slices={colorSlices} />
-              </PieFallbackBoundary>
+            <View className="mb-3">
+              <ColorBar slices={colorSlices} />
             </View>
             <View className="mb-8 flex-row flex-wrap gap-x-4 gap-y-2">
               {colorSlices.map((slice: ColorSlice) => (
@@ -162,50 +145,7 @@ function SectionTitle({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; t
   );
 }
 
-/** Pasta grafiği (react-native-svg). Modül yoksa null döner, boundary bar'a düşürür. */
-function ColorPie({ slices }: { slices: ColorSlice[] }) {
-  const svg = loadSvg();
-  if (!svg || slices.length === 0) return <ColorBar slices={slices} />;
-  const { Svg, Path, Circle } = svg;
-
-  const size = 180;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size / 2 - 4;
-  const total = slices.reduce((sum, slice) => sum + slice.count, 0);
-
-  // Tek renk (%100) — arc başlangıç/bitişi çakışıp hiç çizilmez, tam daire çiz.
-  if (slices.length === 1) {
-    return (
-      <Svg width={size} height={size}>
-        <Circle cx={cx} cy={cy} r={r} fill={slices[0].hex} />
-      </Svg>
-    );
-  }
-
-  let angle = -Math.PI / 2;
-  const paths = slices.map((slice) => {
-    const sweep = (slice.count / total) * Math.PI * 2;
-    const x0 = cx + r * Math.cos(angle);
-    const y0 = cy + r * Math.sin(angle);
-    const x1 = cx + r * Math.cos(angle + sweep);
-    const y1 = cy + r * Math.sin(angle + sweep);
-    const largeArc = sweep > Math.PI ? 1 : 0;
-    const d = `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1} Z`;
-    angle += sweep;
-    return { d, hex: slice.hex, name: slice.name };
-  });
-
-  return (
-    <Svg width={size} height={size}>
-      {paths.map((path) => (
-        <Path key={path.name} d={path.d} fill={path.hex} />
-      ))}
-    </Svg>
-  );
-}
-
-/** SVG'siz yedek: aynı dağılımı oranlı yatay bar olarak çizer (eski build / hata durumu). */
+/** Renk dağılımı: oranlı yatay bar (düz View'ler — her build'de ve web'de çalışır). */
 function ColorBar({ slices }: { slices: ColorSlice[] }) {
   if (slices.length === 0) return null;
   return (
@@ -215,17 +155,4 @@ function ColorBar({ slices }: { slices: ColorSlice[] }) {
       ))}
     </View>
   );
-}
-
-/** react-native-svg eski build'de render sırasında patlarsa bar'a düş — ekran asla çökmesin. */
-class PieFallbackBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
 }
