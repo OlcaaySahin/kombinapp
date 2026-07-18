@@ -106,7 +106,7 @@ const SUGGEST_PACKING_TOOL = {
             note: {
               type: 'string',
               description:
-                'Kısa (en fazla 12 kelime) Türkçe not: bu kombin günün hangi havasına/aktivitesine uygun.',
+                'Kısa Türkçe not (en fazla 10 kelime): SADECE günün aktivitesini/ambiyansını anlat. YASAK: herhangi bir parça adı, renk+parça ifadesi veya parça listesi (uygulama parçaları zaten ayrıca gösteriyor). KÖTÜ örnek: "siyah tişört, bej chino ile rahat stil". İYİ örnekler: "Gün boyu şehir gezmesine konforlu", "Akşam yemeği için zarif bir seçim", "Plaj günü — hafif ve serin".',
             },
           },
           required: ['day', 'itemIds', 'note'],
@@ -200,7 +200,7 @@ Deno.serve(async (req: Request) => {
 3. Renk uyumu: birbiriyle karışıp eşleşebilen dar bir palet seç (nötr taban + 1-2 vurgu) — kapsül gardırobun özü budur. colorName alanını kullan.
 4. Mevsim/hava uygunluğu: mevsim ve (verildiyse) hava alanına uy — Kış/Sonbahar'da yazlık parçalardan kaçın, Yaz'da kışlıklardan kaçın; Yağmurlu/Karlı ise dayanıklı kapalı ayakkabı ve dış giyim ekle, süetten kaçın. Soğuk mevsimde uygun dış giyim varsa bavula ekle (tek dış giyim yeterli, her gün aynısı giyilebilir).
 5. Konsept uygunluğu: konsept Şık ise en az bir şık kombin olsun; Spor ise rahat parçalara ağırlık ver; Karışık ise günleri çeşitlendir.
-6. Her günün kombini en az üst+alt (ya da tek_parca) + ayakkabı içersin. Takı/çanta/aksesuar eklemek serbest ama bavulu şişirme.
+6. Her günün kombini en az üst+alt (ya da tek_parca) + ayakkabı içersin. Takı/çanta/aksesuar eklemek serbest ama bavulu şişirme. Gün notlarında HİÇBİR parça adı veya renk+parça ifadesi GEÇMEYECEK ("siyah tişört" gibi) — not yalnızca günün aktivitesini/ambiyansını anlatır, parça listesi uygulamada zaten ayrı görünüyor.
 7. Envanter idealden uzaksa en yakın makul alternatifleri seç, asla reddetme.
 
 Önce internalAnalysis'ta kısa iç analizini yap, sonra suitcaseItemIds + outfits'i o analize göre kur, en son reasoning'e kullanıcıya yönelik doğal 1-2 cümle yaz (ürün id'si ve teknik alan adı YAZMA).`;

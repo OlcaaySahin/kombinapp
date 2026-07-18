@@ -232,6 +232,38 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Bavul gun puanlari da ayni sinyale dahil (2026-07-18): 4-5 yildizli bavul gunlerindeki
+  // parcalarin renk/marka tercihleri, puanli kombinlerle ayni havuzda sayilir.
+  const { data: packingRows } = await supabase
+    .from('packing_lists')
+    .select('day_outfits')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  type PackingDay = { itemIds?: string[]; rating?: number | null };
+  const highRatedDayItemIds: string[] = [];
+  let highRatedDayCount = 0;
+  for (const row of (packingRows ?? []) as { day_outfits: PackingDay[] }[]) {
+    for (const day of row.day_outfits ?? []) {
+      if ((day.rating ?? 0) >= 4) {
+        highRatedDayCount += 1;
+        highRatedDayItemIds.push(...(day.itemIds ?? []));
+      }
+    }
+  }
+  if (highRatedDayItemIds.length > 0) {
+    const { data: dayItems } = await supabase
+      .from('items')
+      .select('color, brand')
+      .in('id', highRatedDayItemIds.slice(0, 60));
+    for (const item of dayItems ?? []) {
+      const colorName = closestColorName(item.color);
+      if (colorName) colorCounts.set(colorName, (colorCounts.get(colorName) ?? 0) + 1);
+      if (item.brand) brandCounts.set(item.brand, (brandCounts.get(item.brand) ?? 0) + 1);
+    }
+  }
+
   const topColors = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
   const topBrands = [...brandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name]) => name);
 
@@ -264,8 +296,8 @@ Deno.serve(async (req: Request) => {
       : '';
 
   const ratingNote =
-    ratedRows.length >= 3 && (topColors.length > 0 || topBrands.length > 0)
-      ? `\n\nKullanıcının geçmişte yüksek puan verdiği (4-5 yıldız) kombinlerde öne çıkan tercihler: ${
+    ratedRows.length + highRatedDayCount >= 3 && (topColors.length > 0 || topBrands.length > 0)
+      ? `\n\nKullanıcının geçmişte yüksek puan verdiği (4-5 yıldız) kombin ve bavul günlerinde öne çıkan tercihler: ${
           topColors.length ? `renkler: ${topColors.join(', ')}` : ''
         }${topColors.length && topBrands.length ? '; ' : ''}${
           topBrands.length ? `markalar: ${topBrands.join(', ')}` : ''

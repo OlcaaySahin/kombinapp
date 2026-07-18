@@ -87,6 +87,19 @@ export function useCreatePackingList() {
   });
 }
 
+export function useDeletePackingList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (packingListId: string) => {
+      const { error } = await supabase.from('packing_lists').delete().eq('id', packingListId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['packing_lists'] });
+    },
+  });
+}
+
 export function useUpdatePackingList() {
   const queryClient = useQueryClient();
   return useMutation({

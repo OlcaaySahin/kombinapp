@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
 import { OutfitCard } from '@/components/ui/OutfitCard';
 import { StarRating } from '@/components/ui/StarRating';
 import { WearEventCard } from '@/components/ui/WearEventCard';
+import { showAlert } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useLikedOutfits,
@@ -15,7 +17,7 @@ import {
   type OutfitWithItems,
   type WearEventData,
 } from '@/lib/hooks/useOutfits';
-import { usePackingLists, type DbPackingList } from '@/lib/hooks/usePackingLists';
+import { useDeletePackingList, usePackingLists, type DbPackingList } from '@/lib/hooks/usePackingLists';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -35,6 +37,8 @@ export default function KombinlerimScreen() {
   const worn = useWornOutfits();
   const liked = useLikedOutfits();
   const packingLists = usePackingLists();
+  const deletePackingList = useDeletePackingList();
+  const [bavulSheetId, setBavulSheetId] = useState<string | null>(null);
   const { data: inventory } = useItems();
   const rateOutfit = useRateOutfit();
   const { data: profile } = useProfile(userId);
@@ -95,6 +99,7 @@ export default function KombinlerimScreen() {
     return (
       <Pressable
         onPress={() => router.push({ pathname: '/bavul-hazirla', params: { packingListId: plan.id } })}
+        onLongPress={() => setBavulSheetId(plan.id)}
         className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
         <View className="mb-3 flex-row items-center gap-2">
           <View className="h-8 w-8 items-center justify-center rounded-full bg-primary/10">
@@ -242,6 +247,27 @@ export default function KombinlerimScreen() {
           })}
         </ScrollView>
       )}
+
+      <ActionSheetModal
+        visible={bavulSheetId != null}
+        title="Bavul"
+        message="Bu bavul planı için ne yapmak istersin?"
+        onClose={() => setBavulSheetId(null)}
+        options={[
+          {
+            label: 'Bavulu Sil',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => {
+              if (!bavulSheetId) return;
+              deletePackingList.mutate(bavulSheetId, {
+                onError: (error) =>
+                  showAlert('Silinemedi', error instanceof Error ? error.message : String(error)),
+              });
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }

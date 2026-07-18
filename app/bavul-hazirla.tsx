@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StarRating } from '@/components/ui/StarRating';
 import { showAlert } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
+import { useCreateOutfit } from '@/lib/hooks/useOutfits';
 import {
   useCreatePackingList,
   usePackingList,
@@ -59,6 +60,7 @@ export default function BavulHazirlaScreen() {
   const savedPlanQuery = usePackingList(packingListId ?? null);
   const createPackingList = useCreatePackingList();
   const updatePackingList = useUpdatePackingList();
+  const createOutfit = useCreateOutfit();
 
   const [gun, setGun] = useState<string | null>(null);
   const [mevsim, setMevsim] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export default function BavulHazirlaScreen() {
   const [loadedFromParam, setLoadedFromParam] = useState(false);
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [markingWorn, setMarkingWorn] = useState(false);
 
   // Kayıtlı bavul açıldıysa (Beğenilenler'den) planı düzenlenebilir state'e yükle.
   useEffect(() => {
@@ -151,6 +154,49 @@ export default function BavulHazirlaScreen() {
           }
         : current
     );
+  }
+
+  function setDayNote(dayNumber: number, noteText: string) {
+    setPlan((current) =>
+      current
+        ? { ...current, days: current.days.map((day) => (day.day === dayNumber ? { ...day, note: noteText } : day)) }
+        : current
+    );
+  }
+
+  /** Günün kombinini gerçek bir kombin olarak kaydedip Giydim akışına gönderir (foto+not). */
+  async function handleMarkDayWorn() {
+    if (!userId || !plan || !editingDayData) return;
+    const dayItems = resolveItems(editingDayData.itemIds);
+    if (dayItems.length === 0) {
+      showAlert('Kombin boş', 'Önce bu güne en az bir parça ekle.');
+      return;
+    }
+    setMarkingWorn(true);
+    try {
+      // is_liked: false — Beğenilenler'e düşmesin; Giydim kaydı girildiğinde Geçmiş'te görünür.
+      const outfitId = await createOutfit.mutateAsync({
+        userId,
+        itemIds: dayItems.map((item) => item.id),
+        context: {
+          mevsim: plan.context.mevsim,
+          ...(plan.context.hava ? { hava: plan.context.hava } : {}),
+          mekan: 'Seyahat',
+          saat: 'Tüm Gün',
+          konsept: plan.context.konsept,
+        },
+        source: 'manual',
+        isLiked: false,
+      });
+      setEditingDay(null);
+      setPickerOpen(false);
+      router.push({ pathname: '/mark-worn', params: { outfitId } });
+    } catch (error) {
+      console.error('Bavul günü kombin olarak kaydedilemedi:', error);
+      showAlert('İşaretlenemedi', error instanceof Error ? error.message : String(error));
+    } finally {
+      setMarkingWorn(false);
+    }
   }
 
   function addItemToDay(dayNumber: number, itemId: string) {
@@ -380,7 +426,8 @@ export default function BavulHazirlaScreen() {
         )}
       </ScrollView>
 
-      {/* Gün düzenleme popup'ı: parçalar (-) ile silinir, (+) ile envanterden eklenir. */}
+      {/* Gün düzenleme popup'ı — TAM BOYA yakın (kullanıcı isteği: küçük popup'ta (-)/(+) kayıyordu).
+          3 sütunlu grid + güne özel not inputu + Giydim köprüsü. */}
       <Modal
         visible={editingDay != null}
         transparent
@@ -389,8 +436,8 @@ export default function BavulHazirlaScreen() {
           setEditingDay(null);
           setPickerOpen(false);
         }}>
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="max-h-[80%] rounded-t-3xl bg-white p-5 dark:bg-[#1E2021]">
+        <View className="flex-1 bg-black/40">
+          <View className="mt-14 flex-1 rounded-t-3xl bg-white p-5 dark:bg-[#1E2021]">
             <View className="mb-4 flex-row items-center justify-between">
               <Text className="font-heading-bold text-lg text-gray-900 dark:text-white">
                 {editingDay}. Gün Kombinini Düzenle
@@ -405,42 +452,49 @@ export default function BavulHazirlaScreen() {
               </Pressable>
             </View>
 
-            <ScrollView>
+            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
               {editingDayData && (
                 <>
                   <View className="flex-row flex-wrap gap-3">
                     {resolveItems(editingDayData.itemIds).map((item: DbItem) => (
-                      <View key={item.id} className="w-[22%]">
+                      <View key={item.id} className="w-[30%]">
                         <View className="aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
                           {item.image_url ? (
                             <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
                           ) : (
                             <View className="h-full w-full items-center justify-center">
-                              <Ionicons name="shirt-outline" size={20} color="#9BA1A6" />
+                              <Ionicons name="shirt-outline" size={24} color="#9BA1A6" />
                             </View>
                           )}
+                          {/* (-) rozeti görselin İÇİNDE sağ üstte — dışarı taşan konumlama
+                              dar ekranlarda kayıp kırpılıyordu (cihazda görüldü). */}
+                          <Pressable
+                            onPress={() => removeItemFromDay(editingDayData.day, item.id)}
+                            hitSlop={6}
+                            className="absolute right-1.5 top-1.5 h-7 w-7 items-center justify-center rounded-full bg-accent-coral">
+                            <Ionicons name="remove" size={18} color="#FFFFFF" />
+                          </Pressable>
                         </View>
-                        {/* (-) rozeti: parçayı bu günden çıkarır */}
-                        <Pressable
-                          onPress={() => removeItemFromDay(editingDayData.day, item.id)}
-                          hitSlop={6}
-                          className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full bg-accent-coral">
-                          <Ionicons name="remove" size={16} color="#FFFFFF" />
-                        </Pressable>
                         <Text
                           numberOfLines={1}
-                          className="mt-1 text-center font-body text-[10px] text-gray-600 dark:text-gray-400">
+                          className="mt-1 text-center font-body text-[11px] text-gray-600 dark:text-gray-400">
                           {item.name ?? 'Ürün'}
                         </Text>
                       </View>
                     ))}
 
-                    {/* (+) kutusu: envanterden parça ekleme listesini açar */}
-                    <Pressable
-                      onPress={() => setPickerOpen((open) => !open)}
-                      className="aspect-square w-[22%] items-center justify-center rounded-xl border border-dashed border-primary">
-                      <Ionicons name={pickerOpen ? 'chevron-up' : 'add'} size={24} color="#3461FD" />
-                    </Pressable>
+                    {/* (+) kutusu: parça kutularıyla birebir aynı iskelet (sarmalayıcı + iç kare),
+                        böylece boyutu/hizası asla şaşmıyor. */}
+                    <View className="w-[30%]">
+                      <Pressable
+                        onPress={() => setPickerOpen((open) => !open)}
+                        className="aspect-square items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary/5">
+                        <Ionicons name={pickerOpen ? 'chevron-up' : 'add'} size={28} color="#3461FD" />
+                      </Pressable>
+                      <Text className="mt-1 text-center font-body text-[11px] text-primary">
+                        {pickerOpen ? 'Kapat' : 'Parça Ekle'}
+                      </Text>
+                    </View>
                   </View>
 
                   {pickerOpen && (
@@ -455,7 +509,7 @@ export default function BavulHazirlaScreen() {
                             <Pressable
                               key={item.id}
                               onPress={() => addItemToDay(editingDayData.day, item.id)}
-                              className="w-[22%]">
+                              className="w-[30%]">
                               <View className="aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
                                 {item.image_url ? (
                                   <Image
@@ -465,13 +519,13 @@ export default function BavulHazirlaScreen() {
                                   />
                                 ) : (
                                   <View className="h-full w-full items-center justify-center">
-                                    <Ionicons name="shirt-outline" size={20} color="#9BA1A6" />
+                                    <Ionicons name="shirt-outline" size={24} color="#9BA1A6" />
                                   </View>
                                 )}
                               </View>
                               <Text
                                 numberOfLines={1}
-                                className="mt-1 text-center font-body text-[10px] text-gray-600 dark:text-gray-400">
+                                className="mt-1 text-center font-body text-[11px] text-gray-600 dark:text-gray-400">
                                 {item.name ?? 'Ürün'}
                               </Text>
                             </Pressable>
@@ -479,11 +533,34 @@ export default function BavulHazirlaScreen() {
                       </View>
                     </View>
                   )}
+
+                  <Text className="mb-2 mt-5 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
+                    Güne özel not (opsiyonel)
+                  </Text>
+                  <TextInput
+                    value={editingDayData.note}
+                    onChangeText={(text) => setDayNote(editingDayData.day, text)}
+                    placeholder='Örn. "akşam yemeği için", "müze gezisi"'
+                    placeholderTextColor="#9BA1A6"
+                    multiline
+                    maxLength={120}
+                    className="min-h-[52px] rounded-2xl border border-gray-200 px-4 py-3 font-body text-sm text-gray-900 dark:border-gray-700 dark:text-gray-100"
+                  />
+
+                  <Pressable
+                    onPress={handleMarkDayWorn}
+                    disabled={markingWorn}
+                    className="mt-4 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#3461FD" />
+                    <Text className="font-heading text-sm text-primary">
+                      {markingWorn ? 'Hazırlanıyor...' : 'Bu Kombini Giydim Olarak İşaretle'}
+                    </Text>
+                  </Pressable>
                 </>
               )}
             </ScrollView>
 
-            <View className="mt-4">
+            <View className="mt-3">
               <PrimaryButton
                 label="Tamam"
                 onPress={() => {

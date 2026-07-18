@@ -132,17 +132,20 @@ export default function KombinPaylasScreen() {
                 ))}
               </View>
 
-              {/* Parça sayısına göre dinamik yerleşim: 1 parça büyük tek kare, 2-4 parça 2 sütun,
-                  5-6 parça 3 sütun — kart yüksekliği ne olursa olsun dikeyde ortalanır. */}
+              {/* Parça sayısına göre dinamik yerleşim: 1 parça büyük tek kare, 2+ parça hep 2 sütun
+                  (5-6 parçada 2+2+2 — kullanıcı tercihi: 3 sütun küçük kalıyordu, isimler sığmıyordu).
+                  Kart yüksekliği ne olursa olsun dikeyde ortalanır. */}
               <View className="mt-3 flex-1 justify-center">
                 {(() => {
                   const shown = outfit.items.slice(0, 6);
-                  const columns = shown.length <= 1 ? 1 : shown.length <= 4 ? 2 : 3;
-                  const width = columns === 1 ? '62%' : columns === 2 ? '45%' : '30%';
+                  const columns = shown.length <= 1 ? 1 : 2;
                   const rows: OutfitItemSummary[][] = [];
                   for (let i = 0; i < shown.length; i += columns) rows.push(shown.slice(i, i + columns));
+                  // 3 satırda (5-6 parça) görseller hafif küçülür + satır arası daralır ki 9:16 karta sığsın.
+                  const width = columns === 1 ? '62%' : rows.length >= 3 ? '36%' : '45%';
+                  const rowMargin = rows.length >= 3 ? 'mb-2' : 'mb-3';
                   return rows.map((row, rowIndex) => (
-                    <View key={rowIndex} className="mb-3 flex-row justify-center gap-3">
+                    <View key={rowIndex} className={`${rowMargin} flex-row justify-center gap-3`}>
                       {row.map((item: OutfitItemSummary) => (
                         <View key={item.id} style={{ width }}>
                           <View className="aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/10">
