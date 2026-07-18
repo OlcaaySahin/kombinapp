@@ -30,7 +30,10 @@ const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Karışık'];
 type EditableDay = {
   day: number;
   itemIds: string[];
+  /** AI'ın aktivite notu — salt gösterim, kullanıcı düzenlemez. */
   note: string;
+  /** Kullanıcının kendi notu — input BOŞ başlar (kullanıcı isteği), isterse doldurur. */
+  userNote: string;
   rating: number | null;
 };
 
@@ -86,6 +89,7 @@ export default function BavulHazirlaScreen() {
         day: day.day,
         itemIds: day.itemIds,
         note: day.note,
+        userNote: day.userNote ?? '',
         rating: day.rating ?? null,
       })),
       reasoning: record.reasoning,
@@ -123,6 +127,7 @@ export default function BavulHazirlaScreen() {
           day: outfit.day,
           itemIds: outfit.items.map((item) => item.id),
           note: outfit.note,
+          userNote: '',
           rating: null,
         })),
         reasoning: result.reasoning,
@@ -156,10 +161,13 @@ export default function BavulHazirlaScreen() {
     );
   }
 
-  function setDayNote(dayNumber: number, noteText: string) {
+  function setDayUserNote(dayNumber: number, noteText: string) {
     setPlan((current) =>
       current
-        ? { ...current, days: current.days.map((day) => (day.day === dayNumber ? { ...day, note: noteText } : day)) }
+        ? {
+            ...current,
+            days: current.days.map((day) => (day.day === dayNumber ? { ...day, userNote: noteText } : day)),
+          }
         : current
     );
   }
@@ -228,6 +236,7 @@ export default function BavulHazirlaScreen() {
           day: day.day,
           itemIds: day.itemIds,
           note: day.note,
+          userNote: day.userNote.trim() || null,
           rating: day.rating,
         })),
         reasoning: plan.reasoning,
@@ -397,6 +406,14 @@ export default function BavulHazirlaScreen() {
                       {day.note}
                     </Text>
                   ) : null}
+                  {day.userNote.trim() ? (
+                    <View className="mt-1.5 flex-row items-start gap-1.5">
+                      <Ionicons name="chatbubble-ellipses-outline" size={12} color="#3461FD" style={{ marginTop: 1 }} />
+                      <Text className="flex-1 font-body text-[11px] text-gray-700 dark:text-gray-300">
+                        {day.userNote}
+                      </Text>
+                    </View>
+                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -535,12 +552,12 @@ export default function BavulHazirlaScreen() {
                   )}
 
                   <Text className="mb-2 mt-5 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
-                    Güne özel not (opsiyonel)
+                    Güne özel notun (opsiyonel)
                   </Text>
                   <TextInput
-                    value={editingDayData.note}
-                    onChangeText={(text) => setDayNote(editingDayData.day, text)}
-                    placeholder='Örn. "akşam yemeği için", "müze gezisi"'
+                    value={editingDayData.userNote}
+                    onChangeText={(text) => setDayUserNote(editingDayData.day, text)}
+                    placeholder='Örn. "Bu kombini otele varınca akşam yemeğinde giyeceğim"'
                     placeholderTextColor="#9BA1A6"
                     multiline
                     maxLength={120}

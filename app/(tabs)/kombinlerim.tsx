@@ -11,6 +11,7 @@ import { WearEventCard } from '@/components/ui/WearEventCard';
 import { showAlert } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
+  useDeleteWearEvent,
   useLikedOutfits,
   useRateOutfit,
   useWornOutfits,
@@ -38,7 +39,9 @@ export default function KombinlerimScreen() {
   const liked = useLikedOutfits();
   const packingLists = usePackingLists();
   const deletePackingList = useDeletePackingList();
+  const deleteWearEvent = useDeleteWearEvent();
   const [bavulSheetId, setBavulSheetId] = useState<string | null>(null);
+  const [wearSheetId, setWearSheetId] = useState<string | null>(null);
   const { data: inventory } = useItems();
   const rateOutfit = useRateOutfit();
   const { data: profile } = useProfile(userId);
@@ -217,6 +220,7 @@ export default function KombinlerimScreen() {
               key={wear.id}
               wear={wear}
               onRate={wear.outfitId ? (value) => rateOutfit.mutate({ outfitId: wear.outfitId!, rating: value }) : undefined}
+              onPress={() => setWearSheetId(wear.id)}
             />
           ))}
         </ScrollView>
@@ -247,6 +251,27 @@ export default function KombinlerimScreen() {
           })}
         </ScrollView>
       )}
+
+      <ActionSheetModal
+        visible={wearSheetId != null}
+        title="Giydim Kaydı"
+        message="Bu giyme kaydını silmek istersen kombin (beğenilmişse) Beğenilenler'e geri döner."
+        onClose={() => setWearSheetId(null)}
+        options={[
+          {
+            label: 'Giydim Kaydını Sil',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => {
+              if (!wearSheetId) return;
+              deleteWearEvent.mutate(wearSheetId, {
+                onError: (error) =>
+                  showAlert('Silinemedi', error instanceof Error ? error.message : String(error)),
+              });
+            },
+          },
+        ]}
+      />
 
       <ActionSheetModal
         visible={bavulSheetId != null}

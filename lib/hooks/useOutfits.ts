@@ -261,6 +261,20 @@ export function useMarkWorn() {
   });
 }
 
+/** Bir "Giydim" kaydını siler — kombin beğenilmişse Beğenilenler'e geri döner (başka giyilmesi yoksa). */
+export function useDeleteWearEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (wearId: string) => {
+      const { error } = await supabase.from('outfit_wears').delete().eq('id', wearId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outfits'] });
+    },
+  });
+}
+
 export function useLogGenerationEvent() {
   const queryClient = useQueryClient();
   return useMutation({

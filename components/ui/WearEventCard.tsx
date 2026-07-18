@@ -1,5 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 import { StarRating } from '@/components/ui/StarRating';
 import type { WearEventData } from '@/lib/hooks/useOutfits';
@@ -13,19 +12,21 @@ function formatDate(dateStr: string) {
 export function WearEventCard({
   wear,
   onRate,
+  onPress,
 }: {
   wear: WearEventData;
   onRate?: (rating: number) => void;
+  onPress?: () => void;
 }) {
   return (
-    <View className="mb-4 overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      className="mb-4 overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+      {/* Foto yoksa boş placeholder GÖSTERME (kullanıcı isteği) — kart parçalar/yıldız/tarih/notla yaşar. */}
       {wear.photoUrl ? (
         <Image source={{ uri: wear.photoUrl }} className="aspect-[4/5] w-full" resizeMode="cover" />
-      ) : (
-        <View className="aspect-[4/5] w-full items-center justify-center bg-gray-50 dark:bg-gray-800">
-          <Ionicons name="image-outline" size={32} color="#9BA1A6" />
-        </View>
-      )}
+      ) : null}
 
       <View className="p-4">
         <View className="flex-row items-center justify-between">
@@ -47,6 +48,6 @@ export function WearEventCard({
           ))}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }

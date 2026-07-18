@@ -5,7 +5,10 @@ import { supabase } from '@/lib/supabase';
 export type PackingDayOutfitRecord = {
   day: number;
   itemIds: string[];
+  /** AI'ın ürettiği aktivite notu (salt gösterim). */
   note: string;
+  /** Kullanıcının güne özel kendi notu — input boş başlar, kullanıcı isterse doldurur. */
+  userNote?: string | null;
   rating?: number | null;
 };
 
