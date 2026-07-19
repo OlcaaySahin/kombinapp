@@ -9,7 +9,7 @@ import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
 import { showAlert } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
-import { useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
+import { useArchiveItem, useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useDeleteWishlistItem,
   useMarkWishlistItemPurchased,
@@ -27,6 +27,7 @@ export default function EnvanterScreen() {
 
   const { data: allItems, isLoading: itemsLoading, isError: itemsError } = useItems();
   const deleteItem = useDeleteItem();
+  const archiveItem = useArchiveItem();
   const { data: wishlistItems, isLoading: wishlistLoading, isError: wishlistError } = useWishlistItems();
   const deleteWishlistItem = useDeleteWishlistItem();
   const markPurchased = useMarkWishlistItemPurchased();
@@ -142,6 +143,7 @@ export default function EnvanterScreen() {
           renderItem={({ item }) => (
             <ItemCard
               item={item}
+              archived={item.is_archived}
               onPress={() => router.push({ pathname: '/add-item', params: { itemId: item.id } })}
               onLongPress={() => handleEnvanterLongPress(item)}
             />
@@ -173,10 +175,18 @@ export default function EnvanterScreen() {
         onClose={() => setEnvanterSheetItem(null)}
         options={[
           {
-            label: 'Gizle / Önerme',
-            icon: 'eye-off-outline',
-            onPress: () =>
-              showAlert('Yakında', 'Bu ürünü kombin önerilerinden gizleme özelliği yakında eklenecek.'),
+            label: envanterSheetItem?.is_archived ? 'Arşivden Çıkar' : 'Arşivle / Önerme',
+            icon: envanterSheetItem?.is_archived ? 'archive' : 'archive-outline',
+            onPress: () => {
+              if (!envanterSheetItem) return;
+              archiveItem.mutate(
+                { id: envanterSheetItem.id, archived: !envanterSheetItem.is_archived },
+                {
+                  onError: (error) =>
+                    showAlert('Olmadı', error instanceof Error ? error.message : String(error)),
+                }
+              );
+            },
           },
           {
             label: 'Ürünü Sil',

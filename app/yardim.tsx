@@ -41,6 +41,26 @@ const FAQ_ITEMS: { question: string; answer: string }[] = [
       'Hayır, fotoğrafsız da ürün ekleyebilirsin. Fotoğraf eklersen yapay zeka otomatik olarak tür/renk/deseni tahmin edip formu doldurur, sen de kaydetmeden önce düzeltebilirsin.',
   },
   {
+    question: 'Arşiv ne işe yarıyor, ürünüm silinmiş mi olur?',
+    answer:
+      'Hayır. Bir ürünü veya kombini arşivlediğinde silinmez — ürün Envanter\'de soluk ve "Arşiv" rozetiyle görünmeye devam eder ama kombin önerilerine dahil edilmez. Kombin oluştururken "Arşivdekileri de dahil et" seçeneğini açarsan yine kullanılabilir. Profil > Arşivlerim\'den istediğin an geri çıkarabilirsin.',
+  },
+  {
+    question: 'Galeri sekmesi Kombinlerim\'den farklı mı?',
+    answer:
+      'Evet. Kombinlerim > Geçmiş, tüm "Giydim" kayıtlarını (fotoğraflı veya fotoğrafsız) listeler. Galeri ise SADECE fotoğraf eklediğin giydim anlarının kare kare albümüdür — dokununca o günün parçalarını, notunu ve puanını büyük görürsün.',
+  },
+  {
+    question: 'Kombinimi nasıl paylaşırım?',
+    answer:
+      'Kombinlerim > Beğenilenler\'de bir kartın yanındaki paylaş ikonuna dokun. Açılan ekranda 10 farklı kart tasarımından (lacivert, minimal, siyah-altın, gün batımı ve daha fazlası) istediğini seç, ardından sistem paylaşım menüsünden Instagram, WhatsApp veya istediğin uygulamayı seçerek paylaş. Son seçtiğin tasarım hatırlanır.',
+  },
+  {
+    question: 'Ana sayfamın görünümünü değiştirebilir miyim?',
+    answer:
+      'Evet. Profil > Ana Sayfa Tasarımı\'ndan 5 farklı yerleşimden birini seçebilirsin (Sade, Kart Odaklı, Hero Butonlu, Yoğun Panel, Minimal) — hepsi aynı bilgileri gösterir, sadece düzeni değişir. İstediğin zaman tekrar değiştirebilirsin.',
+  },
+  {
     question: 'Verilerim güvende mi?',
     answer:
       'Envanterin ve kombinlerin sadece sana ait — hesabın anonim başlar, istersen Profil\'den e-posta ile kalıcı bir hesaba yükseltebilirsin, veri kaybı olmaz.',

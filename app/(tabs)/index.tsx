@@ -1,20 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { HomeIdleContent } from '@/components/home/HomeIdleContent';
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { OutfitCard, type OutfitCardData } from '@/components/ui/OutfitCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { RecentOutfitsStrip } from '@/components/ui/RecentOutfitsStrip';
 import { StarRating } from '@/components/ui/StarRating';
-import { TopWornOutfitRows } from '@/components/ui/TopWornOutfitRows';
-import { UnwornItemThumbs } from '@/components/ui/UnwornItemThumbs';
-import { WardrobeStats } from '@/components/ui/WardrobeStats';
 import { requestAiOutfit, type PairingNote } from '@/lib/aiOutfit';
 import { showAlert, showConfirm } from '@/lib/alert';
 import type { CategorySlot } from '@/constants/categories';
+import { hasChosenHomeLayout, getHomeLayoutPreference, type HomeLayoutVariant } from '@/lib/homeLayout';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import {
@@ -61,6 +60,10 @@ type Source = 'ai_generated' | 'dice';
 export default function AnaSayfaScreen() {
   const userId = useAuthStore((state) => state.userId);
   const { data: items } = useItems();
+  // Arşivlenmemiş ürünler — kombin havuzlarının varsayılanı. Arşivli ürünler sadece
+  // soru ekranındaki "Arşivdekileri de dahil et" işaretlenirse havuza girer (zar asla).
+  const activeItems = useMemo(() => (items ?? []).filter((item: DbItem) => !item.is_archived), [items]);
+  const archivedCount = (items?.length ?? 0) - activeItems.length;
   const { data: wishlistItems } = useWishlistItems();
   const wishlistIdSet = useMemo(
     () => new Set((wishlistItems ?? []).map((item: DbWishlistItem) => item.id)),
@@ -75,14 +78,33 @@ export default function AnaSayfaScreen() {
   const wornOutfits = useWornOutfits();
   // Ana sayfa içerik blokları (gardırop analiziyle paylaşılan hesaplar)
   const homeTopWorn = topWornOutfits(wornOutfits.data ?? [], 3);
-  const homeNeverWorn = unwornItems(items ?? [], wornOutfits.data ?? []);
+  const homeNeverWorn = unwornItems(items ?? [], wornOutfits.data ?? []); // arşiv filtresi unwornItems içinde
   const { data: partnership } = usePartnership();
   const hasPartner = partnership?.status === 'accepted';
 
+  const [homeLayoutVariant, setHomeLayoutVariant] = useState<HomeLayoutVariant>('sade');
+
+  // Tab her odaklandığında tercihi yeniden oku — Ana Sayfa Tasarımı ekranından (Profil
+  // menüsünden veya ilk-açılış seçicisinden) dönüldüğünde, index remount OLMADIĞI için
+  // (Tabs sekmeleri arka planda mount kalır) tek seferlik useEffect yeni seçimi yakalayamaz.
+  useFocusEffect(
+    useCallback(() => {
+      getHomeLayoutPreference().then(setHomeLayoutVariant);
+    }, [])
+  );
+
   useEffect(() => {
-    hasSeenOnboarding().then((seen) => {
-      if (!seen) router.push('/onboarding');
-    });
+    (async () => {
+      const seenOnboarding = await hasSeenOnboarding();
+      if (!seenOnboarding) {
+        router.push('/onboarding');
+        return;
+      }
+      // Onboarding zaten görülmüşse (ya da onboarding bu ziyarette bitip index'i remount
+      // ettirdiyse) sırada ana sayfa tasarımı seçici var — sadece hiç seçilmediyse.
+      const chosenLayout = await hasChosenHomeLayout();
+      if (!chosenLayout) router.push({ pathname: '/ana-sayfa-tasarimi', params: { firstRun: '1' } });
+    })();
   }, []);
 
   const [screen, setScreen] = useState<Screen>('idle');
@@ -93,6 +115,7 @@ export default function AnaSayfaScreen() {
   const [hava, setHava] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [includeWishlist, setIncludeWishlist] = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedItems, setGeneratedItems] = useState<DbItem[] | null>(null);
   const [generatedContext, setGeneratedContext] = useState<OutfitContext>(DICE_CONTEXT);
@@ -162,7 +185,8 @@ export default function AnaSayfaScreen() {
     const target = generatedItems.find((item) => item.id === itemId);
     if (!target) return;
 
-    const pool: DbItem[] = includeWishlist ? [...(items ?? []), ...(wishlistItems ?? [])] : (items ?? []);
+    const ownPool: DbItem[] = includeArchived ? (items ?? []) : activeItems;
+    const pool: DbItem[] = includeWishlist ? [...ownPool, ...(wishlistItems ?? [])] : ownPool;
     const tried = triedIdsBySlotRef.current.get(target.slot) ?? new Set<string>();
     const currentIds = new Set(generatedItems.map((item) => item.id));
 
@@ -217,7 +241,8 @@ export default function AnaSayfaScreen() {
 
   function rollDice(excludeIds?: Set<string>) {
     if (limitReached) return;
-    const pool: DbItem[] = items ?? [];
+    // Zar her zaman arşivsiz havuzdan seçer — "dahil et" seçeneği sadece soru akışında var.
+    const pool: DbItem[] = activeItems;
     const picked = generateRandomOutfit<DbItem>(pool, excludeIds);
     if (!picked) {
       showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
@@ -230,13 +255,15 @@ export default function AnaSayfaScreen() {
     if (limitReached) return;
     setGenerating(true);
     try {
-      const pool: DbItem[] = includeWishlist ? [...(items ?? []), ...(wishlistItems ?? [])] : (items ?? []);
+      const ownPool: DbItem[] = includeArchived ? (items ?? []) : activeItems;
+      const pool: DbItem[] = includeWishlist ? [...ownPool, ...(wishlistItems ?? [])] : ownPool;
       const suggestion = await requestAiOutfit(
         pool,
         context,
         excludeItemIds,
         note.trim() || undefined,
-        includeWishlist
+        includeWishlist,
+        includeArchived
       );
       if (!suggestion) {
         showAlert('Envanterin yeterli değil', NOT_ENOUGH_ITEMS_MESSAGE);
@@ -437,79 +464,23 @@ export default function AnaSayfaScreen() {
         </View>
 
         {screen === 'idle' && (
-          <View>
-            <View className="gap-3">
-              <PrimaryButton
-                label={limitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
-                disabled={limitReached}
-                onPress={() => setScreen('questions')}
-              />
-              <Pressable
-                onPress={() => rollDice()}
-                disabled={limitReached}
-                className={`flex-row items-center justify-center gap-2 rounded-2xl border py-4 ${
-                  limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
-                }`}>
-                <Ionicons name="shuffle-outline" size={20} color={limitReached ? '#9BA1A6' : '#3461FD'} />
-                <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-primary'}`}>
-                  Zar At
-                </Text>
-              </Pressable>
-            </View>
-
-            {(wishlistItems?.length ?? 0) > 0 && (
-              <Pressable
-                onPress={() => {
-                  setIncludeWishlist(true);
-                  setScreen('questions');
-                }}
-                className="mt-4 flex-row items-center gap-3 rounded-2xl bg-primary/10 p-4">
-                <Ionicons name="heart-outline" size={20} color="#3461FD" />
-                <Text className="flex-1 font-body text-sm text-primary">
-                  İstek listende {wishlistItems?.length} ürün var — bugünkü kombine dahil etmek ister misin?
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color="#3461FD" />
-              </Pressable>
-            )}
-
-            <Pressable
-              onPress={() => router.push('/bavul-hazirla')}
-              className="mt-4 flex-row items-center gap-3 rounded-2xl bg-accent-purple/10 p-4">
-              <Ionicons name="briefcase-outline" size={20} color="#8B3FE8" />
-              <Text className="flex-1 font-body text-sm text-accent-purple">
-                Seyahate mi çıkıyorsun? Minimum parçayla bavulunu hazırlayalım.
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color="#8B3FE8" />
-            </Pressable>
-
-            <View className="mt-6">
-              <WardrobeStats items={items ?? []} />
-              <RecentOutfitsStrip outfits={likedOutfits.data ?? []} />
-              {homeTopWorn.length > 0 && (
-                <View className="mb-6">
-                  <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
-                    En Çok Giydiklerin
-                  </Text>
-                  <TopWornOutfitRows entries={homeTopWorn} />
-                </View>
-              )}
-              {homeNeverWorn.length > 0 && (
-                <View className="mb-6">
-                  <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
-                    Hiç Giymediklerin
-                  </Text>
-                  <UnwornItemThumbs items={homeNeverWorn} layout="strip" maxCount={10} />
-                </View>
-              )}
-              {/* Ana sayfanın en altında — kullanıcı isteği: sayfa boş görünmesin, analiz linki sonda. */}
-              <Pressable
-                onPress={() => router.push('/gardirop-analiz')}
-                className="flex-row items-center justify-center gap-1 py-2">
-                <Text className="font-body-medium text-xs text-primary">Detaylı gardırop analizi</Text>
-                <Ionicons name="chevron-forward" size={12} color="#3461FD" />
-              </Pressable>
-            </View>
-          </View>
+          <HomeIdleContent
+            variant={homeLayoutVariant}
+            limitReached={limitReached}
+            onCreatePress={() => setScreen('questions')}
+            onDicePress={() => rollDice()}
+            wishlistCount={wishlistItems?.length ?? 0}
+            onWishlistPress={() => {
+              setIncludeWishlist(true);
+              setScreen('questions');
+            }}
+            onBavulPress={() => router.push('/bavul-hazirla')}
+            activeItems={activeItems}
+            likedOutfits={likedOutfits.data ?? []}
+            topWorn={homeTopWorn}
+            neverWorn={homeNeverWorn}
+            onAnalysisPress={() => router.push('/gardirop-analiz')}
+          />
         )}
 
         {screen === 'questions' && (
@@ -545,6 +516,21 @@ export default function AnaSayfaScreen() {
                 />
                 <Text className="flex-1 font-body text-sm text-gray-700 dark:text-gray-300">
                   İstek listemi de dahil et ({wishlistItems?.length} ürün)
+                </Text>
+              </Pressable>
+            )}
+
+            {archivedCount > 0 && (
+              <Pressable
+                onPress={() => setIncludeArchived((value) => !value)}
+                className="mb-6 flex-row items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-700">
+                <Ionicons
+                  name={includeArchived ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={includeArchived ? '#3461FD' : '#9BA1A6'}
+                />
+                <Text className="flex-1 font-body text-sm text-gray-700 dark:text-gray-300">
+                  Arşivdekileri de dahil et ({archivedCount} ürün)
                 </Text>
               </Pressable>
             )}

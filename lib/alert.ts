@@ -1,25 +1,27 @@
-import { Alert, Platform } from 'react-native';
+import { useDialogStore } from '@/lib/stores/dialogStore';
 
-/** Alert.alert web'de güvenilir çalışmadığı için platforma göre dallanır. */
+// Kullanıcı isteği (2026-07-19): "bütün messagebox'lar mutlaka temamıza uygun olmalı" —
+// OS-varsayılan Alert.alert/window.alert yerine artık her platformda temalı dialog
+// (components/ui/AppDialogHost) gösteriliyor. İmzalar bilinçli olarak aynı bırakıldı,
+// çağıran ~50 nokta hiç değişmedi.
+
 export function showAlert(title: string, message?: string) {
-  if (Platform.OS === 'web') {
-    window.alert(message ? `${title}\n\n${message}` : title);
-    return;
-  }
-  Alert.alert(title, message);
+  useDialogStore.getState().show({
+    title,
+    message,
+    buttons: [{ text: 'Tamam' }],
+  });
 }
 
 export function showConfirm(title: string, message: string, onConfirm: () => void, confirmLabel = 'Sil') {
-  if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n\n${message}`)) {
-      onConfirm();
-    }
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Vazgeç', style: 'cancel' },
-    { text: confirmLabel, style: 'destructive', onPress: onConfirm },
-  ]);
+  useDialogStore.getState().show({
+    title,
+    message,
+    buttons: [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: confirmLabel, style: 'destructive', onPress: onConfirm },
+    ],
+  });
 }
 
 // Çok seçenekli eylem menüsü için `components/ui/ActionSheetModal` kullanılıyor (marka

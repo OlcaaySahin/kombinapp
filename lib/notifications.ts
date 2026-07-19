@@ -7,7 +7,11 @@ export const REMINDER_TIME_KEY = 'kombin_reminder_time';
 export const DEFAULT_REMINDER_TIME = '20:00';
 
 const REMINDER_NOTIFICATION_ID = 'gunluk-kombin-hatirlatici';
-const ANDROID_CHANNEL_ID = 'daily-reminder';
+// v2: ilk kanal DEFAULT önemle oluşturulmuştu — Android bir kanalın önem derecesini
+// SONRADAN yükseltmeye izin vermez (kullanıcı ayarı sayılır, cache'lenir). Heads-up
+// banner için HIGH şart; tek yol YENİ bir kanal id'si açmak. Eski kanal açılışta silinir.
+const ANDROID_CHANNEL_ID = 'daily-reminder-v2';
+const LEGACY_ANDROID_CHANNEL_IDS = ['daily-reminder'];
 
 // expo-notifications NATIVE modül içeriyor: statik import edilseydi, modülü içermeyen
 // eski dev-client build'lerinde uygulama daha açılışta çökerdi. Lazy require + try/catch
@@ -40,6 +44,27 @@ function loadNotifications(): NotificationsModule | null {
   return cachedModule;
 }
 
+/**
+ * Android bildirim kanalını HIGH önemle kurar (heads-up banner için şart) ve
+ * eski DEFAULT-önemli kanalları siler. Kanal zaten varsa çağrı idempotenttir.
+ */
+async function ensureAndroidChannel(Notifications: NotificationsModule): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+    name: 'Günlük kombin hatırlatıcısı',
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: 'default',
+    vibrationPattern: [0, 250, 250, 250],
+  });
+  for (const legacyId of LEGACY_ANDROID_CHANNEL_IDS) {
+    try {
+      await Notifications.deleteNotificationChannelAsync(legacyId);
+    } catch {
+      // eski kanal yoksa sorun değil
+    }
+  }
+}
+
 export async function ensureNotificationPermission(): Promise<boolean> {
   const Notifications = loadNotifications();
   if (!Notifications) return false;
@@ -62,12 +87,7 @@ export async function scheduleDailyReminder(time: string): Promise<boolean> {
   const minute = Number(minutePart ?? '0');
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) return false;
   try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-        name: 'Günlük kombin hatırlatıcısı',
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    }
+    await ensureAndroidChannel(Notifications);
     await Notifications.cancelScheduledNotificationAsync(REMINDER_NOTIFICATION_ID);
     await Notifications.scheduleNotificationAsync({
       identifier: REMINDER_NOTIFICATION_ID,
@@ -92,12 +112,7 @@ export async function sendTestNotification(): Promise<boolean> {
   const Notifications = loadNotifications();
   if (!Notifications) return false;
   try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-        name: 'Günlük kombin hatırlatıcısı',
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    }
+    await ensureAndroidChannel(Notifications);
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Test bildirimi 🔔',

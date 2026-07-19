@@ -56,7 +56,7 @@ Güvenlik: her tabloda RLS, `user_id = auth.uid()` kısıtı. Partner özelliği
 
 ## Ekran Akışı
 
-Bottom tab: **Ana Sayfa** (kombin oluştur) · **Envanter** · **Kombinlerim** (Geçmiş/Beğenilenler) · **Profil**
+Bottom tab (2026-07-19'dan itibaren 5 sekme): **Ana Sayfa** (kombin oluştur) · **Envanter** · **Galeri** (sadece fotoğraflı Giydim anıları) · **Kombinlerim** (Geçmiş/Beğenilenler) · **Profil**
 
 - Onboarding: Splash → Giriş → boş envanter yönlendirmesi → ilk ürün ekleme
 - Ürün ekleme: Envanter → "+" → foto kaynağı → AI etiketleme → kullanıcı düzeltir → kaydet
@@ -542,3 +542,68 @@ Hepsi commit'lendi ve GitHub'a push edildi. Detaylar için yukarıdaki ilgili ba
 2. **RevenueCat hesabı** — Premium/IAP fazı için, MVP kapsamı dışında.
 3. **Apple Developer / Google Play Console hesapları** — gerçek mağaza yayını için, çok daha ileri bir aşama.
 4. **Uygulama adı/marka kararı** — şu an her yerde placeholder `kombin-app` kullanılıyor (klasör adı, `app.json` slug/name). Değiştirmek istersen söyle, tek seferde her yerde günceller.
+
+## Geri Bildirim Turu (2026-07-19): 3 Bug Düzeltmesi + Arşiv + Galeri + Paylaşım Şablonları + Ana Sayfa Varyantları
+
+Kullanıcının 19.07.2026 geri bildirim turunda bildirdiği 3 bug + brainstorming'de onaylanan 5 yeni özellik tek oturumda yapıldı. Sırasıyla:
+
+### Bug 1: Geçmiş'te Giydim Kaydı Silinemiyordu — Kök Neden: Eksik RLS Policy
+Kullanıcı: "silme ekranı geliyor yani popup açılıyor, sil butonuna basıyoruz ama işlevini yerine getirmiyor." Management API ile `pg_policies` sorgulandı: `outfit_wears` tablosunda SADECE `SELECT`/`INSERT`/`UPDATE` policy'leri vardı, **DELETE policy'si hiç yoktu**. Supabase'in RLS'i, izin verilmeyen bir DELETE'i hataya düşürmüyor — sessizce 0 satır siliyor, client'a hatasız dönüyor. `app/(tabs)/kombinlerim.tsx`'teki silme UI'ı (popup + `useDeleteWearEvent`) baştan beri doğruydu, sorun tamamen veritabanı tarafındaydı.
+
+**Düzeltme**: `supabase/migrations/20260724000000_add_outfit_wears_delete_policy.sql` — mevcut UPDATE/SELECT policy'leriyle birebir aynı sahiplik ifadesiyle (`exists (select 1 from outfits where outfits.id = outfit_wears.outfit_id and outfits.user_id = auth.uid())`) bir DELETE policy eklendi, Management API ile prod'da çalıştırıldı. **Canlı test edildi**: geçici anon kullanıcı + outfit + wear kaydı oluşturuldu, `useDeleteWearEvent` ile birebir aynı çağrı (`delete().eq('id', wearId)`) ile silindi, 0 satır kaldığı doğrulandı; ikinci bir anon kullanıcının BAŞKASININ wear kaydını silmeye çalışması da doğru şekilde engellendi (RLS regresyonu yok).
+
+### Bug 2: Bildirim Sistem Tepsisine Düşüyor Ama Banner Olarak Görünmüyordu
+Kullanıcı: "bizim bildirimden kastımız bu değil mi?" — bildirim geliyordu (bir önceki oturumda izin sorunu çözülmüştü) ama sadece bildirim merkezinde duruyordu, ekrana kayan/ses çıkaran bir "heads-up" banner olarak çıkmıyordu. Kök neden: Android bildirim kanalı `AndroidImportance.DEFAULT` ile kurulmuştu — heads-up banner için `HIGH` şart. Android bir kanalın önem derecesini **kod tarafından sonradan yükseltmeye izin vermiyor** (ilk oluşturulduğunda kullanıcı ayarı olarak cache'leniyor).
+
+**Düzeltme** (`lib/notifications.ts`): kanal id'si `daily-reminder` → `daily-reminder-v2`'ye değiştirildi (yeni kanal = yeni önem derecesi mümkün), yeni `ensureAndroidChannel()` helper'ı `AndroidImportance.HIGH` + ses + titreşim deseniyle kanalı kuruyor ve eski `daily-reminder` kanalını `deleteNotificationChannelAsync` ile temizliyor (kullanıcının cihazında birikmiş, artık kullanılmayan bir kanal kalmasın diye). Hem `scheduleDailyReminder` hem `sendTestNotification` bu helper'ı kullanıyor. Cihaz testi (kullanıcı tarafından) build sonrasına kalıyor — bu bir JS-only değişiklik değil, davranışı native bildirim kanalı seviyesinde, mevcut development build'de zaten çalışır (yeni native modül gerekmiyor, sadece `expo-notifications`'ın zaten var olan API'sinin farklı parametreyle çağrılması).
+
+### Bug 3: Tema Şaşması — "Açık" Seçiliyken Bazen Koyu Render Ediyordu
+Kullanıcı ekran görüntüsüyle bildirdi: Profil'de "Açık" tema seçiliyken uygulama koyu render ediyordu. Kök neden: Android'de galeri/foto seçici/paylaşım menüsü gibi **ayrı bir Activity açan** işlemler bir configuration change tetikliyor, RN bunun üzerine görünümü sistem temasından yeniden okuyor — bu, `nativewind`'in `colorScheme.set()` ile yapılan MANUEL tema tercihini sessizce eziyor.
+
+**Düzeltme** (`lib/theme.ts`): yeni `installThemeGuard()` — bir kez kurulan iki listener: (1) `AppState` 'active' olayında, (2) `Appearance` değişim olayında, eğer aktif tercih 'system' DEĞİLSE kayıtlı tercihi tekrar basıyor. 'system' tercihinde listener'lar bilinçli no-op (OS'i takip etmek zaten istenen davranış). `app/_layout.tsx`'te açılışta bir kez çağrılıyor. Sonsuz döngü koruması: `Appearance` listener'ı sistem teması zaten istenen değerdeyse tekrar set etmiyor.
+
+### Temalı Dialog Sistemi: Tüm Messagebox'lar Artık Marka Diline Uygun
+Kullanıcı: "bavulu kaydet butonuna bastığımızda çıkan messagebox... bütün messageboxlar defaulttan mutlaka temamıza uygun hale gelmeli." Projedeki ~50 `showAlert`/`showConfirm` çağrısı OS-varsayılan `Alert.alert`/`window.alert` kullanıyordu (native, tema/marka rengi uygulanamaz).
+
+**Uygulama**: yeni `lib/stores/dialogStore.ts` (Zustand, kuyruk tutan — bir dialog açıkken ikinci istek gelirse kaybolmuyor, ilki kapanınca sırayla gösteriliyor) + `components/ui/AppDialogHost.tsx` (ortalanmış, yuvarlak köşeli, Poppins/Inter, primary mavi, dark-mode uyumlu modal; `ActionSheetModal`'la aynı görsel dil). `lib/alert.ts`'teki `showAlert`/`showConfirm` **imzaları hiç değişmedi** — içeri `Alert.alert` yerine `dialogStore.show()` çağırıyor, bu yüzden çağıran ~50 nokta HİÇ dokunulmadan otomatik olarak yeni sisteme geçti. `AppDialogHost`, `app/_layout.tsx`'te `Stack`'in yanında bir kez mount ediliyor.
+
+### Arşiv Özelliği: Ürün ve Kombinler Önerilerden Çıkarılabilir (Silinmeden)
+Kullanıcı isteği: kullanılmayan ürün/kombinleri silmek yerine "önerme ama sakla" seçeneği + envanterde soluk+rozetli görünmeye devam etmesi (kullanıcının bilinçli tercihi: "Envanterde soluk olarak durması ve rozetli olması daha uygun" — gizlemek değil).
+
+- **Migration** (`20260725000000_add_archive_flags.sql`): `items.is_archived` ve `outfits.is_archived` (ikisi de `boolean not null default false`). Management API ile prod'da çalıştırıldı.
+- **Envanter**: `ItemCard`'a `archived` prop'u — `opacity-40` + sol üstte küçük "Arşiv" rozeti (siyah yarı-saydam pill). Uzun-bas menüsündeki eski işlevsiz "Gizle / Önerme" ("Yakında" alerti veren yer tutucu) artık gerçek "Arşivle / Önerme" ↔ "Arşivden Çıkar" (`useArchiveItem`).
+- **Kombinler**: Beğenilenler'deki her kart artık "Giydim"/"Paylaş" ikonlarının yanında bir arşiv butonu (`showConfirm` ile onay alıyor); Geçmiş'teki giydim-kaydı eylem menüsüne de "Kombini Arşivle" seçeneği eklendi. Arşivlenen kombin hem `useLikedOutfits` (artık `.eq('is_archived', false)` filtreli) hem `useWornOutfits`'ten (join'de `is_archived` okunup client'ta filtreleniyor) düşüyor.
+- **Ana Sayfa üretim havuzu**: `activeItems` (arşivsiz) artık zar/AI'ın VARSAYILAN havuzu; soru ekranına istek-listesi checkbox'ının yanına ikinci bir checkbox eklendi: "Arşivdekileri de dahil et (N ürün)" — sadece arşivli ürün varsa gösteriliyor. **Zar bu seçenekten bağımsız, her zaman arşivsiz havuzdan seçiyor** (istek listesinde olduğu gibi aynı bilinçli kısıt). `requestAiOutfit`/`generate-outfit` Edge Function'ına `includeArchived` parametresi eklendi — server tarafında `items` sorgusuna `.eq('is_archived', false)` filtresi sadece `includeArchived` false ise ekleniyor. `generate-packing-list` ve `generate-partner-outfit` içinse arşivli ürünler HER ZAMAN hariç (bavulda "dahil et" seçeneği bilinçli yok; partnerin arşivlediği ürünler de partner önerisine hiç girmiyor).
+- **Yeni `app/arsivlerim.tsx`** (Profil menüsünden, "Arşivlerim"): arşivlenmiş kombinler (`useArchivedOutfits`, her birinde "Arşivden Çıkar" butonu) + arşivlenmiş ürünler (grid, dokununca arşivden çıkarıyor) tek ekranda.
+- **Canlı test edildi** (geçici anon kullanıcı + gerçek Claude çağrısı): varsayılan çağrıda arşivli ürün havuza hiç girmedi, `includeArchived:true` ile (envanterdeki TEK üst giyim arşivliyken) kombine dahil oldu; kombin arşivleme `is_liked` sorgusundan düşürdü, `is_archived` sorgusunda doğru şekilde belirdi; arşivden çıkarma mutation'ı da ayrıca doğrulandı.
+
+### Galeri: Yeni 5. Sekme (Fotoğraflı Giydim Anılarının Albümü)
+Kullanıcı onayı: "Önerini onaylıyorum" — 4 sekme 5'e çıkarıldı (Ana Sayfa · Envanter · **Galeri** · Kombinlerim · Profil). Yeni `app/(tabs)/galeri.tsx`: `useWornOutfits()`'ten SADECE `photoUrl` dolu olanlar 3 sütunlu bir kare foto grid'i olarak listeleniyor (Kombinlerim > Geçmiş'ten kasıtlı ayrım — Geçmiş fotoğrafsız kayıtları da gösterir, Galeri sadece "gerçek albüm" hissi versin diye fotoğraflı olanları). Karta dokununca alttan açılan bir detay modalı: büyük fotoğraf + tarih + puan + not + o günün parça küpürleri. Yeni sorgu/tablo gerekmedi, tamamen mevcut `outfit_wears` verisinin farklı bir görünümü.
+
+### Paylaşım Kartı: Tek Tasarım Yerine 10 Şablon + Seçici
+Kullanıcı onayı: "Onaylıyorum tabii ki". Eski `app/kombin-paylas.tsx` tek (lacivert+blob) bir kart tasarımına sabitti. Şimdi:
+
+- **`lib/shareTemplates.ts`** — 10 config (`SHARE_TEMPLATES`): Lacivert (eski varsayılan), Minimal (beyaz+ince çerçeve), Siyah & Altın (lüks, köşe süslemeli çerçeve), Gün Batımı (sıcak blob renkleri), Mor Gece (yıldız noktacıkları), Pastel Krem, Dergi Kapağı (büyük başlık + hero görsel + alt şerit), Polaroid (2x2 kolaj + kalın beyaz çerçeve), Retro Şerit (film şeridi sprocket deseni + yatay kareler), Instagram (IG post taklidi: hashtag'li chip'ler, kalp/yorum/paylaş ikonları). Her config: zemin/metin/chip/item renkleri + dekorasyon tipi (`blobs`/`stars`/`corners`/`sprockets`/`none`) + yerleşim tipi (`grid`/`hero`/`polaroid`/`strip`/`instagram`).
+- **`components/ui/ShareCardView.tsx`** — TEK parametrik bileşen, `config`'e göre dekorasyon + yerleşimi seçip render ediyor (10 ayrı JSX ağacı yerine paylaşılan capture/paylaşım mantığı). **Yeni native bağımlılık YOK** — gradient efektleri, mevcut "blob" desenindeki gibi katmanlı yarı-saydam şekillerle simüle edildi (`expo-linear-gradient` kurulu değil, kurmak yeni bir build gerektirirdi).
+- `app/kombin-paylas.tsx` artık şablon seçiciyle küçültüldü: küçük yuvarlak önizleme swatch'leri (renk + 2 dekorasyon noktası) yatay bir şeritte, seçili olan primary çerçeve + tikle işaretli. Son seçim `AsyncStorage`'da (`kombin_share_template`) kalıcı, bir sonraki paylaşımda hatırlanıyor.
+- `captureRef`/`expo-sharing` mantığı hiç değişmedi — sadece yakalanan View'ın içeriği artık seçili şablona göre değişiyor.
+
+### Ana Sayfa: 5 Yerleşim Varyantı + İlk Açılış Seçici + Profil Ayarı
+Kullanıcı onayı, önerdiğim yapıyla birebir: "4-5 varyant ve senin önerdiğin yapıyla devam edelim" (Sade/Kart Odaklı/Hero Butonlu/Yoğun Panel/Minimal, bloklar paylaşılan bileşenler).
+
+- **`lib/homeLayout.ts`** — `HomeLayoutVariant` tipi + `AsyncStorage` tabanlı tercih okuma/yazma (`kombin_home_layout`) + `hasChosenHomeLayout()` (ilk-açılış kontrolü için: tercih hiç kaydedilmemiş mi).
+- **`components/home/HomeIdleContent.tsx`** — Ana Sayfa'nın idle ekranındaki TÜM içerik buraya taşındı, `variant` prop'una göre 5 farklı düzen render ediyor. Alt bloklar (`WardrobeStats`, `RecentOutfitsStrip`, `TopWornOutfitRows`, `UnwornItemThumbs`) HER varyantta AYNI bileşenler — sadece çevrelerindeki kapsayıcı/sıra/stil değişiyor. Bu bilinçli bir mimari karar: ileride yeni bir ana sayfa bloğu eklenirse (yeni bir `<InsightBlocks>` girdisi gibi) otomatik olarak 5 varyantın hepsinde belirir, her varyant için ayrı ayrı eklenmesi gerekmez.
+  - **Sade**: mevcut tasarım birebir (güvenli varsayılan).
+  - **Kart Odaklı**: her blok kendi ikonlu başlıklı, çerçeveli/gölgeli kartında.
+  - **Hero Butonlu**: "Kombin Oluştur"/"Zar At" büyük, ikonlu, yan yana iki karo; wishlist/bavul hatırlatıcıları ince tek satırlık linklere küçültülüyor.
+  - **Yoğun Panel**: CTA'lar yan yana kompakt, wishlist/bavul 2 sütunlu küçük karo, En Çok Giydiklerin/Hiç Giymediklerin yan yana iki sütun (daha az kaydırma).
+  - **Minimal**: kutu/gölge/arka plan tonu yok, ince üst-çizgili düz metin satırları, ok işaretleriyle ("→") gezinme ipucu.
+- **`app/ana-sayfa-tasarimi.tsx`** — yeni modal ekran, hem ilk açılışta (`firstRun=1` param'ıyla, "Devam Et" butonlu) hem Profil > "Ana Sayfa Tasarımı" menüsünden (parametresiz, seçince direkt geri dönüyor) kullanılıyor. Her varyant için küçük bir wireframe önizleme (gerçek ekran görüntüsü değil, orantılı kutu/çizgi taklidi — hızlı ve tema-uyumlu).
+- **İlk açılış zinciri**: `app/(tabs)/index.tsx`'teki mount effect'i sırayla kontrol ediyor: önce onboarding görüldü mü (görülmediyse `/onboarding`'e git), sonra (onboarding zaten görülmüşse) ana sayfa tasarımı hiç seçilmemiş mi (seçilmediyse `/ana-sayfa-tasarimi?firstRun=1`'e git). **Gotcha**: `app/onboarding.tsx`'teki bitiş fonksiyonu `router.back()` yerine `router.replace('/')`'e çevrildi — `back()` index'i remount ETMİYOR (aynı instance görünür kalıyor), bu yüzden onboarding sonrası tasarım-seçici kontrolü hiç tetiklenmezdi. `replace('/')` Ana Sayfa'yı yeniden mount ettirip zinciri doğru sıraya sokuyor.
+- **Ayar değişikliği yansıması**: Ana Sayfa sekmesi Tabs içinde arka planda mount kalmaya devam ettiği için (React Navigation varsayılanı), Profil'den tasarım değiştirilip Ana Sayfa'ya dönüldüğünde tek seferlik `useEffect` bunu YAKALAYAMAZ. Çözüm: `useFocusEffect` (`@react-navigation/native`) ile sekme her odaklandığında tercih AsyncStorage'dan yeniden okunuyor — ucuz bir okuma, hem ilk-açılış hem Profil-ayarı senaryosunu aynı anda çözüyor.
+
+### Tutorial + SSS Güncellemesi
+`app/onboarding.tsx`: "Kaydet, Puanla, Giy" ile "Partnerinle Eşleş" arasına 4 yeni kart eklendi — Bavul Hazırla, Galeri, Kombinini Paylaş, Arşiv (8 karttan 12'ye çıktı; bu dördü önceki oturumlarda yapılmış ama onboarding'e hiç eklenmemiş büyük özelliklerdi — Bavul Hazırla ve paylaşım kartı özellikle). Ana sayfa tasarımı seçici onboarding'e kart olarak eklenmedi, bilinçli — kendi ekranı zaten kendini anlatıyor, onboarding sonrası otomatik açılıyor. `app/yardim.tsx`: SSS'e Arşiv, Galeri, paylaşım şablonları, ana sayfa tasarımı değiştirme hakkında 4 yeni soru eklendi (8'den 12'ye).
+
+### Doğrulama
+Her adımdan sonra `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9 yeşil) → `npx expo export -p web` (başarılı, `dist/` her seferinde silindi) sırasıyla çalıştırıldı, hepsi bu oturumun sonunda son bir kez daha temiz geçti. Migration'lar ve Edge Function değişiklikleri (arşiv filtresi eklenen `generate-outfit`/`generate-packing-list`/`generate-partner-outfit`) Management API / `supabase functions deploy` ile prod'a uygulanıp geçici anon kullanıcılarla canlı test edildi, test verileri/kullanıcılar iş bitince temizlendi. **Cihazda henüz denenmedi** (bu oturum tamamen kod+DB tarafı) — bildirim HIGH kanalın gerçekten heads-up banner verdiği, tema guard'ın Activity-geçişlerinde gerçekten tutunduğu, ve 5 ana sayfa varyantı ile 10 paylaşım şablonunun cihazda görsel olarak beklendiği gibi durduğu bir sonraki cihaz testinde doğrulanmalı — hiçbiri yeni native modül gerektirmiyor, mevcut development build + Metro yeterli.

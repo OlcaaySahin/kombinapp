@@ -15,7 +15,13 @@ import { getThemePreference, setThemePreference, type ThemePreference } from '@/
 type MenuItem = {
   icon: ComponentProps<typeof Ionicons>['name'];
   label: string;
-  route?: '/profile-edit' | '/yardim' | '/bildirimler' | '/partner-eslesme';
+  route?:
+    | '/profile-edit'
+    | '/yardim'
+    | '/bildirimler'
+    | '/partner-eslesme'
+    | '/arsivlerim'
+    | '/ana-sayfa-tasarimi';
   comingSoonMessage?: string;
 };
 
@@ -33,6 +39,8 @@ const MENU_ITEMS: MenuItem[] = [
     label: "Premium'a Yükselt",
     comingSoonMessage: 'Premium üyelik yakında burada olacak.',
   },
+  { icon: 'grid-outline', label: 'Ana Sayfa Tasarımı', route: '/ana-sayfa-tasarimi' },
+  { icon: 'archive-outline', label: 'Arşivlerim', route: '/arsivlerim' },
   { icon: 'notifications-outline', label: 'Bildirimler', route: '/bildirimler' },
   { icon: 'help-circle-outline', label: 'Yardım', route: '/yardim' },
 ];

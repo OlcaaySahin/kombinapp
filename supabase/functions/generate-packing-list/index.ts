@@ -172,10 +172,12 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Eksik parametre: days/mevsim/konsept zorunlu.' }, 400);
   }
 
+  // Arşivlenmiş ürünler bavula hiç girmez (bavulda "dahil et" seçeneği bilinçli yok).
   const { data: items, error: itemsError } = await supabase
     .from('items')
     .select('id, slot, name, color, pattern, season, brand')
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .eq('is_archived', false);
 
   if (itemsError) {
     return jsonResponse({ error: itemsError.message }, 500);

@@ -163,17 +163,22 @@ Deno.serve(async (req: Request) => {
   }
   await supabase.from('generation_events').insert({ user_id: user.id, type: 'ai_call' });
 
-  const { context, excludeItemIds, note, includeWishlist } = (await req.json()) as {
+  const { context, excludeItemIds, note, includeWishlist, includeArchived } = (await req.json()) as {
     context: OutfitContext;
     excludeItemIds?: string[];
     note?: string;
     includeWishlist?: boolean;
+    includeArchived?: boolean;
   };
 
-  const { data: items, error: itemsError } = await supabase
+  // Arşivlenmiş ürünler varsayılan olarak havuza girmez — kullanıcı soru ekranında
+  // "Arşivdekileri de dahil et" işaretlerse (includeArchived) filtre kalkar.
+  let itemsQuery = supabase
     .from('items')
     .select('id, slot, name, color, pattern, season, brand')
     .eq('user_id', user.id);
+  if (!includeArchived) itemsQuery = itemsQuery.eq('is_archived', false);
+  const { data: items, error: itemsError } = await itemsQuery;
 
   if (itemsError) {
     return jsonResponse({ error: itemsError.message }, 500);

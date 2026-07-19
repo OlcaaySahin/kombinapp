@@ -9,11 +9,12 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 
+import { AppDialogHost } from '@/components/ui/AppDialogHost';
 import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { syncReminderFromPreferences } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
-import { applyStoredThemePreference } from '@/lib/theme';
+import { applyStoredThemePreference, installThemeGuard } from '@/lib/theme';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -37,6 +38,8 @@ export default function RootLayout() {
     syncReminderFromPreferences();
     // Kayıtlı tema tercihi (Profil > Tema) varsa uygula — fire-and-forget.
     applyStoredThemePreference();
+    // Manuel tema tercihi, Activity açan işlemler (foto seçici vb.) sonrası ezilmesin.
+    installThemeGuard();
   }, []);
 
   useEffect(() => {
@@ -65,8 +68,15 @@ export default function RootLayout() {
           <Stack.Screen name="kombin-paylas" options={{ presentation: 'modal', title: 'Kombinini Paylaş' }} />
           <Stack.Screen name="bavul-hazirla" options={{ presentation: 'modal', title: 'Bavul Hazırla' }} />
           <Stack.Screen name="bildirimler" options={{ presentation: 'modal', title: 'Bildirimler' }} />
+          <Stack.Screen name="arsivlerim" options={{ presentation: 'modal', title: 'Arşivlerim' }} />
+          <Stack.Screen
+            name="ana-sayfa-tasarimi"
+            options={{ presentation: 'modal', title: 'Ana Sayfa Tasarımı' }}
+          />
           <Stack.Screen name="+not-found" />
         </Stack>
+        {/* Temalı messagebox host'u — showAlert/showConfirm buraya düşer (lib/alert.ts). */}
+        <AppDialogHost />
       </ThemeProvider>
     </QueryClientProvider>
   );

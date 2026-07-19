@@ -33,6 +33,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="galeri"
+        options={{
+          title: 'Galeri',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'images' : 'images-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="kombinlerim"
         options={{
           title: 'Kombinlerim',

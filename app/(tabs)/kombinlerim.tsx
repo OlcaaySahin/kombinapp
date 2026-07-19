@@ -8,9 +8,10 @@ import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
 import { OutfitCard } from '@/components/ui/OutfitCard';
 import { StarRating } from '@/components/ui/StarRating';
 import { WearEventCard } from '@/components/ui/WearEventCard';
-import { showAlert } from '@/lib/alert';
+import { showAlert, showConfirm } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
+  useArchiveOutfit,
   useDeleteWearEvent,
   useLikedOutfits,
   useRateOutfit,
@@ -40,6 +41,7 @@ export default function KombinlerimScreen() {
   const packingLists = usePackingLists();
   const deletePackingList = useDeletePackingList();
   const deleteWearEvent = useDeleteWearEvent();
+  const archiveOutfit = useArchiveOutfit();
   const [bavulSheetId, setBavulSheetId] = useState<string | null>(null);
   const [wearSheetId, setWearSheetId] = useState<string | null>(null);
   const { data: inventory } = useItems();
@@ -59,6 +61,10 @@ export default function KombinlerimScreen() {
     if (partnership?.status === 'accepted' && ownerId === partnership.partnerId) return partnerGenderIcon;
     return null;
   }
+
+  // Geçmiş eylem menüsündeki "Kombini Arşivle" için: seçili giydim kaydının kombin id'si.
+  const wearSheetOutfitId =
+    (worn.data ?? []).find((wear: WearEventData) => wear.id === wearSheetId)?.outfitId ?? null;
 
   const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
   const isEmpty =
@@ -174,6 +180,25 @@ export default function KombinlerimScreen() {
             className="w-12 items-center justify-center rounded-2xl border border-primary">
             <Ionicons name="share-social-outline" size={18} color="#3461FD" />
           </Pressable>
+          <Pressable
+            onPress={() =>
+              showConfirm(
+                'Kombini Arşivle',
+                "Bu kombin Beğenilenler'den kalkar; Profil > Arşivlerim'den her zaman geri getirebilirsin.",
+                () =>
+                  archiveOutfit.mutate(
+                    { outfitId: outfit.id, archived: true },
+                    {
+                      onError: (error) =>
+                        showAlert('Arşivlenemedi', error instanceof Error ? error.message : String(error)),
+                    }
+                  ),
+                'Arşivle'
+              )
+            }
+            className="w-12 items-center justify-center rounded-2xl border border-gray-300 dark:border-gray-600">
+            <Ionicons name="archive-outline" size={18} color="#9BA1A6" />
+          </Pressable>
         </View>
       </>
     );
@@ -258,6 +283,23 @@ export default function KombinlerimScreen() {
         message="Bu giyme kaydını silmek istersen kombin (beğenilmişse) Beğenilenler'e geri döner."
         onClose={() => setWearSheetId(null)}
         options={[
+          ...(wearSheetOutfitId
+            ? [
+                {
+                  label: 'Kombini Arşivle',
+                  icon: 'archive-outline' as const,
+                  onPress: () => {
+                    archiveOutfit.mutate(
+                      { outfitId: wearSheetOutfitId, archived: true },
+                      {
+                        onError: (error) =>
+                          showAlert('Arşivlenemedi', error instanceof Error ? error.message : String(error)),
+                      }
+                    );
+                  },
+                },
+              ]
+            : []),
           {
             label: 'Giydim Kaydını Sil',
             icon: 'trash-outline',

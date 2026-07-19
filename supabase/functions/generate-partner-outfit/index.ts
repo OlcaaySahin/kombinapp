@@ -185,10 +185,13 @@ Deno.serve(async (req: Request) => {
   // item'larını çekmek güvenli. Genel `items` RLS'ini genişletmiyoruz, sadece bu tek,
   // güvenlik kontrolünden geçmiş sorgu için service-role kullanıyoruz.
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  // Partnerin arşivlediği ürünler öneriye girmez — arşiv "önerme" demek, partner
+  // önerisi de buna dahil (partnerin kendisi seçim yapamayacağı için istisna yok).
   const { data: partnerItems, error: itemsError } = await adminClient
     .from('items')
     .select('id, slot, name, color, pattern, season, brand, image_url')
-    .eq('user_id', partnerId);
+    .eq('user_id', partnerId)
+    .eq('is_archived', false);
 
   if (itemsError) {
     return jsonResponse({ error: itemsError.message }, 500);

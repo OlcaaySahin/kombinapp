@@ -24,11 +24,12 @@ export async function requestAiOutfit(
   context: OutfitContext,
   excludeItemIds?: string[],
   note?: string,
-  includeWishlist?: boolean
+  includeWishlist?: boolean,
+  includeArchived?: boolean
 ): Promise<OutfitSuggestion | null> {
   try {
     const { data, error } = await supabase.functions.invoke('generate-outfit', {
-      body: { context, excludeItemIds, note, includeWishlist },
+      body: { context, excludeItemIds, note, includeWishlist, includeArchived },
     });
     if (error) throw error;
 

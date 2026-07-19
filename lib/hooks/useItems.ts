@@ -17,6 +17,8 @@ export type DbItem = {
   image_url: string | null;
   source_type: 'user_photo' | 'web_photo';
   ai_tags: Record<string, unknown>;
+  /** Arşivlenen ürün Envanter'de soluk+rozetli görünür, kombin havuzuna girmez. */
+  is_archived: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -115,6 +117,23 @@ export function useUpdateItem() {
         .single();
       if (error) throw error;
       return data as DbItem;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
+/** Ürünü arşivler / arşivden çıkarır (arşivli ürün kombin havuzuna girmez). */
+export function useArchiveItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
+      const { error } = await supabase
+        .from('items')
+        .update({ is_archived: archived, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });

@@ -20,11 +20,12 @@ export function topWornOutfits(wornEvents: WearEventData[], limit = 3): WornOutf
   return [...wearsByOutfit.values()].sort((a, b) => b.count - a.count).slice(0, limit);
 }
 
-/** Hiçbir "giydim" kaydının kombinine girmemiş envanter ürünleri. */
+/** Hiçbir "giydim" kaydının kombinine girmemiş envanter ürünleri. Arşivlenmiş ürünler
+ * bilinçli hariç — kullanıcı zaten "önerme" demiş, "hiç giymedin" diye dürtmek anlamsız. */
 export function unwornItems(items: DbItem[], wornEvents: WearEventData[]): DbItem[] {
   const wornItemIds = new Set<string>();
   for (const wear of wornEvents) {
     for (const item of wear.items) wornItemIds.add(item.id);
   }
-  return items.filter((item: DbItem) => !wornItemIds.has(item.id));
+  return items.filter((item: DbItem) => !item.is_archived && !wornItemIds.has(item.id));
 }

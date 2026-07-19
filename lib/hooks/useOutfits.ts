@@ -34,6 +34,8 @@ export type OutfitWithItems = {
   pairing_notes: PairingNote[] | null;
   /** Partner kombiniyse: birlikte üretildiği ana kombinin id'si (kombin çifti bağı). */
   pair_outfit_id: string | null;
+  /** Arşivlenen kombin Beğenilenler/Geçmiş'ten düşer, Arşivlerim ekranında yaşar. */
+  is_archived: boolean;
   created_at: string;
   items: OutfitItemSummary[];
 };
@@ -49,6 +51,7 @@ type RawOutfitRow = {
   reasoning: string | null;
   pairing_notes: PairingNote[] | null;
   pair_outfit_id: string | null;
+  is_archived: boolean;
   created_at: string;
   outfit_items: { items: OutfitItemSummary }[];
 };
@@ -65,13 +68,14 @@ function mapOutfit(row: RawOutfitRow): OutfitWithItems {
     reasoning: row.reasoning,
     pairing_notes: row.pairing_notes,
     pair_outfit_id: row.pair_outfit_id,
+    is_archived: row.is_archived,
     created_at: row.created_at,
     items: row.outfit_items.map((entry) => entry.items),
   };
 }
 
 const OUTFIT_SELECT = `
-  id, name, is_liked, rating, generation_source, generation_context, user_note, reasoning, pairing_notes, pair_outfit_id, created_at,
+  id, name, is_liked, rating, generation_source, generation_context, user_note, reasoning, pairing_notes, pair_outfit_id, is_archived, created_at,
   outfit_items ( items ( id, name, slot, color, image_url, user_id ) )
 `;
 
@@ -101,6 +105,7 @@ export function useLikedOutfits() {
         .from('outfits')
         .select(`${OUTFIT_SELECT}, outfit_wears ( id )`)
         .eq('is_liked', true)
+        .eq('is_archived', false)
         .order('created_at', { ascending: false });
       if (error) throw error;
       const rows = data as unknown as (RawOutfitRow & { outfit_wears: { id: string }[] })[];
@@ -124,7 +129,12 @@ type RawWearRow = {
   worn_date: string;
   photo_url: string | null;
   note: string | null;
-  outfits: { id: string; rating: number | null; outfit_items: { items: OutfitItemSummary }[] } | null;
+  outfits: {
+    id: string;
+    rating: number | null;
+    is_archived: boolean;
+    outfit_items: { items: OutfitItemSummary }[];
+  } | null;
 };
 
 /** Giyme anlarının kronolojik günlüğü (kombin albümü) — bir kombin birden fazla kez giyilmişse her seferi ayrı kart. */
@@ -135,12 +145,13 @@ export function useWornOutfits() {
       const { data, error } = await supabase
         .from('outfit_wears')
         .select(
-          `id, worn_date, photo_url, note, outfits ( id, rating, outfit_items ( items ( id, name, slot, color, image_url, user_id ) ) )`
+          `id, worn_date, photo_url, note, outfits ( id, rating, is_archived, outfit_items ( items ( id, name, slot, color, image_url, user_id ) ) )`
         )
         .order('worn_date', { ascending: false });
       if (error) throw error;
       const rows = data as unknown as RawWearRow[];
-      return rows.map((row) => ({
+      // Arşivlenen kombinin giyilme kayıtları Geçmiş'te (ve Galeri'de) görünmez.
+      return rows.filter((row) => !row.outfits?.is_archived).map((row) => ({
         id: row.id,
         outfitId: row.outfits?.id ?? null,
         wornDate: row.worn_date,
@@ -204,6 +215,36 @@ export function useSetOutfitPair() {
   return useMutation({
     mutationFn: async ({ outfitId, pairOutfitId }: { outfitId: string; pairOutfitId: string }) => {
       const { error } = await supabase.from('outfits').update({ pair_outfit_id: pairOutfitId }).eq('id', outfitId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outfits'] });
+    },
+  });
+}
+
+/** Arşivlenmiş kombinler — Arşivlerim ekranı için (beğenilen + giyilen ayrımı yapılmaz). */
+export function useArchivedOutfits() {
+  return useQuery<OutfitWithItems[]>({
+    queryKey: ['outfits', 'archived'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('outfits')
+        .select(OUTFIT_SELECT)
+        .eq('is_archived', true)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data as unknown as RawOutfitRow[]).map(mapOutfit);
+    },
+  });
+}
+
+/** Kombini arşivler / arşivden çıkarır — Beğenilenler/Geçmiş listelerinden düşer ya da geri döner. */
+export function useArchiveOutfit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ outfitId, archived }: { outfitId: string; archived: boolean }) => {
+      const { error } = await supabase.from('outfits').update({ is_archived: archived }).eq('id', outfitId);
       if (error) throw error;
     },
     onSuccess: () => {

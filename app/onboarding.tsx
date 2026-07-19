@@ -56,6 +56,30 @@ const STEPS: Step[] = [
       'Beğendiğin kombini kaydet ve yıldızla puanla — yüksek puanladığın tarzlar sonraki önerileri kişiselleştirir. Giydiğin gün "Giydim" işaretleyip fotoğrafla arşivle.',
   },
   {
+    icon: 'briefcase-outline',
+    title: 'Seyahat İçin Bavul Hazırla',
+    description:
+      'Ana Sayfa\'daki bavul kartından gün sayısı ve konsept gir — envanterinden minimum parçayla, birbiriyle uyumlu bir kapsül gardırop ve gün gün giyim planı çıkaralım.',
+  },
+  {
+    icon: 'images-outline',
+    title: 'Galeri: Kombin Albümün',
+    description:
+      'Bir kombini "Giydim" olarak işaretlerken eklediğin fotoğraflar Galeri sekmesinde birikir — kendi stil günlüğün gibi, dokununca o günün parçalarını ve notunu görürsün.',
+  },
+  {
+    icon: 'share-social-outline',
+    title: 'Kombinini Paylaş',
+    description:
+      'Beğendiğin bir kombinin yanındaki paylaş ikonuna dokun, beğendiğin tasarım şablonunu seç (10 farklı stil var) ve Instagram Story\'de veya istediğin uygulamada paylaş.',
+  },
+  {
+    icon: 'archive-outline',
+    title: 'Arşiv: Öneriler Sana Kalsın',
+    description:
+      'Artık kullanmadığın bir ürünü ya da eski bir kombini silmek yerine arşivleyebilirsin — envanterde soluk görünmeye devam eder ama önerilerde çıkmaz, Profil > Arşivlerim\'den istediğin an geri getirirsin.',
+  },
+  {
     icon: 'people-outline',
     title: 'Partnerinle Eşleş',
     description:
@@ -70,7 +94,11 @@ export default function OnboardingScreen() {
 
   async function finish() {
     await markOnboardingSeen();
-    router.back();
+    // router.back() yerine replace: Ana Sayfa'yı YENİDEN mount ettirir, böylece oradaki
+    // "onboarding görüldü mü" effect'i tekrar çalışıp ardından ana sayfa tasarımı
+    // seçicisinin ilk-açılış kontrolünü de sırayla yapabilir (aksi halde aynı instance
+    // gizliden gösterilir, effect tekrar tetiklenmez).
+    router.replace('/');
   }
 
   function next() {
