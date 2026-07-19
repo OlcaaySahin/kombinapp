@@ -319,6 +319,13 @@ function HeroButonluLayout({
           </Text>
           <Ionicons name="chevron-forward" size={13} color="#9BA1A6" />
         </Pressable>
+        <Pressable onPress={onManualPress} className="flex-row items-center gap-2 py-1.5">
+          <Ionicons name="create-outline" size={15} color="#9BA1A6" />
+          <Text className="flex-1 font-body text-xs text-gray-600 dark:text-gray-400">
+            Kendi kombinini kendin oluştur
+          </Text>
+          <Ionicons name="chevron-forward" size={13} color="#9BA1A6" />
+        </Pressable>
       </View>
 
       <View className="mt-6">
@@ -340,6 +347,7 @@ function YogunPanelLayout({
   wishlistCount,
   onWishlistPress,
   onBavulPress,
+  onManualPress,
   activeItems,
   likedOutfits,
   topWorn,
@@ -378,6 +386,10 @@ function YogunPanelLayout({
         <Pressable onPress={onBavulPress} className="flex-1 rounded-xl bg-accent-purple/10 p-3" style={{ minWidth: '47%' }}>
           <Ionicons name="briefcase-outline" size={16} color="#8B3FE8" />
           <Text className="mt-1 font-body text-xs text-accent-purple">Bavul Hazırla</Text>
+        </Pressable>
+        <Pressable onPress={onManualPress} className="flex-1 rounded-xl bg-gray-100 p-3 dark:bg-gray-800" style={{ minWidth: '47%' }}>
+          <Ionicons name="create-outline" size={16} color="#687076" />
+          <Text className="mt-1 font-body text-xs text-gray-600 dark:text-gray-400">Kendi Kombinini Oluştur</Text>
         </Pressable>
       </View>
 
@@ -419,6 +431,7 @@ function MinimalLayout({
   wishlistCount,
   onWishlistPress,
   onBavulPress,
+  onManualPress,
   activeItems,
   likedOutfits,
   topWorn,
@@ -447,6 +460,9 @@ function MinimalLayout({
       )}
       <Pressable onPress={onBavulPress} className="border-t border-gray-100 py-3 dark:border-gray-800">
         <Text className="font-body text-sm text-gray-500 dark:text-gray-400">Bavul hazırla →</Text>
+      </Pressable>
+      <Pressable onPress={onManualPress} className="border-t border-gray-100 py-3 dark:border-gray-800">
+        <Text className="font-body text-sm text-gray-500 dark:text-gray-400">Kendi kombinini oluştur →</Text>
       </Pressable>
 
       <View className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-800">
