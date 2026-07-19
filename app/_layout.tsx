@@ -60,6 +60,10 @@ export default function RootLayout() {
           <Stack.Screen name="add-item" options={{ presentation: 'modal', title: 'Ürün Ekle' }} />
           <Stack.Screen name="add-wishlist-item" options={{ presentation: 'modal', title: 'İstek Listesine Ekle' }} />
           <Stack.Screen name="mark-worn" options={{ presentation: 'modal', title: 'Giydim' }} />
+          <Stack.Screen
+            name="manuel-kombin"
+            options={{ presentation: 'modal', title: 'Kendi Kombinini Oluştur' }}
+          />
           <Stack.Screen name="sign-in" options={{ presentation: 'modal', title: 'Hesabını Oluştur' }} />
           <Stack.Screen name="profile-edit" options={{ presentation: 'modal', title: 'Bilgilerini Tamamla' }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />

@@ -68,6 +68,7 @@ export default function ArsivlerimScreen() {
                     reasoning: outfit.reasoning,
                     pairingNotes: outfit.pairing_notes,
                   }}
+                  previewEligible={outfit.generation_source === 'manual'}
                 />
                 <Pressable
                   onPress={() =>

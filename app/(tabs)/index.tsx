@@ -475,6 +475,7 @@ export default function AnaSayfaScreen() {
               setScreen('questions');
             }}
             onBavulPress={() => router.push('/bavul-hazirla')}
+            onManualPress={() => router.push('/manuel-kombin')}
             activeItems={activeItems}
             likedOutfits={likedOutfits.data ?? []}
             topWorn={homeTopWorn}
@@ -545,7 +546,11 @@ export default function AnaSayfaScreen() {
 
         {screen === 'result' && outfitCardData && (
           <View className="gap-4">
-            <OutfitCard outfit={outfitCardData} onReplaceItem={saved ? undefined : replaceItem} />
+            <OutfitCard
+              outfit={outfitCardData}
+              onReplaceItem={saved ? undefined : replaceItem}
+              previewEligible={hasWishlistItem}
+            />
             {!saved && (
               <Text className="-mt-2 text-center font-body text-xs text-gray-400 dark:text-gray-500">
                 Beğenmediğin bir parçaya basılı tut, değiştirmek için Karıştır'a bas

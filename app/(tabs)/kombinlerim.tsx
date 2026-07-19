@@ -167,6 +167,7 @@ export default function KombinlerimScreen() {
           }}
           onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
           genderIcon={genderIconFor(outfit)}
+          previewEligible={outfit.generation_source === 'manual'}
         />
         <View className="mt-2 flex-row gap-2">
           <Pressable

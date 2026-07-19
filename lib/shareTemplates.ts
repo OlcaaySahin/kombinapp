@@ -1,11 +1,29 @@
-// Paylaşım kartı şablonları (kullanıcı isteği 2026-07-19: "10 tasarım + seçici").
-// Tek bir parametrik kart bileşeni (app/kombin-paylas.tsx) bu config'lere göre
-// renk/dekorasyon/yerleşim değiştirir — 10 ayrı JSX ağacı yerine, gerçek görsel
-// çeşitlilik + paylaşılan capture/paylaşım mantığı. Yeni native bağımlılık YOK
-// (gradient yerine mevcut "blob" deseninde olduğu gibi katmanlı yarı-saydam şekiller).
+// Paylaşım kartı şablonları (kullanıcı isteği 2026-07-19: "10 tasarım + seçici",
+// 2026-07-19 devamı: kullanıcı 3'ünü (Lacivert/Mor Gece/Instagram) beğendi, 7'sini
+// beğenmedi — Gemini'den alınan 7 yeni tasarım fikri + Claude'un tasarladığı 5 yeni
+// fikirle toplam 15 şablona çıkarıldı). Tek bir parametrik kart bileşeni
+// (components/ui/ShareCardView.tsx) bu config'lere göre renk/dekorasyon/yerleşim
+// değiştirir. Yeni native bağımlılık YOK (gradient yerine katmanlı yarı-saydam
+// şekiller kullanılıyor).
 
 export type ShareLayout = 'grid' | 'hero' | 'polaroid' | 'strip' | 'instagram';
-export type ShareDecoration = 'blobs' | 'stars' | 'corners' | 'sprockets' | 'none';
+export type ShareDecoration =
+  | 'blobs'
+  | 'stars'
+  | 'corners'
+  | 'sprockets'
+  | 'none'
+  | 'hollow-shapes'
+  | 'thin-lines'
+  | 'diamond-mix'
+  | 'retro-mix'
+  | 'torn-paper'
+  | 'blueprint-grid'
+  | 'spotlight'
+  | 'glow-ring'
+  | 'dashed-frame'
+  | 'unboxing';
+export type ShareChipStyle = 'pill' | 'outline' | 'dotted';
 
 export type ShareTemplateConfig = {
   id: string;
@@ -17,15 +35,24 @@ export type ShareTemplateConfig = {
   mutedTextColor: string;
   chipBg: string;
   chipTextColor: string;
+  /** Varsayılan 'pill' (dolu, tam yuvarlak). */
+  chipStyle?: ShareChipStyle;
   itemBg: string;
   itemBorderColor: string;
+  /** Varsayılan 1. */
+  itemBorderWidth?: number;
   decoration: ShareDecoration;
   decorationColors: [string, string];
   layout: ShareLayout;
   frame?: { color: string; width: number; inset: number };
+  /** İlk ürün karesine abartılı köşe yuvarlaklığı (Retro Geometri). */
+  quirkyFirstCorner?: boolean;
+  /** Kombindeki ürünlerin gerçek renklerinden küçük bir "renk paleti" şeridi (Kumaş Numunesi). */
+  showPaletteDots?: boolean;
 };
 
 export const SHARE_TEMPLATES: ShareTemplateConfig[] = [
+  // ---------- Kullanıcının beğendiği 3 (değişmedi) ----------
   {
     id: 'lacivert-blob',
     label: 'Lacivert',
@@ -39,53 +66,6 @@ export const SHARE_TEMPLATES: ShareTemplateConfig[] = [
     itemBorderColor: 'rgba(255,255,255,0.1)',
     decoration: 'blobs',
     decorationColors: ['#3461FD', '#8B3FE8'],
-    layout: 'grid',
-  },
-  {
-    id: 'minimal-beyaz',
-    label: 'Minimal',
-    swatch: ['#FFFFFF', '#111111', '#E5E7EB'],
-    background: '#FFFFFF',
-    textColor: '#111111',
-    mutedTextColor: '#6B7280',
-    chipBg: 'transparent',
-    chipTextColor: '#111111',
-    itemBg: '#F3F4F6',
-    itemBorderColor: '#E5E7EB',
-    decoration: 'none',
-    decorationColors: ['#111111', '#111111'],
-    layout: 'grid',
-    frame: { color: '#111111', width: 1, inset: 10 },
-  },
-  {
-    id: 'siyah-luks',
-    label: 'Siyah & Altın',
-    swatch: ['#0B0B0C', '#E8B923', '#E8B923'],
-    background: '#0B0B0C',
-    textColor: '#FFFFFF',
-    mutedTextColor: 'rgba(232,185,35,0.8)',
-    chipBg: 'rgba(232,185,35,0.12)',
-    chipTextColor: '#E8B923',
-    itemBg: 'rgba(232,185,35,0.06)',
-    itemBorderColor: 'rgba(232,185,35,0.35)',
-    decoration: 'corners',
-    decorationColors: ['#E8B923', '#E8B923'],
-    layout: 'grid',
-    frame: { color: '#E8B923', width: 1, inset: 14 },
-  },
-  {
-    id: 'gunbatimi',
-    label: 'Gün Batımı',
-    swatch: ['#7A2E3A', '#FF9F43', '#FF4757'],
-    background: '#7A2E3A',
-    textColor: '#FFFFFF',
-    mutedTextColor: 'rgba(255,255,255,0.75)',
-    chipBg: 'rgba(255,255,255,0.18)',
-    chipTextColor: '#FFFFFF',
-    itemBg: 'rgba(255,255,255,0.12)',
-    itemBorderColor: 'rgba(255,255,255,0.15)',
-    decoration: 'blobs',
-    decorationColors: ['#FF9F43', '#FF4757'],
     layout: 'grid',
   },
   {
@@ -104,66 +84,6 @@ export const SHARE_TEMPLATES: ShareTemplateConfig[] = [
     layout: 'grid',
   },
   {
-    id: 'pastel-krem',
-    label: 'Pastel Krem',
-    swatch: ['#F6EEE2', '#E8B923', '#3A2E22'],
-    background: '#F6EEE2',
-    textColor: '#3A2E22',
-    mutedTextColor: '#8A7A66',
-    chipBg: '#FFFFFF',
-    chipTextColor: '#3A2E22',
-    itemBg: '#FFFFFF',
-    itemBorderColor: '#EBDFCC',
-    decoration: 'none',
-    decorationColors: ['#E8B923', '#E8B923'],
-    layout: 'grid',
-  },
-  {
-    id: 'dergi',
-    label: 'Dergi Kapağı',
-    swatch: ['#FFFFFF', '#111111', '#111111'],
-    background: '#FFFFFF',
-    textColor: '#111111',
-    mutedTextColor: '#6B7280',
-    chipBg: '#111111',
-    chipTextColor: '#FFFFFF',
-    itemBg: '#F3F4F6',
-    itemBorderColor: '#E5E7EB',
-    decoration: 'none',
-    decorationColors: ['#111111', '#111111'],
-    layout: 'hero',
-  },
-  {
-    id: 'polaroid',
-    label: 'Polaroid',
-    swatch: ['#FFFFFF', '#DDDDDD', '#222222'],
-    background: '#FFFFFF',
-    textColor: '#222222',
-    mutedTextColor: '#777777',
-    chipBg: '#F3F4F6',
-    chipTextColor: '#222222',
-    itemBg: '#EEEEEE',
-    itemBorderColor: '#DDDDDD',
-    decoration: 'none',
-    decorationColors: ['#000000', '#000000'],
-    layout: 'polaroid',
-  },
-  {
-    id: 'retro-serit',
-    label: 'Retro Şerit',
-    swatch: ['#141414', '#FFFFFF', '#333333'],
-    background: '#141414',
-    textColor: '#FFFFFF',
-    mutedTextColor: 'rgba(255,255,255,0.6)',
-    chipBg: 'rgba(255,255,255,0.1)',
-    chipTextColor: '#FFFFFF',
-    itemBg: '#1F1F1F',
-    itemBorderColor: '#333333',
-    decoration: 'sprockets',
-    decorationColors: ['#FFFFFF', '#FFFFFF'],
-    layout: 'strip',
-  },
-  {
     id: 'instagram-grid',
     label: 'Instagram',
     swatch: ['#FFFFFF', '#3461FD', '#8E8E8E'],
@@ -177,6 +97,208 @@ export const SHARE_TEMPLATES: ShareTemplateConfig[] = [
     decoration: 'none',
     decorationColors: ['#000000', '#000000'],
     layout: 'instagram',
+  },
+
+  // ---------- Gemini'den alınan 7 yeni yön ----------
+  {
+    id: 'pazartesi-sabahi',
+    label: 'Pazartesi Sabahı',
+    swatch: ['#F7F7F7', '#3461FD', '#E8B923'],
+    background: '#F7F7F7',
+    textColor: '#1F2430',
+    mutedTextColor: '#6B7280',
+    chipBg: 'transparent',
+    chipTextColor: '#E8B923',
+    chipStyle: 'outline',
+    itemBg: '#FFFFFF',
+    itemBorderColor: '#E3E3E3',
+    decoration: 'hollow-shapes',
+    decorationColors: ['#3461FD', '#3461FD'],
+    layout: 'grid',
+  },
+  {
+    id: 'sehirli-safari',
+    label: 'Şehirli Safari',
+    swatch: ['#EAE7DC', '#E8B923', '#A1A59A'],
+    background: '#EAE7DC',
+    textColor: '#3A3226',
+    mutedTextColor: '#7A7256',
+    chipBg: 'rgba(232,185,35,0.25)',
+    chipTextColor: '#3A3226',
+    chipStyle: 'pill',
+    itemBg: '#FFFFFF',
+    itemBorderColor: '#D9D3C0',
+    decoration: 'thin-lines',
+    decorationColors: ['#A1A59A', '#FF4757'],
+    layout: 'grid',
+  },
+  {
+    id: 'dijital-sanatci',
+    label: 'Dijital Sanatçı',
+    swatch: ['#8B3FE8', '#FF4757', '#E8B923'],
+    background: '#8B3FE8',
+    textColor: '#FFFFFF',
+    mutedTextColor: 'rgba(255,255,255,0.75)',
+    chipBg: 'rgba(255,255,255,0.15)',
+    chipTextColor: '#FFFFFF',
+    chipStyle: 'pill',
+    itemBg: 'rgba(255,255,255,0.08)',
+    itemBorderColor: '#FF4757',
+    itemBorderWidth: 2,
+    decoration: 'diamond-mix',
+    decorationColors: ['#FF4757', '#E8B923'],
+    layout: 'grid',
+  },
+  {
+    id: 'retro-geometri',
+    label: 'Retro Geometri',
+    swatch: ['#FFFFFF', '#E8B923', '#8B3FE8'],
+    background: '#FFFFFF',
+    textColor: '#111111',
+    mutedTextColor: '#6B7280',
+    chipBg: 'rgba(52,97,253,0.15)',
+    chipTextColor: '#3461FD',
+    chipStyle: 'pill',
+    itemBg: '#F3F4F6',
+    itemBorderColor: '#E5E7EB',
+    decoration: 'retro-mix',
+    decorationColors: ['#E8B923', '#8B3FE8'],
+    layout: 'grid',
+    quirkyFirstCorner: true,
+  },
+  {
+    id: 'dergi-kolaji',
+    label: 'Dergi Kolajı',
+    swatch: ['#F0F0F0', '#8B3FE8', '#3461FD'],
+    background: '#F0F0F0',
+    textColor: '#3461FD',
+    mutedTextColor: '#6B7280',
+    chipBg: 'transparent',
+    chipTextColor: '#3461FD',
+    chipStyle: 'dotted',
+    itemBg: '#FFFFFF',
+    itemBorderColor: '#E5E7EB',
+    decoration: 'torn-paper',
+    decorationColors: ['#8B3FE8', '#3461FD'],
+    layout: 'grid',
+  },
+  {
+    id: 'uzay-yolculugu',
+    label: 'Uzay Yolculuğu',
+    swatch: ['#101015', '#3461FD', '#A1A59A'],
+    background: '#101015',
+    textColor: '#FFFFFF',
+    mutedTextColor: '#A1A59A',
+    chipBg: 'rgba(161,165,154,0.1)',
+    chipTextColor: '#A1A59A',
+    chipStyle: 'outline',
+    itemBg: 'rgba(52,97,253,0.05)',
+    itemBorderColor: 'rgba(52,97,253,0.35)',
+    decoration: 'blueprint-grid',
+    decorationColors: ['#3461FD', '#3461FD'],
+    layout: 'grid',
+  },
+  {
+    id: 'gunesli-brunch',
+    label: 'Güneşli Brunch',
+    swatch: ['#FFFBEB', '#E8B923', '#FF4757'],
+    background: '#FFFBEB',
+    textColor: '#5C4813',
+    mutedTextColor: '#8A7A52',
+    chipBg: '#FF4757',
+    chipTextColor: '#FFFFFF',
+    chipStyle: 'pill',
+    itemBg: '#FFFFFF',
+    itemBorderColor: '#FFFFFF',
+    itemBorderWidth: 2,
+    decoration: 'hollow-shapes',
+    decorationColors: ['#E8B923', '#E8B923'],
+    layout: 'grid',
+  },
+
+  // ---------- 5 yeni yön (ürüne özgü, Claude tasarımı) ----------
+  {
+    id: 'vitrin',
+    label: 'Vitrin',
+    swatch: ['#1A1610', '#E8B923', '#E8B923'],
+    background: '#1A1610',
+    textColor: '#FFFFFF',
+    mutedTextColor: 'rgba(232,185,35,0.75)',
+    chipBg: 'rgba(232,185,35,0.12)',
+    chipTextColor: '#E8B923',
+    chipStyle: 'pill',
+    itemBg: 'rgba(232,185,35,0.06)',
+    itemBorderColor: 'rgba(232,185,35,0.4)',
+    decoration: 'spotlight',
+    decorationColors: ['#E8B923', '#E8B923'],
+    layout: 'grid',
+    frame: { color: '#E8B923', width: 1, inset: 16 },
+  },
+  {
+    id: 'kumas-numunesi',
+    label: 'Kumaş Numunesi',
+    swatch: ['#EFE7DA', '#8A7A66', '#D8C9B0'],
+    background: '#EFE7DA',
+    textColor: '#3A2E22',
+    mutedTextColor: '#8A7A66',
+    chipBg: '#FFFFFF',
+    chipTextColor: '#3A2E22',
+    chipStyle: 'dotted',
+    itemBg: '#FFFFFF',
+    itemBorderColor: '#D8C9B0',
+    decoration: 'dashed-frame',
+    decorationColors: ['#8A7A66', '#8A7A66'],
+    layout: 'grid',
+    showPaletteDots: true,
+  },
+  {
+    id: 'gece-kulubu-neon',
+    label: 'Gece Kulübü Neon',
+    swatch: ['#000000', '#3461FD', '#FF4757'],
+    background: '#000000',
+    textColor: '#FFFFFF',
+    mutedTextColor: 'rgba(255,255,255,0.7)',
+    chipBg: 'rgba(255,71,87,0.15)',
+    chipTextColor: '#FF4757',
+    chipStyle: 'pill',
+    itemBg: 'rgba(52,97,253,0.08)',
+    itemBorderColor: '#3461FD',
+    itemBorderWidth: 2,
+    decoration: 'glow-ring',
+    decorationColors: ['#3461FD', '#FF4757'],
+    layout: 'grid',
+  },
+  {
+    id: 'kutu-acilisi',
+    label: 'Kutu Açılışı',
+    swatch: ['#FFFFFF', '#3461FD', '#E5E7EB'],
+    background: '#FFFFFF',
+    textColor: '#111111',
+    mutedTextColor: '#6B7280',
+    chipBg: '#F3F4F6',
+    chipTextColor: '#111111',
+    chipStyle: 'pill',
+    itemBg: '#FAFAFA',
+    itemBorderColor: '#EFEFEF',
+    decoration: 'unboxing',
+    decorationColors: ['#3461FD', '#3461FD'],
+    layout: 'hero',
+  },
+  {
+    id: 'terzi-defteri',
+    label: 'Terzi Defteri',
+    swatch: ['#FAFAF7', '#C9C9C4', '#3461FD'],
+    background: '#FAFAF7',
+    textColor: '#2B2B2E',
+    mutedTextColor: '#8A8A8E',
+    chipBg: 'transparent',
+    chipTextColor: '#3461FD',
+    chipStyle: 'outline',
+    itemBg: '#FFFFFF',
+    itemBorderColor: '#D6D6D2',
+    decoration: 'blueprint-grid',
+    decorationColors: ['#C9C9C4', '#3461FD'],
+    layout: 'strip',
   },
 ];
 

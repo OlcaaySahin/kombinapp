@@ -9,6 +9,8 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ShareCardView } from '@/components/ui/ShareCardView';
 import { showAlert } from '@/lib/alert';
 import { useOutfit } from '@/lib/hooks/useOutfits';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { useAuthStore } from '@/lib/stores/authStore';
 import {
   DEFAULT_SHARE_TEMPLATE_ID,
   getShareTemplate,
@@ -48,6 +50,8 @@ function loadSharing(): SharingModule | null {
 export default function KombinPaylasScreen() {
   const { outfitId } = useLocalSearchParams<{ outfitId?: string }>();
   const { data: outfit, isLoading } = useOutfit(outfitId ?? null);
+  const userId = useAuthStore((state) => state.userId);
+  const { data: profile } = useProfile(userId);
   const cardRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
   const [templateId, setTemplateId] = useState(DEFAULT_SHARE_TEMPLATE_ID);
@@ -191,6 +195,7 @@ export default function KombinPaylasScreen() {
               reasoning: outfit.reasoning,
               userNote: outfit.user_note,
             }}
+            profile={{ displayName: profile?.display_name ?? null, avatarUrl: profile?.avatar_url ?? null }}
           />
         </View>
 

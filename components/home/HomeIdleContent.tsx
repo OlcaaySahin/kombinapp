@@ -18,6 +18,7 @@ export type HomeIdleContentProps = {
   wishlistCount: number;
   onWishlistPress: () => void;
   onBavulPress: () => void;
+  onManualPress: () => void;
   activeItems: DbItem[];
   likedOutfits: OutfitWithItems[];
   topWorn: WornOutfitStat[];
@@ -86,6 +87,7 @@ function SadeLayout({
   wishlistCount,
   onWishlistPress,
   onBavulPress,
+  onManualPress,
   activeItems,
   likedOutfits,
   topWorn,
@@ -114,8 +116,15 @@ function SadeLayout({
         </Pressable>
       </View>
 
+      <Pressable onPress={onManualPress} className="mt-2 flex-row items-center justify-center gap-1.5 py-2">
+        <Ionicons name="create-outline" size={14} color="#9BA1A6" />
+        <Text className="font-body-medium text-xs text-gray-500 dark:text-gray-400">
+          Kendi kombinini kendin oluştur
+        </Text>
+      </Pressable>
+
       {wishlistCount > 0 && (
-        <Pressable onPress={onWishlistPress} className="mt-4 flex-row items-center gap-3 rounded-2xl bg-primary/10 p-4">
+        <Pressable onPress={onWishlistPress} className="mt-2 flex-row items-center gap-3 rounded-2xl bg-primary/10 p-4">
           <Ionicons name="heart-outline" size={20} color="#3461FD" />
           <Text className="flex-1 font-body text-sm text-primary">
             İstek listende {wishlistCount} ürün var — bugünkü kombine dahil etmek ister misin?
@@ -163,6 +172,7 @@ function KartOdakliLayout({
   wishlistCount,
   onWishlistPress,
   onBavulPress,
+  onManualPress,
   activeItems,
   likedOutfits,
   topWorn,
@@ -213,6 +223,15 @@ function KartOdakliLayout({
         </Pressable>
       </SectionCard>
 
+      <SectionCard icon="create-outline" title="Kendi Kombinin">
+        <Pressable onPress={onManualPress} className="flex-row items-center gap-3">
+          <Text className="flex-1 font-body text-sm text-gray-700 dark:text-gray-300">
+            Envanterinden parçaları kendin seçip bir kombin kur.
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="#3461FD" />
+        </Pressable>
+      </SectionCard>
+
       <SectionCard icon="stats-chart-outline" title="Gardırobun">
         <WardrobeStats items={activeItems} />
       </SectionCard>
@@ -251,6 +270,7 @@ function HeroButonluLayout({
   wishlistCount,
   onWishlistPress,
   onBavulPress,
+  onManualPress,
   activeItems,
   likedOutfits,
   topWorn,

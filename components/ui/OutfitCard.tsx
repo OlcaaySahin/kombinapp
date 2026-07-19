@@ -28,12 +28,19 @@ export function OutfitCard({
   onRate,
   onReplaceItem,
   genderIcon,
+  previewEligible = false,
 }: {
   outfit: OutfitCardData;
   onRate?: (rating: number) => void;
   onReplaceItem?: (itemId: string) => void;
   /** Kombinin kimin (kendi/partner) gardırobundan olduğunu gösteren rozet — Kombinlerim'de kullanılıyor. */
   genderIcon?: 'kadın' | 'erkek' | null;
+  /**
+   * Kullanıcı kararı (2026-07-19): AI önizleme sadece istek listesi (henüz sahip
+   * olunmayan) ürün içeren ya da manuel oluşturulmuş kombinlerde anlamlı — tamamen
+   * sahip olunan bir AI/zar kombininde kullanıcı zaten gerçeğini giyip görebiliyor.
+   */
+  previewEligible?: boolean;
 }) {
   const contextChips = Object.values(outfit.context);
   const [previewState, setPreviewState] = useState<'hidden' | 'loading' | 'shown' | 'error'>('hidden');
@@ -67,12 +74,14 @@ export function OutfitCard({
               />
             </View>
           )}
-          <Pressable
-            onPress={togglePreview}
-            className="h-9 w-9 items-center justify-center rounded-full bg-primary/10"
-            accessibilityLabel="Önizlemeyi Göster">
-            <Ionicons name="body-outline" size={18} color="#3461FD" />
-          </Pressable>
+          {previewEligible && (
+            <Pressable
+              onPress={togglePreview}
+              className="h-9 w-9 items-center justify-center rounded-full bg-primary/10"
+              accessibilityLabel="Önizlemeyi Göster">
+              <Ionicons name="body-outline" size={18} color="#3461FD" />
+            </Pressable>
+          )}
         </View>
       </View>
 
