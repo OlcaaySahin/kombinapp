@@ -20,6 +20,7 @@ const MEKAN = ['Şehir içi', 'Ofis', 'Deniz/Tatil', 'Ev'];
 const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
 const HAVA = ['Güneşli', 'Yağmurlu', 'Rüzgarlı', 'Karlı'];
+const MAX_SELECTED_ITEMS = 9;
 
 type PickableItem = (DbItem | DbWishlistItem) & { fromWishlist: boolean };
 
@@ -61,9 +62,9 @@ export default function ManuelKombinScreen() {
   const allAnswered = Boolean(mevsim && mekan && saat && konsept && hava);
 
   /**
-   * Kullanıcı geri bildirimi (2026-07-20): 15 ürünlük karışık/çakışan seçim (2 küpe, 2 kemer vb.)
-   * mümkündü. Aynı kategoriden (slot) ikinci bir ürün seçilince öncekini otomatik bırakıyoruz —
-   * bir gerçek kombinde zaten kategori başına 1 parça olur, yeni bir kural icat etmiyoruz.
+   * Kullanıcı geri bildirimi (2026-07-20): kategori başına 1 ürün kısıtı (küpe/kemer/saat
+   * ayrımı) denendi ama istenen davranış değildi — kullanıcı basit bir üst sınırı tercih etti.
+   * MAX_SELECTED_ITEMS'a kadar serbest seçim, üstünde yeni ekleme sessizce engelleniyor.
    */
   function toggleItem(item: PickableItem) {
     setSelectedIds((current) => {
@@ -72,9 +73,7 @@ export default function ManuelKombinScreen() {
         next.delete(item.id);
         return next;
       }
-      for (const other of pool) {
-        if (other.slot === item.slot && next.has(other.id)) next.delete(other.id);
-      }
+      if (next.size >= MAX_SELECTED_ITEMS) return current;
       next.add(item.id);
       return next;
     });
@@ -163,7 +162,7 @@ export default function ManuelKombinScreen() {
             <OptionChipRow label="Konsept" options={KONSEPT} value={konsept} onChange={setKonsept} />
 
             <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
-              Parça Seç ({selectedItems.length} seçili)
+              Parça Seç ({selectedItems.length}/{MAX_SELECTED_ITEMS} seçili)
             </Text>
 
             <ScrollView
@@ -186,8 +185,12 @@ export default function ManuelKombinScreen() {
             <View className="flex-row flex-wrap justify-between">
               {filteredPool.map((item) => {
                 const selected = selectedIds.has(item.id);
+                const disabled = !selected && selectedIds.size >= MAX_SELECTED_ITEMS;
                 return (
-                  <Pressable key={item.id} onPress={() => toggleItem(item)} className="mb-4 w-[31%]">
+                  <Pressable
+                    key={item.id}
+                    onPress={() => toggleItem(item)}
+                    className={`mb-4 w-[31%] ${disabled ? 'opacity-40' : ''}`}>
                     <View
                       className={`aspect-square w-full overflow-hidden rounded-2xl border-2 ${
                         selected ? 'border-primary' : 'border-transparent'
