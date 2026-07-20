@@ -15,10 +15,15 @@ import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { syncReminderFromPreferences } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
+import { initSentry } from '@/lib/sentry';
 import { applyStoredThemePreference, installThemeGuard } from '@/lib/theme';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Modül yüklenir yüklenmez (ilk render'dan ÖNCE) çağrılıyor ki açılış sırasındaki
+// hatalar/çökmeler de yakalanabilsin.
+initSentry();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
