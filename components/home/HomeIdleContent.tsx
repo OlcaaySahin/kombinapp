@@ -12,7 +12,8 @@ import type { HomeLayoutVariant } from '@/lib/homeLayout';
 
 export type HomeIdleContentProps = {
   variant: HomeLayoutVariant;
-  limitReached: boolean;
+  /** Sadece "Kombin Oluştur" (AI) butonunu etkiler — Zar At sınırsız, hiç AI'a gitmiyor. */
+  aiLimitReached: boolean;
   onCreatePress: () => void;
   onDicePress: () => void;
   wishlistCount: number;
@@ -81,7 +82,7 @@ function InsightBlocks({ activeItems, likedOutfits, topWorn, neverWorn, bare }: 
 
 // ---------- 1) Sade (varsayılan — mevcut tasarım) ----------
 function SadeLayout({
-  limitReached,
+  aiLimitReached,
   onCreatePress,
   onDicePress,
   wishlistCount,
@@ -99,20 +100,17 @@ function SadeLayout({
       <View className="gap-3">
         <Pressable
           onPress={onCreatePress}
-          disabled={limitReached}
-          className={`items-center justify-center rounded-2xl py-4 ${limitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
-          <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-white'}`}>
-            {limitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
+          disabled={aiLimitReached}
+          className={`items-center justify-center rounded-2xl py-4 ${aiLimitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
+          <Text className={`font-heading text-base ${aiLimitReached ? 'text-gray-400' : 'text-white'}`}>
+            {aiLimitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
           </Text>
         </Pressable>
         <Pressable
           onPress={onDicePress}
-          disabled={limitReached}
-          className={`flex-row items-center justify-center gap-2 rounded-2xl border py-4 ${
-            limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
-          }`}>
-          <Ionicons name="shuffle-outline" size={20} color={limitReached ? '#9BA1A6' : '#3461FD'} />
-          <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-primary'}`}>Zar At</Text>
+          className="flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-4">
+          <Ionicons name="shuffle-outline" size={20} color="#3461FD" />
+          <Text className="font-heading text-base text-primary">Zar At</Text>
         </Pressable>
       </View>
 
@@ -166,7 +164,7 @@ function SectionCard({ icon, title, children }: { icon: keyof typeof Ionicons.gl
 }
 
 function KartOdakliLayout({
-  limitReached,
+  aiLimitReached,
   onCreatePress,
   onDicePress,
   wishlistCount,
@@ -185,20 +183,17 @@ function KartOdakliLayout({
         <View className="gap-3">
           <Pressable
             onPress={onCreatePress}
-            disabled={limitReached}
-            className={`items-center justify-center rounded-2xl py-4 ${limitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
-            <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-white'}`}>
-              {limitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
+            disabled={aiLimitReached}
+            className={`items-center justify-center rounded-2xl py-4 ${aiLimitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
+            <Text className={`font-heading text-base ${aiLimitReached ? 'text-gray-400' : 'text-white'}`}>
+              {aiLimitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur'}
             </Text>
           </Pressable>
           <Pressable
             onPress={onDicePress}
-            disabled={limitReached}
-            className={`flex-row items-center justify-center gap-2 rounded-2xl border py-4 ${
-              limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
-            }`}>
-            <Ionicons name="shuffle-outline" size={20} color={limitReached ? '#9BA1A6' : '#3461FD'} />
-            <Text className={`font-heading text-base ${limitReached ? 'text-gray-400' : 'text-primary'}`}>Zar At</Text>
+            className="flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-4">
+            <Ionicons name="shuffle-outline" size={20} color="#3461FD" />
+            <Text className="font-heading text-base text-primary">Zar At</Text>
           </Pressable>
         </View>
       </SectionCard>
@@ -264,7 +259,7 @@ function KartOdakliLayout({
 
 // ---------- 3) Hero Butonlu ----------
 function HeroButonluLayout({
-  limitReached,
+  aiLimitReached,
   onCreatePress,
   onDicePress,
   wishlistCount,
@@ -282,23 +277,18 @@ function HeroButonluLayout({
       <View className="flex-row gap-3">
         <Pressable
           onPress={onCreatePress}
-          disabled={limitReached}
-          className={`flex-1 items-center justify-center gap-2 rounded-3xl py-7 ${limitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
-          <Ionicons name="sparkles" size={28} color={limitReached ? '#9BA1A6' : '#FFFFFF'} />
-          <Text className={`text-center font-heading-bold text-base ${limitReached ? 'text-gray-400' : 'text-white'}`}>
-            {limitReached ? 'Hakkın Doldu' : 'Kombin Oluştur'}
+          disabled={aiLimitReached}
+          className={`flex-1 items-center justify-center gap-2 rounded-3xl py-7 ${aiLimitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
+          <Ionicons name="sparkles" size={28} color={aiLimitReached ? '#9BA1A6' : '#FFFFFF'} />
+          <Text className={`text-center font-heading-bold text-base ${aiLimitReached ? 'text-gray-400' : 'text-white'}`}>
+            {aiLimitReached ? 'Hakkın Doldu' : 'Kombin Oluştur'}
           </Text>
         </Pressable>
         <Pressable
           onPress={onDicePress}
-          disabled={limitReached}
-          className={`flex-1 items-center justify-center gap-2 rounded-3xl border-2 py-7 ${
-            limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary bg-primary/5'
-          }`}>
-          <Ionicons name="shuffle" size={28} color={limitReached ? '#9BA1A6' : '#3461FD'} />
-          <Text className={`text-center font-heading-bold text-base ${limitReached ? 'text-gray-400' : 'text-primary'}`}>
-            Zar At
-          </Text>
+          className="flex-1 items-center justify-center gap-2 rounded-3xl border-2 border-primary bg-primary/5 py-7">
+          <Ionicons name="shuffle" size={28} color="#3461FD" />
+          <Text className="text-center font-heading-bold text-base text-primary">Zar At</Text>
         </Pressable>
       </View>
 
@@ -341,7 +331,7 @@ function HeroButonluLayout({
 
 // ---------- 4) Yoğun Panel ----------
 function YogunPanelLayout({
-  limitReached,
+  aiLimitReached,
   onCreatePress,
   onDicePress,
   wishlistCount,
@@ -359,20 +349,17 @@ function YogunPanelLayout({
       <View className="flex-row gap-2">
         <Pressable
           onPress={onCreatePress}
-          disabled={limitReached}
-          className={`flex-1 items-center justify-center rounded-xl py-3 ${limitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
-          <Text className={`font-heading text-sm ${limitReached ? 'text-gray-400' : 'text-white'}`}>
-            {limitReached ? 'Hakkın Doldu' : 'Kombin Oluştur'}
+          disabled={aiLimitReached}
+          className={`flex-1 items-center justify-center rounded-xl py-3 ${aiLimitReached ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary'}`}>
+          <Text className={`font-heading text-sm ${aiLimitReached ? 'text-gray-400' : 'text-white'}`}>
+            {aiLimitReached ? 'Hakkın Doldu' : 'Kombin Oluştur'}
           </Text>
         </Pressable>
         <Pressable
           onPress={onDicePress}
-          disabled={limitReached}
-          className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border py-3 ${
-            limitReached ? 'border-gray-200 dark:border-gray-800' : 'border-primary'
-          }`}>
-          <Ionicons name="shuffle-outline" size={16} color={limitReached ? '#9BA1A6' : '#3461FD'} />
-          <Text className={`font-heading text-sm ${limitReached ? 'text-gray-400' : 'text-primary'}`}>Zar At</Text>
+          className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-primary py-3">
+          <Ionicons name="shuffle-outline" size={16} color="#3461FD" />
+          <Text className="font-heading text-sm text-primary">Zar At</Text>
         </Pressable>
       </View>
 
@@ -425,7 +412,7 @@ function YogunPanelLayout({
 
 // ---------- 5) Minimal ----------
 function MinimalLayout({
-  limitReached,
+  aiLimitReached,
   onCreatePress,
   onDicePress,
   wishlistCount,
@@ -440,15 +427,13 @@ function MinimalLayout({
 }: HomeIdleContentProps) {
   return (
     <View>
-      <Pressable onPress={onCreatePress} disabled={limitReached} className="py-3">
-        <Text className={`font-heading text-lg ${limitReached ? 'text-gray-400' : 'text-primary'}`}>
-          {limitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur →'}
+      <Pressable onPress={onCreatePress} disabled={aiLimitReached} className="py-3">
+        <Text className={`font-heading text-lg ${aiLimitReached ? 'text-gray-400' : 'text-primary'}`}>
+          {aiLimitReached ? 'Günlük hakkın doldu' : 'Kombin Oluştur →'}
         </Text>
       </Pressable>
-      <Pressable onPress={onDicePress} disabled={limitReached} className="border-t border-gray-100 py-3 dark:border-gray-800">
-        <Text className={`font-body-medium text-base ${limitReached ? 'text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
-          Zar At →
-        </Text>
+      <Pressable onPress={onDicePress} className="border-t border-gray-100 py-3 dark:border-gray-800">
+        <Text className="font-body-medium text-base text-gray-700 dark:text-gray-300">Zar At →</Text>
       </Pressable>
 
       {wishlistCount > 0 && (

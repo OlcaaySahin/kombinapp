@@ -51,7 +51,11 @@ export default function AddItemScreen() {
     }
   }, [isEditing, hasPrefilled, items, itemId]);
 
-  const canSave = Boolean(name.trim() && slot && color && userId && !saving);
+  // Ücretsiz plan sınırı (2026-07-20 kullanıcı kararı): envanter en fazla 50 ürün. Sadece YENİ
+  // ürün eklerken uygulanır — mevcut bir ürünü düzenlemek asla engellenmemeli.
+  const itemCount = items?.length ?? 0;
+  const inventoryLimitReached = !isEditing && itemCount >= 50;
+  const canSave = Boolean(name.trim() && slot && color && userId && !saving && !inventoryLimitReached);
 
   async function pickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -148,6 +152,15 @@ export default function AddItemScreen() {
         <Text className="mb-6 font-heading-bold text-2xl text-gray-900 dark:text-white">
           {isEditing ? 'Ürünü Düzenle' : 'Ürün Ekle'}
         </Text>
+
+        {inventoryLimitReached && (
+          <View className="mb-6 rounded-2xl bg-primary/10 p-4">
+            <Text className="font-body text-sm text-primary">
+              Envanterin 50 ürün sınırına ulaştı. Yeni ürün eklemek için önce mevcut bir ürünü arşivleyebilir veya
+              silebilirsin.
+            </Text>
+          </View>
+        )}
 
         <Pressable
           onPress={pickPhoto}

@@ -40,11 +40,12 @@ const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
 const HAVA = ['Güneşli', 'Yağmurlu', 'Rüzgarlı', 'Karlı'];
 
-const DAILY_LIMIT = 3;
-// Kullanıcı kararı (2026-07-17): günlük limit uygulanmayacak, sayaç yazısı da UI'dan
-// gizlendi (header'da yorum satırında duruyor). Fikir değişirse: bunu true yap + header'daki
-// yorumlu sayaç Text'ini geri aç — mekanizma (generation_events, useDailyOutfitCount) duruyor.
-const DAILY_LIMIT_ENABLED = false;
+// Kullanıcı kararı (2026-07-20): Ücretsiz/Premium plan netleşti — AI kombin günlük 5 ile
+// sınırlı (Zar At bundan tamamen bağımsız, sınırsız — bkz. showResult/rollDice). Envanter
+// ekleme sınırı (50 ürün) ayrıca app/add-item.tsx'te uygulanıyor. Sınırsız AI/Partner/Bavul
+// gibi gerçek Premium ayrıcalıkları RevenueCat entegrasyonunu bekliyor (bkz. CLAUDE.md).
+const DAILY_LIMIT = 5;
+const DAILY_LIMIT_ENABLED = true;
 const DICE_CONTEXT: OutfitContext = {
   mevsim: 'İlkbahar',
   mekan: 'Şehir içi',
@@ -137,7 +138,8 @@ export default function AnaSayfaScreen() {
 
   const allAnswered = Boolean(mevsim && mekan && saat && konsept && hava);
   const count = dailyCount.data ?? 0;
-  const limitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
+  // Sadece AI kombin üretimini (generateViaAi) etkiler — Zar At (rollDice) bundan bağımsız.
+  const aiLimitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
 
   // "Karıştır" ile tek parça değiştirirken ayni parçanın slotunda daha önce denenmiş
   // ürünleri hariç tutmak için — her yeni kombin üretiminde sıfırlanır.
@@ -179,7 +181,8 @@ export default function AnaSayfaScreen() {
     setPartnerSavedOutfitId(null);
     setPartnerRating(null);
     setScreen('result');
-    if (userId) logEvent.mutate({ userId, type: 'outfit' });
+    // Sadece AI üretimi günlük limite sayılır — Zar At sınırsız (bkz. DAILY_LIMIT_ENABLED notu).
+    if (userId && source === 'ai_generated') logEvent.mutate({ userId, type: 'outfit' });
   }
 
   function replaceItem(itemId: string) {
@@ -242,7 +245,7 @@ export default function AnaSayfaScreen() {
   }
 
   function rollDice(excludeIds?: Set<string>) {
-    if (limitReached) return;
+    // Zar At sınırsız — hiç AI'a gitmiyor, günlük limite hiç girmiyor (kullanıcı kararı 2026-07-20).
     // Zar her zaman arşivsiz havuzdan seçer — "dahil et" seçeneği sadece soru akışında var.
     const pool: DbItem[] = activeItems;
     const picked = generateRandomOutfit<DbItem>(pool, excludeIds);
@@ -254,7 +257,7 @@ export default function AnaSayfaScreen() {
   }
 
   async function generateViaAi(context: OutfitContext, excludeItemIds?: string[]) {
-    if (limitReached) return;
+    if (aiLimitReached) return;
     setGenerating(true);
     try {
       const ownPool: DbItem[] = includeArchived ? (items ?? []) : activeItems;
@@ -470,17 +473,15 @@ export default function AnaSayfaScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <View className="pb-6 pt-2">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Bugün ne giysem?</Text>
-          {/* Günlük limit sayacı — kullanıcı kararıyla gizlendi (2026-07-17), kod bilerek silinmedi:
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
-            Günlük {count}/{DAILY_LIMIT} kombin hakkı kullanıldı
+            Günlük {count}/{DAILY_LIMIT} AI kombin hakkı kullanıldı — Zar At sınırsız
           </Text>
-          */}
         </View>
 
         {screen === 'idle' && (
           <HomeIdleContent
             variant={homeLayoutVariant}
-            limitReached={limitReached}
+            aiLimitReached={aiLimitReached}
             onCreatePress={() => setScreen('questions')}
             onDicePress={() => rollDice()}
             wishlistCount={wishlistItems?.length ?? 0}
@@ -552,9 +553,14 @@ export default function AnaSayfaScreen() {
 
             <PrimaryButton
               label={generating ? 'Oluşturuluyor...' : 'Kombini Oluştur'}
-              disabled={!allAnswered || generating}
+              disabled={!allAnswered || generating || aiLimitReached}
               onPress={generateFromQuestions}
             />
+            {aiLimitReached && (
+              <Text className="mt-2 text-center font-body text-xs text-gray-500 dark:text-gray-400">
+                Günlük AI kombin hakkın doldu — yarın tekrar deneyebilirsin.
+              </Text>
+            )}
           </View>
         )}
 
@@ -597,15 +603,15 @@ export default function AnaSayfaScreen() {
                     <PrimaryButton
                       label={generating ? 'Oluşturuluyor...' : 'Tekrar Dene'}
                       variant="secondary"
-                      disabled={limitReached || generating}
+                      disabled={(generatedSource === 'ai_generated' && aiLimitReached) || generating}
                       onPress={retry}
                     />
                   </View>
                   <Pressable
                     onPress={dislikeAndRetry}
-                    disabled={limitReached || generating}
+                    disabled={(generatedSource === 'ai_generated' && aiLimitReached) || generating}
                     className={`w-12 items-center justify-center rounded-2xl border border-gray-300 dark:border-gray-600 ${
-                      limitReached || generating ? 'opacity-40' : ''
+                      (generatedSource === 'ai_generated' && aiLimitReached) || generating ? 'opacity-40' : ''
                     }`}>
                     <Ionicons name="thumbs-down-outline" size={18} color="#9BA1A6" />
                   </Pressable>
