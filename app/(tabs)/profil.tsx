@@ -22,7 +22,8 @@ type MenuItem = {
     | '/partner-eslesme'
     | '/arsivlerim'
     | '/ana-sayfa-tasarimi'
-    | '/gizlilik-politikasi';
+    | '/gizlilik-politikasi'
+    | '/geri-bildirim';
   comingSoonMessage?: string;
 };
 
@@ -44,6 +45,7 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: 'archive-outline', label: 'Arşivlerim', route: '/arsivlerim' },
   { icon: 'notifications-outline', label: 'Bildirimler', route: '/bildirimler' },
   { icon: 'help-circle-outline', label: 'Yardım', route: '/yardim' },
+  { icon: 'chatbox-ellipses-outline', label: 'Geri Bildirim Gönder', route: '/geri-bildirim' },
   { icon: 'shield-checkmark-outline', label: 'Gizlilik Politikası', route: '/gizlilik-politikasi' },
 ];
 

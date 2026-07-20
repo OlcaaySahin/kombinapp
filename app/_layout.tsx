@@ -81,6 +81,7 @@ export default function RootLayout() {
             name="gizlilik-politikasi"
             options={{ presentation: 'modal', title: 'Gizlilik Politikası' }}
           />
+          <Stack.Screen name="geri-bildirim" options={{ presentation: 'modal', title: 'Geri Bildirim' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         {/* Temalı messagebox host'u — showAlert/showConfirm buraya düşer (lib/alert.ts). */}
