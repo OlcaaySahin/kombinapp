@@ -5,10 +5,24 @@ import { useDialogStore } from '@/lib/stores/dialogStore';
 // (components/ui/AppDialogHost) gösteriliyor. İmzalar bilinçli olarak aynı bırakıldı,
 // çağıran ~50 nokta hiç değişmedi.
 
+/**
+ * Ham "TypeError: Failed to fetch" / "Network request failed" gibi teknik hata metinlerini
+ * (çağıran ~50 nokta hep `error.message`'ı doğrudan geçiyor) tek bir yerden kullanıcı dostu
+ * bir Türkçe mesaja çeviriyor — her çağrı noktasını tek tek düzeltmek yerine.
+ */
+function friendlyMessage(message: string | undefined): string | undefined {
+  if (!message) return message;
+  const lower = message.toLowerCase();
+  if (lower.includes('network request failed') || lower.includes('failed to fetch') || lower.includes('network error')) {
+    return 'İnternet bağlantını kontrol edip tekrar dener misin?';
+  }
+  return message;
+}
+
 export function showAlert(title: string, message?: string) {
   useDialogStore.getState().show({
     title,
-    message,
+    message: friendlyMessage(message),
     buttons: [{ text: 'Tamam' }],
   });
 }

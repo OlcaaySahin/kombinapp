@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { AppDialogHost } from '@/components/ui/AppDialogHost';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { syncReminderFromPreferences } from '@/lib/notifications';
@@ -86,6 +87,7 @@ export default function RootLayout() {
         </Stack>
         {/* Temalı messagebox host'u — showAlert/showConfirm buraya düşer (lib/alert.ts). */}
         <AppDialogHost />
+        <OfflineBanner />
       </ThemeProvider>
     </QueryClientProvider>
   );
