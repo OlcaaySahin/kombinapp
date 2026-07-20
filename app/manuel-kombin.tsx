@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OptionChipRow } from '@/components/ui/OptionChipRow';
@@ -21,6 +22,9 @@ const SAAT = ['Sabah', 'Öğlen', 'Akşam', 'Gece'];
 const KONSEPT = ['Günlük', 'Şık', 'Spor', 'Özel Gün'];
 const HAVA = ['Güneşli', 'Yağmurlu', 'Rüzgarlı', 'Karlı'];
 const MAX_SELECTED_ITEMS = 9;
+const LAST_CONTEXT_KEY = 'kombin_manual_last_context';
+
+type ManualContext = { mevsim: string; hava: string; mekan: string; saat: string; konsept: string };
 
 type PickableItem = (DbItem | DbWishlistItem) & { fromWishlist: boolean };
 
@@ -47,6 +51,23 @@ export default function ManuelKombinScreen() {
   const [saved, setSaved] = useState(false);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [lastContext, setLastContext] = useState<ManualContext | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_CONTEXT_KEY).then((raw) => {
+      if (raw) setLastContext(JSON.parse(raw));
+    });
+  }, []);
+
+  function applyLastContext() {
+    if (!lastContext) return;
+    setMevsim(lastContext.mevsim);
+    setHava(lastContext.hava);
+    setMekan(lastContext.mekan);
+    setSaat(lastContext.saat);
+    setKonsept(lastContext.konsept);
+  }
 
   const activeItems = useMemo(() => (items ?? []).filter((item: DbItem) => !item.is_archived), [items]);
 
@@ -56,7 +77,9 @@ export default function ManuelKombinScreen() {
     return [...own, ...wish];
   }, [activeItems, wishlistItems]);
 
-  const filteredPool = selectedSlot ? pool.filter((item) => item.slot === selectedSlot) : pool;
+  const filteredPool = pool
+    .filter((item) => !selectedSlot || item.slot === selectedSlot)
+    .filter((item) => !searchQuery.trim() || (item.name ?? '').toLocaleLowerCase('tr').includes(searchQuery.trim().toLocaleLowerCase('tr')));
   const selectedItems = pool.filter((item) => selectedIds.has(item.id));
   const hasWishlistSelected = selectedItems.some((item) => item.fromWishlist);
   const allAnswered = Boolean(mevsim && mekan && saat && konsept && hava);
@@ -82,13 +105,15 @@ export default function ManuelKombinScreen() {
   async function handleSave() {
     if (!userId || selectedItems.length === 0 || !allAnswered || hasWishlistSelected) return;
     try {
+      const context = { mevsim: mevsim!, hava: hava!, mekan: mekan!, saat: saat!, konsept: konsept! };
       const outfitId = await createOutfit.mutateAsync({
         userId,
         itemIds: selectedItems.map((item) => item.id),
-        context: { mevsim: mevsim!, hava: hava!, mekan: mekan!, saat: saat!, konsept: konsept! },
+        context,
         source: 'manual',
         isLiked: true,
       });
+      AsyncStorage.setItem(LAST_CONTEXT_KEY, JSON.stringify(context));
       setSavedOutfitId(outfitId);
       setSaved(true);
     } catch (error) {
@@ -155,6 +180,12 @@ export default function ManuelKombinScreen() {
           </View>
         ) : (
           <>
+            {lastContext && (
+              <Pressable onPress={applyLastContext} className="mb-3 flex-row items-center gap-1.5 self-start">
+                <Ionicons name="time-outline" size={14} color="#3461FD" />
+                <Text className="font-body-medium text-xs text-primary">Son kullandığım bağlamı doldur</Text>
+              </Pressable>
+            )}
             <OptionChipRow label="Mevsim" options={MEVSIM} value={mevsim} onChange={setMevsim} />
             <OptionChipRow label="Hava" options={HAVA} value={hava} onChange={setHava} />
             <OptionChipRow label="Mekan" options={MEKAN} value={mekan} onChange={setMekan} />
@@ -164,6 +195,22 @@ export default function ManuelKombinScreen() {
             <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
               Parça Seç ({selectedItems.length}/{MAX_SELECTED_ITEMS} seçili)
             </Text>
+
+            <View className="mb-3 flex-row items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 dark:border-gray-700">
+              <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Ürün ara..."
+                placeholderTextColor="#9CA3AF"
+                className="flex-1 font-body text-sm text-gray-900 dark:text-white"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                </Pressable>
+              )}
+            </View>
 
             <ScrollView
               horizontal

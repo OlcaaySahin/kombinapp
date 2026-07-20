@@ -53,7 +53,7 @@ const FAQ_ITEMS: { question: string; answer: string }[] = [
   {
     question: 'Kombinimi nasıl paylaşırım?',
     answer:
-      'Kombinlerim > Beğenilenler\'de bir kartın yanındaki paylaş ikonuna dokun. Açılan ekranda 10 farklı kart tasarımından (lacivert, minimal, siyah-altın, gün batımı ve daha fazlası) istediğini seç, ardından sistem paylaşım menüsünden Instagram, WhatsApp veya istediğin uygulamayı seçerek paylaş. Son seçtiğin tasarım hatırlanır.',
+      'Kombinlerim > Beğenilenler\'de bir kartın yanındaki paylaş ikonuna dokun. Açılan ekranda 15 farklı kart tasarımından (lacivert, Instagram, mor gece ve daha fazlası) istediğini seç, ardından sistem paylaşım menüsünden Instagram, WhatsApp veya istediğin uygulamayı seçerek paylaş. Son seçtiğin tasarım hem hatırlanır hem listenin başına alınır.',
   },
   {
     question: 'Ana sayfamın görünümünü değiştirebilir miyim?',

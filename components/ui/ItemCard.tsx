@@ -24,12 +24,17 @@ export function ItemCard({
   onPress,
   onLongPress,
   archived = false,
+  selectionMode = false,
+  selected = false,
 }: {
   item: ItemCardData;
   onPress?: () => void;
   onLongPress?: () => void;
   /** Arşivlenmiş ürün: kart soluk + "Arşiv" rozeti (kullanıcı kararı: gizlenmez, görünür kalır). */
   archived?: boolean;
+  /** Envanterde çoklu seçim modu aktifken sağ üstte bir seçim dairesi/tik gösterir. */
+  selectionMode?: boolean;
+  selected?: boolean;
 }) {
   const category = getCategory(item.slot);
   const color = item.color ?? '#8E8E93';
@@ -38,13 +43,23 @@ export function ItemCard({
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} className="mb-4 w-[47%] shadow-sm dark:shadow-none">
       <View
-        className={`aspect-square w-full overflow-hidden rounded-2xl ${archived ? 'opacity-40' : ''}`}
+        className={`aspect-square w-full overflow-hidden rounded-2xl border-2 ${
+          selectionMode && selected ? 'border-primary' : 'border-transparent'
+        } ${archived ? 'opacity-40' : ''}`}
         style={{ backgroundColor: color }}>
         {item.image_url ? (
           <Image source={{ uri: item.image_url }} className="h-full w-full" resizeMode="cover" />
         ) : (
           <View className="h-full w-full items-center justify-center">
             <Ionicons name={category.icon} size={32} color={iconColor} />
+          </View>
+        )}
+        {selectionMode && (
+          <View
+            className={`absolute right-2 top-2 h-6 w-6 items-center justify-center rounded-full border-2 ${
+              selected ? 'border-primary bg-primary' : 'border-white bg-black/30'
+            }`}>
+            {selected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
           </View>
         )}
       </View>

@@ -153,3 +153,34 @@ export function useDeleteItem() {
     },
   });
 }
+
+/** Envanterde çoklu seçim modu için toplu arşivleme — tek istekte `.in('id', ids)`. */
+export function useArchiveItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, archived }: { ids: string[]; archived: boolean }) => {
+      const { error } = await supabase
+        .from('items')
+        .update({ is_archived: archived, updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
+/** Envanterde çoklu seçim modu için toplu silme — tek istekte `.in('id', ids)`. */
+export function useDeleteItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('items').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}

@@ -7,9 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { ItemCard } from '@/components/ui/ItemCard';
-import { showAlert } from '@/lib/alert';
+import { showAlert, showConfirm } from '@/lib/alert';
 import { CATEGORIES, type CategorySlot } from '@/constants/categories';
-import { useArchiveItem, useDeleteItem, useItems, type DbItem } from '@/lib/hooks/useItems';
+import {
+  useArchiveItem,
+  useArchiveItems,
+  useDeleteItem,
+  useDeleteItems,
+  useItems,
+  type DbItem,
+} from '@/lib/hooks/useItems';
 import {
   useDeleteWishlistItem,
   useMarkWishlistItemPurchased,
@@ -24,10 +31,14 @@ export default function EnvanterScreen() {
   const [selected, setSelected] = useState<CategorySlot | null>(null);
   const [sheetItem, setSheetItem] = useState<DbWishlistItem | null>(null);
   const [envanterSheetItem, setEnvanterSheetItem] = useState<DbItem | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data: allItems, isLoading: itemsLoading, isError: itemsError } = useItems();
   const deleteItem = useDeleteItem();
   const archiveItem = useArchiveItem();
+  const archiveItems = useArchiveItems();
+  const deleteItems = useDeleteItems();
   const { data: wishlistItems, isLoading: wishlistLoading, isError: wishlistError } = useWishlistItems();
   const deleteWishlistItem = useDeleteWishlistItem();
   const markPurchased = useMarkWishlistItemPurchased();
@@ -37,6 +48,51 @@ export default function EnvanterScreen() {
 
   function handleEnvanterLongPress(item: DbItem) {
     setEnvanterSheetItem(item);
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((current) => !current);
+    setSelectedIds(new Set());
+  }
+
+  function toggleItemSelection(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleBulkArchive(archived: boolean) {
+    if (selectedIds.size === 0) return;
+    archiveItems.mutate(
+      { ids: Array.from(selectedIds), archived },
+      {
+        onSuccess: () => {
+          setSelectionMode(false);
+          setSelectedIds(new Set());
+        },
+        onError: (error) => showAlert('Olmadı', error instanceof Error ? error.message : String(error)),
+      }
+    );
+  }
+
+  function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    showConfirm(
+      'Ürünleri Sil',
+      `${selectedIds.size} ürünü kalıcı olarak silmek istediğine emin misin?`,
+      () => {
+        deleteItems.mutate(Array.from(selectedIds), {
+          onSuccess: () => {
+            setSelectionMode(false);
+            setSelectedIds(new Set());
+          },
+          onError: (error) => showAlert('Olmadı', error instanceof Error ? error.message : String(error)),
+        });
+      }
+    );
   }
 
   function handleWishlistLongPress(item: DbWishlistItem) {
@@ -63,6 +119,11 @@ export default function EnvanterScreen() {
         <View className="h-11 flex-1 justify-center pr-3">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Envanter</Text>
         </View>
+        {tab === 'envanter' && items.length > 0 && (
+          <Pressable onPress={toggleSelectionMode} className="h-11 items-center justify-center px-2">
+            <Text className="font-body-medium text-sm text-primary">{selectionMode ? 'Vazgeç' : 'Seç'}</Text>
+          </Pressable>
+        )}
         <Pressable
           onPress={() => router.push(tab === 'envanter' ? '/add-item' : '/add-wishlist-item')}
           className="h-11 w-11 items-center justify-center rounded-full bg-primary">
@@ -139,16 +200,52 @@ export default function EnvanterScreen() {
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between' }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: selectionMode ? 100 : 32,
+          }}
           renderItem={({ item }) => (
             <ItemCard
               item={item}
               archived={item.is_archived}
-              onPress={() => router.push({ pathname: '/add-item', params: { itemId: item.id } })}
-              onLongPress={() => handleEnvanterLongPress(item)}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(item.id)}
+              onPress={() =>
+                selectionMode
+                  ? toggleItemSelection(item.id)
+                  : router.push({ pathname: '/add-item', params: { itemId: item.id } })
+              }
+              onLongPress={() => !selectionMode && handleEnvanterLongPress(item)}
             />
           )}
         />
+      )}
+
+      {selectionMode && (
+        <View className="absolute bottom-0 left-0 right-0 flex-row items-center gap-2 border-t border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-[#1C1E1F]">
+          <Text className="mr-1 font-body-medium text-xs text-gray-500 dark:text-gray-400">
+            {selectedIds.size} seçili
+          </Text>
+          <Pressable
+            onPress={() => handleBulkArchive(true)}
+            disabled={selectedIds.size === 0}
+            className={`flex-1 flex-row items-center justify-center gap-1 rounded-xl bg-gray-100 py-2.5 dark:bg-gray-800 ${
+              selectedIds.size === 0 ? 'opacity-40' : ''
+            }`}>
+            <Ionicons name="archive-outline" size={15} color="#374151" />
+            <Text className="font-body-medium text-xs text-gray-700 dark:text-gray-300">Arşivle</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleBulkDelete}
+            disabled={selectedIds.size === 0}
+            className={`flex-1 flex-row items-center justify-center gap-1 rounded-xl bg-red-50 py-2.5 dark:bg-red-950 ${
+              selectedIds.size === 0 ? 'opacity-40' : ''
+            }`}>
+            <Ionicons name="trash-outline" size={15} color="#EF4444" />
+            <Text className="font-body-medium text-xs text-red-500">Sil</Text>
+          </Pressable>
+        </View>
       )}
 
       {!isLoading && !isError && tab === 'istek_listesi' && wishlist.length > 0 && (

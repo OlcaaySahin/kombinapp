@@ -71,7 +71,7 @@ const STEPS: Step[] = [
     icon: 'share-social-outline',
     title: 'Kombinini Paylaş',
     description:
-      'Beğendiğin bir kombinin yanındaki paylaş ikonuna dokun, beğendiğin tasarım şablonunu seç (10 farklı stil var) ve Instagram Story\'de veya istediğin uygulamada paylaş.',
+      'Beğendiğin bir kombinin yanındaki paylaş ikonuna dokun, beğendiğin tasarım şablonunu seç (15 farklı stil var) ve Instagram Story\'de veya istediğin uygulamada paylaş.',
   },
   {
     icon: 'archive-outline',

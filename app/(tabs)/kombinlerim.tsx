@@ -14,6 +14,7 @@ import {
   useArchiveOutfit,
   useDeleteWearEvent,
   useLikedOutfits,
+  useMarkWorn,
   useRateOutfit,
   useWornOutfits,
   type OutfitWithItems,
@@ -42,6 +43,7 @@ export default function KombinlerimScreen() {
   const deletePackingList = useDeletePackingList();
   const deleteWearEvent = useDeleteWearEvent();
   const archiveOutfit = useArchiveOutfit();
+  const markWorn = useMarkWorn();
   const [bavulSheetId, setBavulSheetId] = useState<string | null>(null);
   const [wearSheetId, setWearSheetId] = useState<string | null>(null);
   const { data: inventory } = useItems();
@@ -152,6 +154,18 @@ export default function KombinlerimScreen() {
     );
   }
 
+  /** Fotoğraf/not eklemeden hızlıca "bugün giydim" kaydı düşer — kullanıcı isteği (2026-07-20):
+   *  giydiği bir kombini tekrar giyerken form ekranına gitmeden tek dokunuşla işaretleyebilsin. */
+  function handleQuickWear(outfitId: string) {
+    markWorn.mutate(
+      { outfitId },
+      {
+        onSuccess: () => showAlert('Giydim!', 'Bugün giydiğin olarak kaydedildi.'),
+        onError: (error) => showAlert('Olmadı', error instanceof Error ? error.message : String(error)),
+      }
+    );
+  }
+
   function renderLikedOutfit(outfit: OutfitWithItems) {
     return (
       <>
@@ -175,6 +189,11 @@ export default function KombinlerimScreen() {
             className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-3">
             <Ionicons name="checkmark-circle-outline" size={18} color="#3461FD" />
             <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleQuickWear(outfit.id)}
+            className="w-12 items-center justify-center rounded-2xl border border-primary">
+            <Ionicons name="flash-outline" size={18} color="#3461FD" />
           </Pressable>
           <Pressable
             onPress={() => router.push({ pathname: '/kombin-paylas', params: { outfitId: outfit.id } })}

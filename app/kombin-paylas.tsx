@@ -55,10 +55,20 @@ export default function KombinPaylasScreen() {
   const cardRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
   const [templateId, setTemplateId] = useState(DEFAULT_SHARE_TEMPLATE_ID);
+  // Son kullanılan şablon listenin başına alınır — kullanıcı isteği (2026-07-20). Sıralama sadece
+  // ekran açılışında bir kez hesaplanıyor; oturum içinde başka bir şablona dokununca liste altında
+  // kaymasın diye (o zaten seçili/tikli görünüyor, tekrar sıralamak kafa karıştırır).
+  const [orderedTemplates, setOrderedTemplates] = useState(SHARE_TEMPLATES);
 
   useEffect(() => {
     AsyncStorage.getItem(SHARE_TEMPLATE_PREF_KEY).then((stored) => {
-      if (stored) setTemplateId(stored);
+      if (stored) {
+        setTemplateId(stored);
+        const last = SHARE_TEMPLATES.find((template) => template.id === stored);
+        if (last) {
+          setOrderedTemplates([last, ...SHARE_TEMPLATES.filter((template) => template.id !== stored)]);
+        }
+      }
     });
   }, []);
 
@@ -131,7 +141,7 @@ export default function KombinPaylasScreen() {
           contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
           style={{ flexGrow: 0, flexShrink: 0 }}
           className="mb-5">
-          {SHARE_TEMPLATES.map((template) => {
+          {orderedTemplates.map((template) => {
             const selected = template.id === templateId;
             return (
               <Pressable
