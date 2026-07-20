@@ -65,6 +65,46 @@ export async function signOut() {
   syncSession(data.session);
 }
 
+/**
+ * Hesabı ve tüm verisini (envanter, kombinler, istek listesi, bavullar, partnerlik) kalıcı
+ * olarak siler — Google Play zorunluluğu (2023): hesap silme uygulama içinden erişilebilir
+ * olmalı. Silme işlemi `delete-account` Edge Function'ında (service-role, çağıranın KENDİ
+ * JWT'sinden çıkardığı userId ile) yapılıyor; burada sadece çağırıp sonrasında `signOut()`
+ * ile aynı şekilde temiz bir anonim oturuma geçiyoruz.
+ */
+export async function deleteAccount() {
+  const { error } = await supabase.functions.invoke('delete-account');
+  if (error) {
+    let message = error instanceof Error ? error.message : String(error);
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      try {
+        const body = await context.clone().json();
+        if (body?.error) message = body.error;
+      } catch {
+        // gövde JSON değilse jenerik mesaj kalsın
+      }
+    }
+    throw new Error(message);
+  }
+
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // Google ile giriş yapılmamış olabilir, önemli değil.
+  }
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Kullanıcı zaten sunucuda silindiği için bu adım hata verebilir, önemli değil.
+  }
+  queryClient.clear();
+
+  const { data, error: signInError } = await supabase.auth.signInAnonymously();
+  if (signInError) throw signInError;
+  syncSession(data.session);
+}
+
 export type EmailAuthMode = 'upgrade' | 'sign_in';
 
 /**

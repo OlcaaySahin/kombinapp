@@ -6,7 +6,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert, showConfirm } from '@/lib/alert';
-import { signOut } from '@/lib/auth';
+import { deleteAccount, signOut } from '@/lib/auth';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -50,6 +50,7 @@ export default function ProfilScreen() {
   const email = useAuthStore((state) => state.email);
   const userId = useAuthStore((state) => state.userId);
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const { data: partnership } = usePartnership();
   const { data: profile } = useProfile(userId);
   const hasPendingPartnerRequest = partnership?.status === 'pending_incoming';
@@ -82,6 +83,34 @@ export default function ProfilScreen() {
         }
       },
       'Çıkış Yap'
+    );
+  }
+
+  /** Google Play zorunluluğu (2023): hesap silme uygulama içinden erişilebilir olmalı. */
+  function handleDeleteAccountPress() {
+    showConfirm(
+      'Hesabını Sil',
+      'Bu işlem GERİ ALINAMAZ: envanterin, kombinlerin, istek listen, bavulların ve partnerlik bağın kalıcı olarak silinir. Devam etmek istediğine emin misin?',
+      () => {
+        showConfirm(
+          'Son Onay',
+          'Hesabını ve tüm verini kalıcı olarak silmek üzeresin. Bu son bir kez daha soruyoruz çünkü geri dönüşü yok.',
+          async () => {
+            setDeletingAccount(true);
+            try {
+              await deleteAccount();
+              showAlert('Hesabın silindi', 'Tüm verilerin kalıcı olarak silindi.');
+            } catch (error) {
+              console.error('Hesap silinemedi:', error);
+              showAlert('Hesap silinemedi', error instanceof Error ? error.message : String(error));
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+          'Kalıcı Olarak Sil'
+        );
+      },
+      'Devam Et'
     );
   }
 
@@ -176,15 +205,26 @@ export default function ProfilScreen() {
       </View>
 
       {!isAnonymous && (
-        <Pressable
-          onPress={handleSignOutPress}
-          disabled={signingOut}
-          className="mx-5 mt-4 flex-row items-center justify-center gap-2 rounded-2xl py-4">
-          <Ionicons name="log-out-outline" size={18} color="#E5484D" />
-          <Text className="font-body-semibold text-sm text-red-500">
-            {signingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap / Hesap Değiştir'}
-          </Text>
-        </Pressable>
+        <>
+          <Pressable
+            onPress={handleSignOutPress}
+            disabled={signingOut}
+            className="mx-5 mt-4 flex-row items-center justify-center gap-2 rounded-2xl py-4">
+            <Ionicons name="log-out-outline" size={18} color="#E5484D" />
+            <Text className="font-body-semibold text-sm text-red-500">
+              {signingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap / Hesap Değiştir'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleDeleteAccountPress}
+            disabled={deletingAccount}
+            className="mx-5 flex-row items-center justify-center gap-2 rounded-2xl py-2">
+            <Ionicons name="trash-outline" size={15} color="#9BA1A6" />
+            <Text className="font-body text-xs text-gray-400 dark:text-gray-500">
+              {deletingAccount ? 'Hesap siliniyor...' : 'Hesabımı Sil'}
+            </Text>
+          </Pressable>
+        </>
       )}
     </SafeAreaView>
   );
