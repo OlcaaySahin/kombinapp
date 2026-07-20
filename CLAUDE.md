@@ -679,3 +679,10 @@ Google Play, Nisan 2023'ten beri uygulama İÇİNDEN erişilebilir bir hesap sil
 **Bilinen kabul edilen sınır**: bu kullanıcı bir partnerin "kombin çifti" kaydında referans veriliyorsa (partnerine uyumlu kombin önerilip kaydedilmişse), `items` silinince o outfit_items satırı da cascade silinir — partnerin kombini kendisi silinmez ama artık o parçaları göstermez (mevcut, zaten kabul edilmiş "partnerlik sonlandırılırsa karma kombinler eksik kalır" sınırıyla aynı kategoride, bkz. "Partner Eşleştirme" bölümü).
 
 **Canlı test edildi** (geçici anon kullanıcı + item + wishlist_item + outfit + outfit_item): silme öncesi hepsi Management API ile doğrulandı (1'er satır), Edge Function 200 + `{success:true}` döndü, silme sonrası hepsi (auth.users kaydı DAHİL) 0'a düştü — tam uçtan uca temiz silme doğrulandı.
+
+### Uygulanan eksik-özellik iyileştirmesi: Gizlilik Politikası / KVKK Metni
+Yeni **`app/gizlilik-politikasi.tsx`** (Profil menüsüne "Gizlilik Politikası" olarak eklendi) — 8 bölüm: toplanan veriler, kullanım amacı, yapay zeka işlemesi (Anthropic'e ne gönderiliyor), verinin saklandığı yer (Supabase), üçüncü taraf servisler, KVKK madde 11 hakları, veri saklama süresi (hesap silinene kadar, "Hesabımı Sil" ile ilişkilendirildi), iletişim (`kombinapp67@gmail.com`, mevcut SMTP gönderen adresi tekrar kullanıldı).
+
+**Önemli çekince — kullanıcıya da ayrıca söylenmeli**: bu metin bir taslak, gerçek bir hukuk metni DEĞİL. Gerçek mağaza yayını (Play Store/App Store) öncesi bir avukat veya KVKK danışmanı tarafından gözden geçirilmesi gerekiyor — özellikle Anthropic/Supabase/Google'ın güncel veri işleme koşulları ve KVKK'nın tam metin gereksinimleri (aydınlatma metni ayrımı, açık rıza metinleri vb.) için. Şimdilik "hesap içi erişilebilir bir gizlilik politikası var" mağaza gereksinimini karşılıyor ama hukuki yeterlilik ayrı bir konu.
+
+`.expo/types/router.d.ts`'e yeni route manuel eklendi (Metro bu oturumda çalışmıyordu — bilinen gotcha, Metro bir sonraki açılışta kendisi günceller).

@@ -21,7 +21,8 @@ type MenuItem = {
     | '/bildirimler'
     | '/partner-eslesme'
     | '/arsivlerim'
-    | '/ana-sayfa-tasarimi';
+    | '/ana-sayfa-tasarimi'
+    | '/gizlilik-politikasi';
   comingSoonMessage?: string;
 };
 
@@ -43,6 +44,7 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: 'archive-outline', label: 'Arşivlerim', route: '/arsivlerim' },
   { icon: 'notifications-outline', label: 'Bildirimler', route: '/bildirimler' },
   { icon: 'help-circle-outline', label: 'Yardım', route: '/yardim' },
+  { icon: 'shield-checkmark-outline', label: 'Gizlilik Politikası', route: '/gizlilik-politikasi' },
 ];
 
 export default function ProfilScreen() {
