@@ -375,24 +375,26 @@ export const ShareCardView = forwardRef<
           />
         )}
 
-        {config.layout === 'instagram' && (
-          // "Story atılmış gibi" mor-mercan ring — kullanıcı isteği (2026-07-19). Gradient lib
-          // yok, iki katmanlı renkli çerçeveyle IG story ringi hissi taklit ediliyor.
-          <>
-            <View pointerEvents="none" style={{ position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderWidth: 3, borderColor: '#8B3FE8', borderRadius: 22, opacity: 0.9 }} />
-            <View pointerEvents="none" style={{ position: 'absolute', top: 9, left: 9, right: 9, bottom: 9, borderWidth: 2, borderColor: '#FF4757', borderRadius: 19, opacity: 0.7 }} />
-          </>
-        )}
-
         {config.layout === 'instagram' ? (
           <View className="flex-1 p-4" style={{ marginTop: 6 }}>
             <View className="flex-row items-center gap-2">
-              <View className="h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-primary">
-                {profile?.avatarUrl ? (
-                  <Image source={{ uri: profile.avatarUrl }} className="h-full w-full" resizeMode="cover" />
-                ) : (
-                  <Ionicons name="sparkles" size={13} color="#FFFFFF" />
-                )}
+              {/* "Story atılmış gibi" mor-mercan ring — profil resminin ETRAFINI sarmalı (kullanıcı
+                  düzeltmesi, 2026-07-20: ilk sürümde kartın tamamını sarıyordu, yanlıştı). Gradient
+                  lib yok, iç içe iki renkli daire ile IG story ringi hissi taklit ediliyor. */}
+              <View
+                className="items-center justify-center rounded-full"
+                style={{ width: 34, height: 34, borderWidth: 2, borderColor: '#8B3FE8', backgroundColor: config.background }}>
+                <View
+                  className="items-center justify-center overflow-hidden rounded-full"
+                  style={{ width: 28, height: 28, borderWidth: 1.5, borderColor: '#FF4757', backgroundColor: config.background }}>
+                  <View className="h-full w-full items-center justify-center overflow-hidden rounded-full bg-primary">
+                    {profile?.avatarUrl ? (
+                      <Image source={{ uri: profile.avatarUrl }} className="h-full w-full" resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+                    )}
+                  </View>
+                </View>
               </View>
               <Text className="font-heading text-xs" style={{ color: config.textColor }}>
                 {displayName ?? 'kombin.app'}

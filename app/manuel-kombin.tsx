@@ -60,11 +60,22 @@ export default function ManuelKombinScreen() {
   const hasWishlistSelected = selectedItems.some((item) => item.fromWishlist);
   const allAnswered = Boolean(mevsim && mekan && saat && konsept && hava);
 
-  function toggleItem(id: string) {
+  /**
+   * Kullanıcı geri bildirimi (2026-07-20): 15 ürünlük karışık/çakışan seçim (2 küpe, 2 kemer vb.)
+   * mümkündü. Aynı kategoriden (slot) ikinci bir ürün seçilince öncekini otomatik bırakıyoruz —
+   * bir gerçek kombinde zaten kategori başına 1 parça olur, yeni bir kural icat etmiyoruz.
+   */
+  function toggleItem(item: PickableItem) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+        return next;
+      }
+      for (const other of pool) {
+        if (other.slot === item.slot && next.has(other.id)) next.delete(other.id);
+      }
+      next.add(item.id);
       return next;
     });
   }
@@ -151,12 +162,6 @@ export default function ManuelKombinScreen() {
             <OptionChipRow label="Saat" options={SAAT} value={saat} onChange={setSaat} />
             <OptionChipRow label="Konsept" options={KONSEPT} value={konsept} onChange={setKonsept} />
 
-            {previewOutfit && (
-              <View className="mb-5">
-                <OutfitCard outfit={previewOutfit} previewEligible />
-              </View>
-            )}
-
             <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">
               Parça Seç ({selectedItems.length} seçili)
             </Text>
@@ -182,7 +187,7 @@ export default function ManuelKombinScreen() {
               {filteredPool.map((item) => {
                 const selected = selectedIds.has(item.id);
                 return (
-                  <Pressable key={item.id} onPress={() => toggleItem(item.id)} className="mb-4 w-[31%]">
+                  <Pressable key={item.id} onPress={() => toggleItem(item)} className="mb-4 w-[31%]">
                     <View
                       className={`aspect-square w-full overflow-hidden rounded-2xl border-2 ${
                         selected ? 'border-primary' : 'border-transparent'
@@ -213,6 +218,13 @@ export default function ManuelKombinScreen() {
                 );
               })}
             </View>
+
+            {previewOutfit && (
+              <View className="mb-5">
+                <Text className="mb-2 font-body-semibold text-sm text-gray-700 dark:text-gray-300">Önizleme</Text>
+                <OutfitCard outfit={previewOutfit} previewEligible />
+              </View>
+            )}
 
             {hasWishlistSelected && (
               <Text className="mb-3 text-center font-body text-xs text-gray-500 dark:text-gray-400">
