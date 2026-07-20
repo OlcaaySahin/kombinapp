@@ -708,3 +708,25 @@ Kullanıcı "Sentry ne için gerekli?" diye sordu — cevap: şu ana kadar bir k
 **Bilinçli kapsam dışı bırakılan**: Sentry'nin Expo config plugin'i (`@sentry/react-native/expo`, `app.json` plugins) ve kaynak harita (sourcemap) yükleme — bu, `SENTRY_AUTH_TOKEN` + org/project slug gerektiriyor (kullanıcı sadece DSN verdi, auth token vermedi). Plugin olmadan runtime hata/çökme yakalama ÇALIŞIR ama production JS bundle'ı minify edilmiş olduğu için stack trace'ler daha az okunaklı olabilir — kullanıcı isterse ileride bir Sentry auth token vererek bu iyileştirilebilir.
 
 `npx expo export -p web` temiz geçti (Sentry web-uyumlu bir fallback sağlıyor, svg'deki gibi ayrı bir ErrorBoundary/ExtraGuard gerekmedi). **Cihazda test edilemedi** (native modül, yeni bir EAS build gerektiriyor) — bir sonraki build'de gerçek bir hata/çökme tetikleyip Sentry dashboard'unda görünüp görünmediği doğrulanmalı.
+
+## Google Play Store Yayın Hazırlığı: İlk Değerlendirme + Marka Değişikliği "Look" (2026-07-20)
+Kullanıcı "Google Play Store için hazır mıyız?" diye sordu, bir sonraki EAS build'i bu hazırlıktan sonra almak istediğini belirtti ("build sınırını aşmak istemiyorum"). Değerlendirme kod değişikliği yapmadan ÖNCE paylaşıldı, onay alındıktan sonra uygulandı.
+
+**Tespit edilenler (build'e girmesi gerekenler)**:
+1. **Uygulama adı/ikon/splash hâlâ Expo şablonu** — `assets/images/icon.png` vb. dosyaların tarihi 14 Temmuz'du (projenin ilk kurulum günü), hiç değiştirilmemiş.
+2. **`eas.json` gerçek bir bug**: `development`/`preview` build profilleri `env` değişkenlerini `.env`'den OTOMATİK almıyor, elle listeliyor — `EXPO_PUBLIC_SENTRY_DSN` o listede YOKTU. Yani bir önceki oturumda Sentry'yi ekleyip `.env`'e DSN yazmama rağmen, gerçek bir build alınsaydı Sentry sessizce DSN'siz kalıp hiç çalışmayacaktı (tam da yakalamaya çalıştığımız türden sessiz bir hata — kendi eklediğim özelliğin kurulumunda kendim gözden kaçırmışım).
+3. Gizlilik politikası için Play Console'un istediği PUBLIC bir URL yoktu (sadece uygulama içi ekran vardı).
+
+**Kullanıcı kararları**: uygulama adı **"Look"** (beyaz zemin + siyah "look" wordmark), gizlilik politikası **GitHub Pages**'te barındırılsın, ikon/logo için kullanıcının hazır bir tasarımı yoktu → basit bir placeholder ben tasarladım. Google Play Developer hesabı henüz yok (kullanıcı paralelde açacak, 25$ tek seferlik).
+
+**Yapılanlar**:
+- **İkon/splash/favicon yeniden üretildi**: `sharp` (proje bağımlılığı YAPILMADI, sadece scratchpad'te izole kurulup PNG üretmek için kullanıldı) ile programatik SVG→PNG: 1024x1024 beyaz zemin + siyah "look" wordmark (`icon.png`, `splash.png`), Android adaptive-icon için AYNI wordmark ama **şeffaf zemin** (`adaptive-icon.png` — `app.json`'daki `adaptiveIcon.backgroundColor: "#ffffff"` zaten ayrı ayarlı, foreground'un şeffaf olması adaptive icon standardı). `app.json`'daki `"name": "kombin-app"` → `"name": "Look"` (sadece görünen ad — `slug`/`projectId` bilinçli olarak DOKUNULMADI, EAS projesiyle bağlantıyı koruma amaçlı, slug değişse bile projectId zaten asıl bağlayıcı ama riske girilmedi).
+- **`eas.json` düzeltildi**: `EXPO_PUBLIC_SENTRY_DSN` hem `development` hem `preview` profillerinin `env` bloğuna eklendi.
+- **`docs/index.html`** (yeni, saf statik HTML — React Native'e bağlı değil): gizlilik politikasının GitHub Pages'te barındırılacak halihazırdaki kopyası, aynı 8 bölüm, marka renkleriyle (`#3461FD` başlıklar) basit bir sayfa. **Kullanıcıdan beklenen tek manuel adım**: bu oturumda `gh` CLI mevcut değildi, GitHub Pages'i repo ayarlarından (Settings → Pages → Source: Deploy from a branch → `main` → `/docs`) BİR KEZ elle açması gerekiyor — sonrasında `https://olcaaysahin.github.io/kombinapp/` adresi Play Console'un "Gizlilik Politikası" alanına yapıştırılabilir bir link olur, her `docs/` güncellemesi otomatik yayınlanır.
+- `app/gizlilik-politikasi.tsx`'teki "Kombin App olarak" ifadesi "Look olarak" yapıldı (yeni public doküman olduğu için tutarlılık burada en kritikti).
+
+**Bilinçli yapılmayan / ertelenen**: Uygulama içindeki DİĞER "Kombin App" referansları (onboarding, paylaşım kartı imzası, SSS, CLAUDE.md'nin kendi başlığı) DEĞİŞTİRİLMEDİ — bu çok daha büyük, ayrı bir kapsamlı yeniden-adlandırma işi (onlarca dosya), kullanıcı sadece "uygulamanın adı" (mağaza/ikon seviyesinde) dedi, tüm iç metinlerin süpürülmesini istemedi. İstenirse ayrı bir turda ele alınmalı.
+
+**Kalan (kod dışı, Play Console'da yapılacak)**: Data Safety formu, içerik derecelendirme anketi, mağaza listesi görselleri (ekran görüntüleri + 1024x500 feature graphic), ilk yayın için "Kapalı Test" track'i önerisi, Google Play Developer hesabı açılması (kullanıcı henüz yok dedi).
+
+Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` sırasıyla temiz geçti, `dist/` silindi. Görsel/config değişikliği olduğu için canlı DB testi gerekmedi; yeni ikon/splash'in gerçek cihazda nasıl göründüğü bir sonraki build'de doğrulanmalı.

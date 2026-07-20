@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Look — Gizlilik Politikası</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111111;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: #111111;
+  }
+  .subtitle {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0 0 40px;
+  }
+  h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #3461FD;
+    margin: 32px 0 8px;
+  }
+  p {
+    font-size: 15px;
+    color: #374151;
+    margin: 0;
+  }
+  a { color: #3461FD; }
+  .footer {
+    margin-top: 56px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Gizlilik Politikası</h1>
+    <p class="subtitle">Look — verilerini nasıl topladığımızı, kullandığımızı ve koruduğumuzu buradan öğrenebilirsin.</p>
+
+    <h2>1. Hangi Verileri Topluyoruz</h2>
+    <p>Hesabın (anonim veya e-posta/Google ile bağlanmış), envanterine eklediğin ürün fotoğrafları ve etiketleri (tür, renk, desen, marka), oluşturduğun/kaydettiğin kombinler ve verdiğin puanlar, giydim kayıtların (fotoğraf ve not opsiyonel), istek listeni, profilinde doldurduğun bilgiler (isim, cinsiyet, yaş, boy, kilo, günlük stil tercihin — hepsi opsiyonel) ve varsa partnerinle eşleşme bilgin.</p>
+
+    <h2>2. Verilerini Ne İçin Kullanıyoruz</h2>
+    <p>Sana kombin önerisi üretmek (yapay zeka veya yerel rastgele seçim), ürün fotoğraflarını otomatik etiketlemek, geçmiş tercihlerine göre önerileri kişiselleştirmek (yüksek puanladığın/beğenmediğin renk ve markalar) ve uygulamanın temel işlevlerini (envanter, kombin geçmişi, bildirim tercihleri) çalıştırmak için kullanıyoruz. Verilerin reklam amacıyla satılmaz veya üçüncü taraflarla paylaşılmaz.</p>
+
+    <h2>3. Yapay Zeka İşlemesi</h2>
+    <p>Kombin önerisi ve ürün fotoğrafı etiketleme, Anthropic (Claude) API'sine gönderilerek üretilir. Bu işlem sırasında envanterindeki ürün bilgileri (isim, renk, kategori) ve gönderdiğin fotoğraflar Anthropic'in API'sine iletilir; bu veri sağlayıcı tarafından modelin eğitiminde kullanılmaz (Anthropic'in ticari API kullanım politikası bu yöndedir).</p>
+
+    <h2>4. Verilerin Saklandığı Yer</h2>
+    <p>Tüm verilerin Supabase (Postgres veritabanı + dosya depolama) üzerinde, her kullanıcının sadece kendi verisine erişebildiği satır seviyesi güvenlik (RLS) politikalarıyla saklanır. Fotoğrafların Supabase Storage'da, herkese açık ama tahmin edilemez (rastgele) URL'lerle barındırılır.</p>
+
+    <h2>5. Üçüncü Taraf Servisler</h2>
+    <p>Kimlik doğrulama ve veritabanı için Supabase, kombin/etiketleme önerileri için Anthropic (Claude API), Google ile giriş tercih edersen Google Sign-In, bildirimler için Expo Notifications altyapısı, hata/çökme izleme için Sentry kullanılır. Her biri kendi gizlilik politikasına tabidir.</p>
+
+    <h2>6. Haklarınız (KVKK Kapsamında)</h2>
+    <p>6698 sayılı Kişisel Verilerin Korunması Kanunu uyarınca; verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, düzeltilmesini isteme ve KVKK'nın öngördüğü şartlarda silinmesini isteme hakkına sahipsin. Uygulama içinde Profil &gt; Hesabımı Sil ile tüm verilerini istediğin an kalıcı olarak silebilirsin — bu işlem geri alınamaz.</p>
+
+    <h2>7. Veri Saklama Süresi</h2>
+    <p>Verilerin, hesabını silene kadar saklanır. Hesabını sildiğinde envanterin, kombinlerin, istek listen, bavul planların ve partnerlik bağın kalıcı olarak ve geri dönüşü olmayacak şekilde silinir.</p>
+
+    <h2>8. İletişim</h2>
+    <p>Verilerinle ilgili sorular için: <a href="mailto:kombinapp67@gmail.com">kombinapp67@gmail.com</a></p>
+
+    <div class="footer">Son güncelleme: 2026-07-20</div>
+  </div>
+</body>
+</html>

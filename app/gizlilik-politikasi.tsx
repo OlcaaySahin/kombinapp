@@ -53,7 +53,7 @@ export default function GizlilikPolitikasiScreen() {
           Gizlilik Politikası
         </Text>
         <Text className="mb-6 font-body text-sm text-gray-500 dark:text-gray-400">
-          Kombin App olarak verilerini nasıl topladığımızı, kullandığımızı ve koruduğumuzu buradan öğrenebilirsin.
+          Look olarak verilerini nasıl topladığımızı, kullandığımızı ve koruduğumuzu buradan öğrenebilirsin.
         </Text>
 
         {SECTIONS.map((section) => (
