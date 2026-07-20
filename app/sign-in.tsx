@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { showAlert } from '@/lib/alert';
 import { EmailAuthMode, sendAccountUpgradeCode, signInWithGoogle, verifyAccountUpgradeCode } from '@/lib/auth';
+import { captureException } from '@/lib/sentry';
 
 type Step = 'email' | 'code';
 
@@ -26,6 +27,7 @@ export default function SignInScreen() {
       router.back();
     } catch (error) {
       console.error('Google ile giriş yapılamadı:', error);
+      captureException(error);
       showAlert('Giriş yapılamadı', error instanceof Error ? error.message : String(error));
     } finally {
       setGoogleLoading(false);
@@ -41,6 +43,7 @@ export default function SignInScreen() {
       setStep('code');
     } catch (error) {
       console.error('Kod gönderilemedi:', error);
+      captureException(error);
       showAlert('Kod gönderilemedi', error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
@@ -60,6 +63,7 @@ export default function SignInScreen() {
       router.back();
     } catch (error) {
       console.error('Kod doğrulanamadı:', error);
+      captureException(error);
       showAlert('Kod doğrulanamadı', error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);

@@ -9,6 +9,7 @@ import { OptionChipRow } from '@/components/ui/OptionChipRow';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { showAlert } from '@/lib/alert';
 import { useProfile, useUpdateProfile } from '@/lib/hooks/useProfile';
+import { captureException } from '@/lib/sentry';
 import { uploadPhoto } from '@/lib/storage';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -84,6 +85,7 @@ export default function ProfileEditScreen() {
       router.back();
     } catch (error) {
       console.error('Profil kaydedilemedi:', error);
+      captureException(error);
       showAlert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);

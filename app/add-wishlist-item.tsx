@@ -18,6 +18,7 @@ import {
   type DbWishlistItem,
 } from '@/lib/hooks/useWishlist';
 import { fetchProductFromLink } from '@/lib/productLink';
+import { captureException } from '@/lib/sentry';
 import { uploadPhoto } from '@/lib/storage';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -158,6 +159,7 @@ export default function AddWishlistItemScreen() {
       router.back();
     } catch (error) {
       console.error('İstek listesi ürünü kaydedilemedi:', error);
+      captureException(error);
       showAlert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);

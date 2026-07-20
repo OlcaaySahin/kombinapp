@@ -31,6 +31,7 @@ import { generateRandomOutfit, inferTakiType } from '@/lib/outfitGenerator';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PartnerNoMatchError, requestPartnerOutfit } from '@/lib/partnerOutfit';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
+import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
 
@@ -348,6 +349,7 @@ export default function AnaSayfaScreen() {
       }
     } catch (error) {
       console.error('Kombin kaydedilemedi:', error);
+      captureException(error);
       showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
     }
   }
@@ -389,6 +391,7 @@ export default function AnaSayfaScreen() {
         return;
       }
       console.error('Partner kombini oluşturulamadı:', error);
+      captureException(error);
       showAlert('Oluşturulamadı', error instanceof Error ? error.message : String(error));
     } finally {
       setPartnerGenerating(false);
@@ -413,6 +416,7 @@ export default function AnaSayfaScreen() {
       setPartnerSaved(true);
     } catch (error) {
       console.error('Partner kombini kaydedilemedi:', error);
+      captureException(error);
       showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
     }
   }

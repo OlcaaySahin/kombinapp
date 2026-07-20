@@ -9,6 +9,7 @@ import { showAlert, showConfirm } from '@/lib/alert';
 import { deleteAccount, signOut } from '@/lib/auth';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { getThemePreference, setThemePreference, type ThemePreference } from '@/lib/theme';
 
@@ -81,6 +82,7 @@ export default function ProfilScreen() {
           await signOut();
         } catch (error) {
           console.error('Çıkış yapılamadı:', error);
+          captureException(error);
           showAlert('Çıkış yapılamadı', error instanceof Error ? error.message : String(error));
         } finally {
           setSigningOut(false);
@@ -106,6 +108,7 @@ export default function ProfilScreen() {
               showAlert('Hesabın silindi', 'Tüm verilerin kalıcı olarak silindi.');
             } catch (error) {
               console.error('Hesap silinemedi:', error);
+              captureException(error);
               showAlert('Hesap silinemedi', error instanceof Error ? error.message : String(error));
             } finally {
               setDeletingAccount(false);

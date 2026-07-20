@@ -10,6 +10,7 @@ import { ShareCardView } from '@/components/ui/ShareCardView';
 import { showAlert } from '@/lib/alert';
 import { useOutfit } from '@/lib/hooks/useOutfits';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 import {
   DEFAULT_SHARE_TEMPLATE_ID,
@@ -103,6 +104,7 @@ export default function KombinPaylasScreen() {
       await sharingModule.shareAsync(fileUri, { mimeType: 'image/png', dialogTitle: 'Kombinini paylaş' });
     } catch (error) {
       console.error('Kombin kartı paylaşılamadı:', error);
+      captureException(error);
       showAlert('Paylaşılamadı', error instanceof Error ? error.message : String(error));
     } finally {
       setSharing(false);

@@ -13,6 +13,7 @@ import { CATEGORIES, type CategorySlot } from '@/constants/categories';
 import { COLOR_SWATCHES } from '@/constants/colorSwatches';
 import { useAddItem, useItems, useUpdateItem, type DbItem } from '@/lib/hooks/useItems';
 import { fetchProductFromLink } from '@/lib/productLink';
+import { captureException } from '@/lib/sentry';
 import { uploadPhoto } from '@/lib/storage';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -136,6 +137,7 @@ export default function AddItemScreen() {
       router.back();
     } catch (error) {
       console.error('Ürün kaydedilemedi:', error);
+      captureException(error);
       showAlert('Bir şeyler ters gitti', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);

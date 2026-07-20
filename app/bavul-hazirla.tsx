@@ -17,6 +17,7 @@ import {
   type PackingDayOutfitRecord,
 } from '@/lib/hooks/usePackingLists';
 import { requestPackingList } from '@/lib/packing';
+import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 const GUN_SAYISI = ['2', '3', '4', '5', '7'];
@@ -134,6 +135,7 @@ export default function BavulHazirlaScreen() {
       });
     } catch (error) {
       console.error('Bavul planı alınamadı:', error);
+      captureException(error);
       showAlert('Bavul hazırlanamadı', error instanceof Error ? error.message : String(error));
     } finally {
       setGenerating(false);
@@ -201,6 +203,7 @@ export default function BavulHazirlaScreen() {
       router.push({ pathname: '/mark-worn', params: { outfitId } });
     } catch (error) {
       console.error('Bavul günü kombin olarak kaydedilemedi:', error);
+      captureException(error);
       showAlert('İşaretlenemedi', error instanceof Error ? error.message : String(error));
     } finally {
       setMarkingWorn(false);
@@ -252,6 +255,7 @@ export default function BavulHazirlaScreen() {
       if (isViewingSaved) router.back();
     } catch (error) {
       console.error('Bavul kaydedilemedi:', error);
+      captureException(error);
       showAlert('Kaydedilemedi', error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
