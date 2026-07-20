@@ -23,6 +23,7 @@ import {
   useLikedOutfits,
   useLogGenerationEvent,
   useRateOutfit,
+  useRecordDislike,
   useWornOutfits,
   type OutfitContext,
 } from '@/lib/hooks/useOutfits';
@@ -73,6 +74,7 @@ export default function AnaSayfaScreen() {
   const logEvent = useLogGenerationEvent();
   const createOutfit = useCreateOutfit();
   const rateOutfit = useRateOutfit();
+  const recordDislike = useRecordDislike();
   const setOutfitPair = useSetOutfitPair();
   const likedOutfits = useLikedOutfits();
   const wornOutfits = useWornOutfits();
@@ -295,6 +297,18 @@ export default function AnaSayfaScreen() {
     } else {
       rollDice(new Set(previousIds));
     }
+  }
+
+  /**
+   * Kullanıcı isteği (2026-07-20): puanlamanın tersi bir sinyal — bu kombini beğenmediğini
+   * kaydedip yerine yenisini öner. Kaydedilmemiş (rating hiç verilmeyen) kombinler için de
+   * kişiselleştirmeye veri sağlar (bkz. useRecordDislike, generate-outfit'teki dislikeNote).
+   */
+  function dislikeAndRetry() {
+    if (userId && generatedItems) {
+      recordDislike.mutate({ userId, itemIds: generatedItems.map((item) => item.id), context: generatedContext });
+    }
+    retry();
   }
 
   async function handleLike() {
@@ -587,6 +601,14 @@ export default function AnaSayfaScreen() {
                       onPress={retry}
                     />
                   </View>
+                  <Pressable
+                    onPress={dislikeAndRetry}
+                    disabled={limitReached || generating}
+                    className={`w-12 items-center justify-center rounded-2xl border border-gray-300 dark:border-gray-600 ${
+                      limitReached || generating ? 'opacity-40' : ''
+                    }`}>
+                    <Ionicons name="thumbs-down-outline" size={18} color="#9BA1A6" />
+                  </Pressable>
                 </View>
                 {hasWishlistItem && (
                   <Text className="text-center font-body text-xs text-gray-500 dark:text-gray-400">

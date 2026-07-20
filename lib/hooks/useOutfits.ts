@@ -279,6 +279,31 @@ export function useRateOutfit() {
   });
 }
 
+/**
+ * Kullanıcı geri bildirimi (2026-07-20): AI/Zar sonucunu beğenmediğinde bir sinyal
+ * toplansın — puanlamanın tersi, kaydedilmeyen kombinler için de kayıp veri kalmasın diye.
+ * Append-only log, `generate-outfit` bunu geçmiş renk/marka tercihlerinin tersine bir
+ * "kaçın" sinyali olarak okuyor (bkz. outfit_dislikes tablosu).
+ */
+export function useRecordDislike() {
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      itemIds,
+      context,
+    }: {
+      userId: string;
+      itemIds: string[];
+      context: OutfitContext;
+    }) => {
+      const { error } = await supabase
+        .from('outfit_dislikes')
+        .insert({ user_id: userId, item_ids: itemIds, context });
+      if (error) throw error;
+    },
+  });
+}
+
 export function useMarkWorn() {
   const queryClient = useQueryClient();
   return useMutation({

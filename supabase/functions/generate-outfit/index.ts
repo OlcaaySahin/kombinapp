@@ -272,6 +272,33 @@ Deno.serve(async (req: Request) => {
   const topColors = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
   const topBrands = [...brandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name]) => name);
 
+  // Beğenmeme sinyali (2026-07-20) — rating'in tersi: kullanıcı "Tekrar Dene" öncesi 👎 basarsa
+  // outfit_dislikes'a düşen renk/marka tercihleri, tercih sinyalinin TERSİ (kaçın) olarak kullanılır.
+  // Rating akışıyla aynı desen: en az 3 kayıt olmadan devreye girmez, bağlamı asla ezmez.
+  const { data: dislikeRows } = await supabase
+    .from('outfit_dislikes')
+    .select('item_ids')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(15);
+
+  const dislikedItemIds = (dislikeRows ?? []).flatMap((row: { item_ids: string[] }) => row.item_ids ?? []);
+  const dislikedColorCounts = new Map<string, number>();
+  const dislikedBrandCounts = new Map<string, number>();
+  if (dislikedItemIds.length > 0) {
+    const { data: dislikedItems } = await supabase
+      .from('items')
+      .select('color, brand')
+      .in('id', dislikedItemIds.slice(0, 60));
+    for (const item of dislikedItems ?? []) {
+      const colorName = closestColorName(item.color);
+      if (colorName) dislikedColorCounts.set(colorName, (dislikedColorCounts.get(colorName) ?? 0) + 1);
+      if (item.brand) dislikedBrandCounts.set(item.brand, (dislikedBrandCounts.get(item.brand) ?? 0) + 1);
+    }
+  }
+  const topDislikedColors = [...dislikedColorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
+  const topDislikedBrands = [...dislikedBrandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name]) => name);
+
   const systemPrompt = `Sen deneyimli bir moda stilistisin. Kullanıcının envanterinden, verilen bağlama (mevsim, hava durumu, mekan, saat, konsept) EN UYGUN ve stil olarak TUTARLI bir kombin seçiyorsun. Kurallara sıkı sıkıya uy:
 
 1. Sadece envanterde var olan ürün id'lerini kullan, envanterde olmayan bir şey uydurma.
@@ -309,7 +336,16 @@ Deno.serve(async (req: Request) => {
         }. Mümkünse bu tercihlere hafifçe öncelik ver — ama bağlama uygunluk (mevsim/mekan/konsept) her zaman daha önemli, sırf geçmiş tercih diye uygunsuz bir parça seçme.`
       : '';
 
-  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}${userNoteBlock}${ratingNote}`;
+  const dislikeNote =
+    dislikeRows && dislikeRows.length >= 3 && (topDislikedColors.length > 0 || topDislikedBrands.length > 0)
+      ? `\n\nKullanıcının daha önce "Tekrar Dene" ile beğenmediğini belirttiği kombinlerde öne çıkan: ${
+          topDislikedColors.length ? `renkler: ${topDislikedColors.join(', ')}` : ''
+        }${topDislikedColors.length && topDislikedBrands.length ? '; ' : ''}${
+          topDislikedBrands.length ? `markalar: ${topDislikedBrands.join(', ')}` : ''
+        }. Mümkünse bunlardan kaçın — ama bağlama uygunluk her zaman daha önemli, sırf bu listede diye uygun bir parçayı eleme.`
+      : '';
+
+  const userPrompt = `Bağlam: ${JSON.stringify(context)}\n\nEnvanter:\n${JSON.stringify(itemsWithColorNames, null, 2)}${excludeNote}${profileNote}${userNoteBlock}${ratingNote}${dislikeNote}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
