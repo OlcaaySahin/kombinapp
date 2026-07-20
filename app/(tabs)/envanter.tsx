@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
@@ -34,17 +34,25 @@ export default function EnvanterScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { data: allItems, isLoading: itemsLoading, isError: itemsError } = useItems();
+  const { data: allItems, isLoading: itemsLoading, isError: itemsError, refetch: refetchItems, isRefetching: itemsRefetching } = useItems();
   const deleteItem = useDeleteItem();
   const archiveItem = useArchiveItem();
   const archiveItems = useArchiveItems();
   const deleteItems = useDeleteItems();
-  const { data: wishlistItems, isLoading: wishlistLoading, isError: wishlistError } = useWishlistItems();
+  const {
+    data: wishlistItems,
+    isLoading: wishlistLoading,
+    isError: wishlistError,
+    refetch: refetchWishlist,
+    isRefetching: wishlistRefetching,
+  } = useWishlistItems();
   const deleteWishlistItem = useDeleteWishlistItem();
   const markPurchased = useMarkWishlistItemPurchased();
 
   const isLoading = tab === 'envanter' ? itemsLoading : wishlistLoading;
   const isError = tab === 'envanter' ? itemsError : wishlistError;
+  const isRefetching = tab === 'envanter' ? itemsRefetching : wishlistRefetching;
+  const handleRefresh = tab === 'envanter' ? refetchItems : refetchWishlist;
 
   function handleEnvanterLongPress(item: DbItem) {
     setEnvanterSheetItem(item);
@@ -173,15 +181,22 @@ export default function EnvanterScreen() {
       )}
 
       {isError && (
-        <View className="flex-1 items-center justify-center px-10">
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}>
           <Text className="text-center font-body text-gray-500 dark:text-gray-400">
             {tab === 'envanter' ? 'Envanter yüklenirken bir sorun oluştu.' : 'İstek listesi yüklenirken bir sorun oluştu.'}
           </Text>
-        </View>
+          <Text className="mt-1 text-center font-body text-xs text-gray-400 dark:text-gray-500">
+            Yenilemek için aşağı çek.
+          </Text>
+        </ScrollView>
       )}
 
       {!isLoading && !isError && visibleList.length === 0 && (
-        <View className="flex-1 items-center justify-center px-10">
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}>
           <Ionicons name={tab === 'envanter' ? 'shirt-outline' : 'heart-outline'} size={40} color="#9BA1A6" />
           <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
             {tab === 'envanter' ? 'Dolabın henüz boş' : 'İstek listen henüz boş'}
@@ -191,7 +206,7 @@ export default function EnvanterScreen() {
               ? 'Sağ üstteki + butonuyla ilk ürününü ekle.'
               : 'Almak istediğin ürünleri ekle, Ana Sayfa\'dan onlarla kombin denemesi yapabilirsin.'}
           </Text>
-        </View>
+        </ScrollView>
       )}
 
       {!isLoading && !isError && tab === 'envanter' && items.length > 0 && (
@@ -205,6 +220,7 @@ export default function EnvanterScreen() {
             paddingTop: 12,
             paddingBottom: selectionMode ? 100 : 32,
           }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}
           renderItem={({ item }) => (
             <ItemCard
               item={item}
@@ -255,6 +271,7 @@ export default function EnvanterScreen() {
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between' }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}
           renderItem={({ item }) => (
             <ItemCard
               item={item}

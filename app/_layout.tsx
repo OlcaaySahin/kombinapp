@@ -14,7 +14,7 @@ import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { bootstrapSession } from '@/lib/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { syncReminderFromPreferences } from '@/lib/notifications';
-import { queryClient } from '@/lib/queryClient';
+import { installQueryFocusManager, queryClient } from '@/lib/queryClient';
 import { initSentry } from '@/lib/sentry';
 import { applyStoredThemePreference, installThemeGuard } from '@/lib/theme';
 
@@ -46,6 +46,8 @@ export default function RootLayout() {
     applyStoredThemePreference();
     // Manuel tema tercihi, Activity açan işlemler (foto seçici vb.) sonrası ezilmesin.
     installThemeGuard();
+    // Uygulama arka plandan öne gelince stale sorguları otomatik yenile (bkz. lib/queryClient.ts).
+    return installQueryFocusManager();
   }, []);
 
   useEffect(() => {

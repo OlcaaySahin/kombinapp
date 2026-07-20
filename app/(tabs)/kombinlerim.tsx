@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionSheetModal } from '@/components/ui/ActionSheetModal';
@@ -68,11 +68,22 @@ export default function KombinlerimScreen() {
   const wearSheetOutfitId =
     (worn.data ?? []).find((wear: WearEventData) => wear.id === wearSheetId)?.outfitId ?? null;
 
-  const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading;
+  const isLoading = tab === 'gecmis' ? worn.isLoading : liked.isLoading || packingLists.isLoading;
+  const isError = tab === 'gecmis' ? worn.isError : liked.isError || packingLists.isError;
+  const isRefetching = tab === 'gecmis' ? worn.isRefetching : liked.isRefetching || packingLists.isRefetching;
   const isEmpty =
     tab === 'gecmis'
       ? (worn.data ?? []).length === 0
       : (liked.data ?? []).length === 0 && (packingLists.data ?? []).length === 0;
+
+  function handleRefresh() {
+    if (tab === 'gecmis') {
+      worn.refetch();
+    } else {
+      liked.refetch();
+      packingLists.refetch();
+    }
+  }
 
   // Kombin çiftleri: partner kombini pair_outfit_id ile ana kombine işaret eder. İkisi de
   // listedeyse tek bir "Kombin Çifti" bloğunda birlikte gösterilir; ana kombin listede yoksa
@@ -244,8 +255,24 @@ export default function KombinlerimScreen() {
         </View>
       )}
 
-      {!isLoading && isEmpty && (
-        <View className="flex-1 items-center justify-center px-10">
+      {!isLoading && isError && (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}>
+          <Ionicons name="cloud-offline-outline" size={40} color="#9BA1A6" />
+          <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
+            {tab === 'gecmis' ? 'Geçmiş yüklenirken bir sorun oluştu.' : 'Kombinler yüklenirken bir sorun oluştu.'}
+          </Text>
+          <Text className="mt-1 text-center font-body text-sm text-gray-500 dark:text-gray-400">
+            Yenilemek için aşağı çek.
+          </Text>
+        </ScrollView>
+      )}
+
+      {!isLoading && !isError && isEmpty && (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}>
           <Ionicons name="heart-outline" size={40} color="#9BA1A6" />
           <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
             {tab === 'gecmis' ? 'Henüz giydiğin bir kombin yok' : 'Henüz beğendiğin bir kombin yok'}
@@ -255,11 +282,13 @@ export default function KombinlerimScreen() {
               ? 'Beğendiğin bir kombini "Giydim" olarak işaretlediğinde burada görünecek.'
               : "Ana Sayfa'dan bir kombin oluştur."}
           </Text>
-        </View>
+        </ScrollView>
       )}
 
-      {!isLoading && !isEmpty && tab === 'gecmis' && (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+      {!isLoading && !isError && !isEmpty && tab === 'gecmis' && (
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}>
           {(worn.data ?? []).map((wear: WearEventData) => (
             <WearEventCard
               key={wear.id}
@@ -271,8 +300,10 @@ export default function KombinlerimScreen() {
         </ScrollView>
       )}
 
-      {!isLoading && !isEmpty && tab === 'begenilen' && (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
+      {!isLoading && !isError && !isEmpty && tab === 'begenilen' && (
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#3461FD" />}>
           {begenilenEntries.map((entry) => {
             if (entry.kind === 'bavul') {
               return <View key={entry.plan.id}>{renderBavulCard(entry.plan)}</View>;

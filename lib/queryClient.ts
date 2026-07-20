@@ -1,4 +1,5 @@
-import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, focusManager } from '@tanstack/react-query';
+import { AppState, Platform } from 'react-native';
 
 import { useNetworkStore } from '@/lib/stores/networkStore';
 
@@ -34,3 +35,20 @@ export const queryClient = new QueryClient({
     onSuccess: () => useNetworkStore.getState().setOffline(false),
   }),
 });
+
+/**
+ * React Query'nin "pencere odağa gelince yenile" özelliği tarayıcı 'visibilitychange' olayına
+ * dayanır ve React Native'de kendiliğinden hiç tetiklenmez — bu yüzden uygulama arka plandan
+ * öne gelse bile stale sorgular sessizce eskimiş kalıyordu (pull-to-refresh eklenene kadar
+ * kullanıcının tek çaresi ekranı terk edip geri dönmekti, o da her zaman yeterli olmuyordu).
+ * AppState'i focusManager'a bağlamak bunu düzeltiyor — yeni bağımlılık gerekmiyor, react-query
+ * ve react-native'in kendi resmi entegrasyon deseni.
+ */
+export function installQueryFocusManager() {
+  const subscription = AppState.addEventListener('change', (status) => {
+    if (Platform.OS !== 'web') {
+      focusManager.setFocused(status === 'active');
+    }
+  });
+  return () => subscription.remove();
+}

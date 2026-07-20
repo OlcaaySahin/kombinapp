@@ -749,4 +749,18 @@ Kullanıcı sordu: "bu premium ile ilgili iyileştirmeleri yapmak için revenuec
 - İstek listesi (`add-wishlist-item.tsx`) bilinçli olarak sınırsız bırakıldı — kullanıcının planı sadece "envantere ürün ekleme"den bahsediyordu, istek listesi ayrı bir tablo/kavram.
 - Doğrulama: `tsc`/`jest`/`expo export -p web` temiz geçti. Yeni bir DB şeması/Edge Function değişikliği olmadığı (sadece client-side JS koşulları, zaten var olan `generation_events` mekanizmasının ne zaman çağrıldığını değiştiriyor) için ayrıca canlı Supabase testi gerekmedi.
 
+## Proaktif UX İyileştirmesi: Pull-to-Refresh + Arka Plan Yenileme + Hata/Boş Ayrımı (2026-07-20 devamı)
+Kullanıcı meşgul olduğu için "iyileştirme gereği duyduğun şeyleri bana sor, onayımla iyileştir" dedi — kod taraması yaptım, iki gerçek ve somut eksik buldum, onay alıp uyguladım:
+
+1. **Hiçbir ekranda pull-to-refresh yoktu** (Envanter, Kombinlerim, Galeri, Ana Sayfa). Üstüne, React Query'nin "pencere odağa gelince otomatik yenile" özelliği tarayıcının `visibilitychange` olayına dayanıyor ve React Native'de kendiliğinden HİÇ tetiklenmiyor — bizde bunu React Native'in `AppState`'ine bağlayan bir kurulum da yoktu. Sonuç: kullanıcı (ör. partnerinden gelen bir değişikliği) görmek için ekranı terk edip geri dönmek zorundaydı, 60sn'lik `staleTime` yüzünden bu bile her zaman yetmiyordu.
+2. **Kombinlerim'de (ve fark edilince Galeri'de de) sorgu hatası, "boş" durumuyla birebir aynı görünüyordu** — `isEmpty` sadece `.data ?? []` uzunluğuna bakıyordu, başarısız bir sorguda `data` `undefined` olup `[]`'e düşüyor, kullanıcı gerçekte bir şeyin bozulduğunu hiç anlamadan "henüz hiç kombinim yok" sanıyordu. Envanter'de bu ayrım zaten vardı, Kombinlerim/Galeri'de unutulmuştu.
+
+**Yapılanlar**:
+- `lib/queryClient.ts` → yeni `installQueryFocusManager()`: `AppState`'i react-query'nin `focusManager`'ına bağlıyor (resmi react-query + react-native entegrasyon deseni, yeni bağımlılık yok). `app/_layout.tsx`'teki mount effect'inden `installThemeGuard()` ile aynı yerde çağrılıyor, temizlik fonksiyonu `useEffect`'in return'ünden dönüyor.
+- **Envanter, Kombinlerim, Galeri, Ana Sayfa (sadece `screen === 'idle'`)**: ilgili sorguların `refetch`/`isRefetching`'i alınıp RN'nin yerleşik `RefreshControl`'üyle (`tintColor="#3461FD"`) bağlandı — hem dolu liste hem boş/hata durumundaki `ScrollView`'lara (öncesinde bazıları düz `View`'dı, pull-to-refresh alabilsin diye `ScrollView`'a çevrildi).
+- **Kombinlerim + Galeri**: `isError` ayrı bir dal olarak eklendi (Envanter'deki desenle aynı) — artık "yüklenirken sorun oluştu, aşağı çek" ile "henüz hiç yok" birbirinden ayrılıyor.
+- Ana Sayfa'da idle ekranındaki dört veri kaynağı (envanter, istek listesi, beğenilen kombinler, giydim kayıtları) tek bir `refreshIdle()` ile birlikte yenileniyor; soru/sonuç ekranlarında `refreshControl` hiç verilmiyor (`undefined`) — orada "yenilenecek" bir liste yok, pull-to-refresh anlamsız ve yanlışlıkla tetiklenebilirdi.
+
+Doğrulama: `tsc`/`jest`/`expo export -p web` temiz geçti. Saf client-side/UI değişikliği (yeni sorgu yok, var olan `refetch()`'ler çağrılıyor) olduğu için canlı Supabase testi gerekmedi — cihazda gerçek bir pull-to-refresh jestiyle henüz denenmedi.
+
 Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` sırasıyla temiz geçti, `dist/` silindi. Görsel/config değişikliği olduğu için canlı DB testi gerekmedi; yeni ikon/splash'in gerçek cihazda nasıl göründüğü bir sonraki build'de doğrulanmalı.

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StarRating } from '@/components/ui/StarRating';
@@ -37,8 +37,28 @@ export default function GaleriScreen() {
         </View>
       )}
 
-      {!worn.isLoading && photos.length === 0 && (
-        <View className="flex-1 items-center justify-center px-10">
+      {!worn.isLoading && worn.isError && (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}
+          refreshControl={
+            <RefreshControl refreshing={worn.isRefetching} onRefresh={() => worn.refetch()} tintColor="#3461FD" />
+          }>
+          <Ionicons name="cloud-offline-outline" size={40} color="#9BA1A6" />
+          <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
+            Galeri yüklenirken bir sorun oluştu.
+          </Text>
+          <Text className="mt-1 text-center font-body text-sm text-gray-500 dark:text-gray-400">
+            Yenilemek için aşağı çek.
+          </Text>
+        </ScrollView>
+      )}
+
+      {!worn.isLoading && !worn.isError && photos.length === 0 && (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}
+          refreshControl={
+            <RefreshControl refreshing={worn.isRefetching} onRefresh={() => worn.refetch()} tintColor="#3461FD" />
+          }>
           <Ionicons name="images-outline" size={40} color="#9BA1A6" />
           <Text className="mt-3 text-center font-body-medium text-base text-gray-700 dark:text-gray-300">
             Henüz fotoğraflı bir kombin anın yok
@@ -47,16 +67,19 @@ export default function GaleriScreen() {
             Bir kombini "Giydim" olarak işaretlerken fotoğraf eklersen burada birikir — kendi stil
             albümün.
           </Text>
-        </View>
+        </ScrollView>
       )}
 
-      {!worn.isLoading && photos.length > 0 && (
+      {!worn.isLoading && !worn.isError && photos.length > 0 && (
         <FlatList
           data={photos}
           keyExtractor={(wear) => wear.id}
           numColumns={3}
           columnWrapperStyle={{ gap: 4 }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 4 }}
+          refreshControl={
+            <RefreshControl refreshing={worn.isRefetching} onRefresh={() => worn.refetch()} tintColor="#3461FD" />
+          }
           renderItem={({ item: wear }) => (
             <Pressable onPress={() => setSelected(wear)} className="flex-1 overflow-hidden rounded-xl" style={{ maxWidth: '33%' }}>
               <Image source={{ uri: wear.photoUrl! }} className="aspect-square w-full" resizeMode="cover" />

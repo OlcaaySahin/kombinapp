@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeIdleContent } from '@/components/home/HomeIdleContent';
@@ -61,12 +61,12 @@ type Source = 'ai_generated' | 'dice';
 
 export default function AnaSayfaScreen() {
   const userId = useAuthStore((state) => state.userId);
-  const { data: items } = useItems();
+  const { data: items, refetch: refetchItems, isRefetching: itemsRefetching } = useItems();
   // Arşivlenmemiş ürünler — kombin havuzlarının varsayılanı. Arşivli ürünler sadece
   // soru ekranındaki "Arşivdekileri de dahil et" işaretlenirse havuza girer (zar asla).
   const activeItems = useMemo(() => (items ?? []).filter((item: DbItem) => !item.is_archived), [items]);
   const archivedCount = (items?.length ?? 0) - activeItems.length;
-  const { data: wishlistItems } = useWishlistItems();
+  const { data: wishlistItems, refetch: refetchWishlist, isRefetching: wishlistRefetching } = useWishlistItems();
   const wishlistIdSet = useMemo(
     () => new Set((wishlistItems ?? []).map((item: DbWishlistItem) => item.id)),
     [wishlistItems]
@@ -140,6 +140,16 @@ export default function AnaSayfaScreen() {
   const count = dailyCount.data ?? 0;
   // Sadece AI kombin üretimini (generateViaAi) etkiler — Zar At (rollDice) bundan bağımsız.
   const aiLimitReached = DAILY_LIMIT_ENABLED && count >= DAILY_LIMIT;
+
+  // Idle ekranındaki pull-to-refresh — orada gösterilen tüm veri kaynaklarını birlikte yeniler.
+  const idleRefetching =
+    itemsRefetching || wishlistRefetching || likedOutfits.isRefetching || wornOutfits.isRefetching;
+  function refreshIdle() {
+    refetchItems();
+    refetchWishlist();
+    likedOutfits.refetch();
+    wornOutfits.refetch();
+  }
 
   // "Karıştır" ile tek parça değiştirirken ayni parçanın slotunda daha önce denenmiş
   // ürünleri hariç tutmak için — her yeni kombin üretiminde sıfırlanır.
@@ -470,7 +480,13 @@ export default function AnaSayfaScreen() {
         className="absolute -right-6 top-24 h-28 w-28 rounded-full bg-accent-purple/10 dark:bg-accent-purple/15"
         pointerEvents="none"
       />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        refreshControl={
+          screen === 'idle' ? (
+            <RefreshControl refreshing={idleRefetching} onRefresh={refreshIdle} tintColor="#3461FD" />
+          ) : undefined
+        }>
         <View className="pb-6 pt-2">
           <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Bugün ne giysem?</Text>
           <Text className="mt-1 font-body text-gray-500 dark:text-gray-400">
