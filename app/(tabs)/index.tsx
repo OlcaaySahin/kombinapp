@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeIdleContent } from '@/components/home/HomeIdleContent';
@@ -34,6 +34,7 @@ import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
 import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
+import { detectWeatherFromLocation } from '@/lib/weather';
 
 const MEVSIM = ['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'];
 const MEKAN = ['Şehir içi', 'Ofis', 'Deniz/Tatil', 'Ev'];
@@ -117,6 +118,7 @@ export default function AnaSayfaScreen() {
   const [saat, setSaat] = useState<string | null>(null);
   const [konsept, setKonsept] = useState<string | null>(null);
   const [hava, setHava] = useState<string | null>(null);
+  const [detectingWeather, setDetectingWeather] = useState(false);
   const [note, setNote] = useState('');
   const [includeWishlist, setIncludeWishlist] = useState(false);
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -253,6 +255,28 @@ export default function AnaSayfaScreen() {
     setPartnerSaved(false);
     setPartnerSavedOutfitId(null);
     setPartnerRating(null);
+  }
+
+  /**
+   * "Konumumu Kullan" — hava chip'ini elle seçmek yerine, cihazın konumundan gerçek hava
+   * durumunu çekip otomatik seçiyor. Asla zorunlu değil: izin reddi/ağ hatası durumunda
+   * sessizce null döner, kullanıcı chip'lerden elle seçmeye devam edebilir.
+   */
+  async function handleDetectWeather() {
+    setDetectingWeather(true);
+    try {
+      const detected = await detectWeatherFromLocation();
+      if (detected) {
+        setHava(detected);
+      } else {
+        showAlert(
+          'Hava durumu alınamadı',
+          'Konum izni verilmediyse veya bağlantı sorunuysa aşağıdan elle seçebilirsin.'
+        );
+      }
+    } finally {
+      setDetectingWeather(false);
+    }
   }
 
   function rollDice(excludeIds?: Set<string>) {
@@ -523,6 +547,19 @@ export default function AnaSayfaScreen() {
           <View>
             <OptionChipRow label="Mevsim" options={MEVSIM} value={mevsim} onChange={setMevsim} />
             <OptionChipRow label="Hava" options={HAVA} value={hava} onChange={setHava} />
+            <Pressable
+              onPress={handleDetectWeather}
+              disabled={detectingWeather}
+              className="mb-5 -mt-3 flex-row items-center gap-1.5 self-start">
+              {detectingWeather ? (
+                <ActivityIndicator size="small" color="#3461FD" />
+              ) : (
+                <Ionicons name="location-outline" size={14} color="#3461FD" />
+              )}
+              <Text className="font-body-medium text-xs text-primary">
+                {detectingWeather ? 'Konumun alınıyor...' : 'Konumumu kullan'}
+              </Text>
+            </Pressable>
             <OptionChipRow label="Mekan" options={MEKAN} value={mekan} onChange={setMekan} />
             <OptionChipRow label="Saat" options={SAAT} value={saat} onChange={setSaat} />
             <OptionChipRow label="Konsept" options={KONSEPT} value={konsept} onChange={setKonsept} />

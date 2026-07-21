@@ -30,7 +30,13 @@
     "plugins": [
       "expo-router",
       "@react-native-google-signin/google-signin",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Hava durumuna göre kombin önerebilmek için konumunu kullanabiliriz."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
