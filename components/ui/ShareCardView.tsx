@@ -275,7 +275,7 @@ function ItemTile({
         )}
       </View>
       <View className="mt-1 self-center rounded-full px-2 py-0.5" style={{ backgroundColor: config.chipBg }}>
-        <Text numberOfLines={1} className="text-center font-body text-[9px]" style={{ color: config.mutedTextColor }}>
+        <Text numberOfLines={1} className="text-center font-body text-[9px]" style={{ color: config.chipTextColor }}>
           {item.name ?? ''}
         </Text>
       </View>

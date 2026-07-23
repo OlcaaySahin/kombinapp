@@ -109,7 +109,10 @@ export default function EnvanterScreen() {
 
   const items = useMemo(() => {
     const list: DbItem[] = allItems ?? [];
-    return selected ? list.filter((item: DbItem) => item.slot === selected) : list;
+    const filtered = selected ? list.filter((item: DbItem) => item.slot === selected) : list;
+    // Arşivlenmiş ürünler (soluk + rozetli) listenin en altında gruplanır — Array.sort
+    // stabil olduğu için her grup kendi içinde mevcut sırasını (ör. son eklenen üstte) korur.
+    return [...filtered].sort((a: DbItem, b: DbItem) => Number(a.is_archived) - Number(b.is_archived));
   }, [allItems, selected]);
 
   const wishlist = useMemo(() => {

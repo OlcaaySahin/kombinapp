@@ -811,3 +811,22 @@ Play Console hesabı açılırken ("BOC Styling", kimlik doğrulaması sürüyor
 Doğrulama: `tsc`/`jest`/`expo export -p web` temiz geçti. RLS'e dayanan partner-rozeti kısmı, zaten canlı test edilmiş "Accepted partner can view profile" policy'sinin ek kolon içermesi dışında yeni bir davranış eklemediği için ayrıca canlı test edilmedi. Cihazda henüz denenmedi.
 
 Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` sırasıyla temiz geçti, `dist/` silindi. Görsel/config değişikliği olduğu için canlı DB testi gerekmedi; yeni ikon/splash'in gerçek cihazda nasıl göründüğü bir sonraki build'de doğrulanmalı.
+
+## Ekran Görüntüsü Turu + 4 Küçük Düzeltme + Play Store Görselleri (2026-07-23)
+Kullanıcı Premium ekranı, Envanter, Kombinini Paylaş ve kombin sonucu ekranlarından 8 ekran görüntüsü paylaştı — bunlar teyit amaçlıydı (Premium UI/UX'in cihazda beklendiği gibi çalıştığını doğrulamak için), ancak bazıları Play Store mağaza listesi için doğrudan kullanılabilir kalitede (Premium tablosu, kombin sonucu + paylaşım kartı önizlemeleri gibi), bazıları ise dev-test durumları (envanter limit banner'ı, aşağıdaki arşiv-sıralama bug'ı) gösteriyordu — o yüzden mağaza listesi için ekran görüntüleri, bug düzeltmeleri sonrası yeniden ve temiz alınmalı.
+
+Ekran görüntülerinden 2 gerçek bug tespit edildi + kullanıcı 1 veri düzeltmesi istedi, hepsi uygulandı:
+
+1. **Envanter'de arşivlenmiş ürünler listenin ortasında/başında çıkabiliyordu**: kullanıcı isteği "arşivlenenler envanterde en altta olmalı" — `app/(tabs)/envanter.tsx`'teki `items` useMemo'sunda filtrelemeden sonra `Array.prototype.sort((a,b) => Number(a.is_archived) - Number(b.is_archived))` eklendi. JS'in sort'u stabil olduğu için (ES2019+) her iki grup (arşivsiz/arşivli) kendi içinde eski sırasını (ör. son eklenen üstte) koruyor, sadece iki grup birbirine göre yeniden diziliyor.
+2. **Paylaşım kartlarında "Güneşli Brunch" şablonunda ürün isimleri okunamıyordu**: kök neden `components/ui/ShareCardView.tsx`'teki `ItemTile` bileşeni, ürün ismi pill'inin metin rengini `config.chipTextColor` (pill arka planıyla EŞLEŞMESİ gereken renk) yerine `config.mutedTextColor` (kartın GENEL zeminiyle eşleşen renk) kullanıyordu. 15 şablonun çoğunda pill arka planı yarı-saydam olduğu için bu fark görünmüyordu (mutedTextColor zaten kart zeminiyle uyumluydu), ama "Güneşli Brunch" şablonu pill arka planını SOLİD `#FF4757` (mercan) yapıyordu — solid mercan üzerinde `mutedTextColor: '#8A7A52'` (koyu hardal) neredeyse aynı tonda kalıp okunaksızlaşıyordu. Düzeltme: `ItemTile`'daki metin rengi `config.chipTextColor`'a çevrildi (Chips() bileşeninin zaten yaptığı doğru eşleştirme) — diğer 14 şablonun hepsi (`chipBg`/`chipTextColor` çiftleri kontrol edilerek) bu değişiklikten ya etkilenmiyor ya da daha da yüksek kontrastlı hale geliyor, regresyon yok.
+3. **`busecivelek08@gmail.com` (Buse'nin hesabı) Premium'a çevrilecek** — bir önceki oturumda eklenen güvenlik kısıtı (`subscription_tier` kolonuna `authenticated` rolünden UPDATE yetkisi kaldırıldı) yüzünden client tarafından yazılamıyor, kullanıcıya SQL Editor'da çalıştırması için doğrudan sorgu verildi (bu oturumda service-role/Management API erişimi yoktu):
+   ```sql
+   update public.profiles
+   set subscription_tier = 'premium', subscription_expires_at = null
+   where id = (select id from auth.users where email = 'busecivelek08@gmail.com');
+   ```
+   `subscription_expires_at = null` → `isPremiumActive()` mantığında süresiz Premium anlamına geliyor.
+
+**Play Store görselleri üretildi** (`sharp`, önceki ikon/splash üretim yöntemiyle aynı — proje bağımlılığı DEĞİL, sadece scratchpad'te izole script): `Look-PlayStore-Icon-512.png` (mevcut app ikonuyla birebir aynı tasarım, sadece 512x512'ye küçültülmüş) ve `Look-FeatureGraphic-1024x500.png` (marka mavisi zemin + beyaz "Look" wordmark + "Dolabından akıllı kombinler" sloganı + Ana Sayfa header'ındaki blob dekorasyonunun aynısı) — ikisi de `C:\Users\Admin\Downloads\`'a kaydedildi, Play Console → Store Listing'e doğrudan yüklenebilir.
+
+Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` sırasıyla temiz geçti, `dist/` silindi. Saf client-side/UI değişikliği (yeni sorgu/tablo yok) olduğu için canlı Supabase testi gerekmedi — Premium SQL'i kullanıcı SQL Editor'da kendisi çalıştıracak.
