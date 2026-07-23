@@ -779,4 +779,13 @@ Kullanıcı Play Store'da bulduğu iki benzer uygulama (**Whering**, **Acloset**
 
 Doğrulama: `tsc`/`jest`/`expo export -p web` temiz geçti. **Cihazda henüz denenmedi** — yeni native modül olduğu için bir sonraki EAS build'i bekliyor (aynı build'e Sentry de giriyor, birlikte test edilecek).
 
+**Cihazda doğrulandı (2026-07-21 devamı)**: kullanıcı `preview` profiliyle alınan APK'yı telefonuna kurup denedi — hava durumu konumdan gerçekten çalıştı, konum izni diyaloğu doğru çıktı. (Not: EAS CLI'nin arka planda çalıştırdığımız `--non-interactive` süreci exit code 4 ile sonlandı ve bir "failed" bildirimi düştü, ama bu CLI'nin kendi izleme/polling sürecine dair bir sorunmuş — build'in kendisi Expo sunucularında sorunsuz tamamlanmış, dashboard'dan indirilen APK gerçek ve çalışır durumdaydı. **Ders**: arka planda çalıştırılan `eas build` CLI çıktısının "failed" dönmesi, build'in kendisinin başarısız olduğu anlamına gelmeyebilir — asıl kaynak olan Expo dashboard/build log'una bakmadan CLI exit code'una güvenmemek gerekiyor.)
+
+## Google Play Store Yayın Hazırlığı: Kalan İşler + Sosyal Medya Kartı İsim Güncellemesi (2026-07-21)
+Kullanıcı: "deadlinemiz dolmak üzere", kalan işlerin listelenmesini + benden istenecek API key/bilgilerin listelenmesini istedi. Ayrıca paylaşım kartlarındaki (`components/ui/ShareCardView.tsx`) "Kombin App" imzası (5 yerde) **"Look"** olarak güncellendi — daha önce ("Marka metni" sorusunda) kullanıcı "şimdi değil" demişti, ama Play Store deadline'ı yaklaşınca bu kez açıkça istendi. `app/onboarding.tsx`'teki "Kombin App'e Hoş Geldin" başlığı bilinçli olarak DOKUNULMADI — kullanıcı sadece "sosyal medya kartları" dedi, onboarding'e dair yeni bir onay yok.
+
+Kod tarafında kalan iş listesi ve kullanıcıdan istenecek bilgiler için kullanıcıya sunulan checklist bu oturumun sohbet geçmişinde — özetle: Play App Signing sonrası Google Sign-In'in SHA-1 uyuşmazlığı riski (Play Console'un kendi imzalama sertifikası upload keystore'dan farklı olacağı için Google Cloud Console'a EK bir SHA-1 girilmesi gerekiyor), Data Safety formu, Play Console hesabı durumu teyidi, mağaza görselleri (ekran görüntüleri + feature graphic), ve RevenueCat'in ilk yayın için ZORUNLU olmadığı (ücretsiz-only başlayıp IAP'yi sonraki bir güncellemede eklenebileceği) netleştirildi.
+
+Doğrulama: `tsc`/`jest`/`expo export -p web` temiz geçti. Saf metin değişikliği, DB/Edge Function/native modül etkisi yok.
+
 Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` sırasıyla temiz geçti, `dist/` silindi. Görsel/config değişikliği olduğu için canlı DB testi gerekmedi; yeni ikon/splash'in gerçek cihazda nasıl göründüğü bir sonraki build'de doğrulanmalı.

@@ -463,7 +463,7 @@ export const ShareCardView = forwardRef<
               ))}
             </View>
             <Text className="mt-3 font-body text-[10px]" style={{ color: config.mutedTextColor }}>
-              Kombin App
+              Look
             </Text>
           </View>
         ) : config.layout === 'polaroid' ? (
@@ -493,14 +493,14 @@ export const ShareCardView = forwardRef<
                 </Text>
               )}
               <Text className="mt-3 font-body text-[10px]" style={{ color: config.mutedTextColor }}>
-                Kombin App
+                Look
               </Text>
             </View>
           </View>
         ) : config.layout === 'strip' ? (
           <View className="flex-1 px-6 py-5">
             <Text className="font-heading text-sm" style={{ color: config.textColor }}>
-              Kombin App
+              Look
             </Text>
             <View className="mt-1 mb-3">
               <Chips chips={contextChips} config={config} />
@@ -533,7 +533,7 @@ export const ShareCardView = forwardRef<
             <View className="flex-row items-center gap-1.5">
               <Ionicons name="sparkles" size={16} color={config.decorationColors[0]} />
               <Text className="font-heading-bold text-base" style={{ color: config.textColor }}>
-                Kombin App
+                Look
               </Text>
             </View>
             <Text className="mt-0.5 font-body text-[11px]" style={{ color: config.mutedTextColor }}>
@@ -598,7 +598,7 @@ export const ShareCardView = forwardRef<
 
             <View className="items-center pb-1">
               <Text className="font-body text-[10px]" style={{ color: config.mutedTextColor }}>
-                Dolabından akıllı kombinler · Kombin App
+                Dolabından akıllı kombinler · Look
               </Text>
             </View>
           </View>
