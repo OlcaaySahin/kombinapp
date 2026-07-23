@@ -122,7 +122,7 @@ export default function PremiumScreen() {
                 </View>
               )}
               <View className="w-14 items-center">
-                <Ionicons name="checkmark-circle" size={18} color="#B8860B" />
+                <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
               </View>
             </View>
           ))}

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert, showConfirm } from '@/lib/alert';
@@ -134,6 +134,10 @@ export default function ProfilScreen() {
         <Text className="font-heading-bold text-3xl text-gray-900 dark:text-white">Profil</Text>
       </View>
 
+      {/* Menü + tema + çıkış/hesap-silme bölümü ekran boyunu aşabiliyordu (küçük ekran/kalabalık
+          menü) ve ScrollView olmadığı için alttaki "Çıkış Yap" görünmez kalıyordu — kullanıcı
+          isteği (2026-07-23) üzerine tüm içerik kaydırılabilir hale getirildi. */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
       {isAnonymous ? (
         <Pressable
           onPress={() => router.push('/sign-in')}
@@ -243,6 +247,7 @@ export default function ProfilScreen() {
           </Pressable>
         </>
       )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

@@ -843,3 +843,12 @@ Kullanıcının 4 maddelik geri bildirimi, biri "araştır/açıkla" niteliğind
 4. **Beğenilenler'de "hızlı giydim" (yıldırım) butonu kaldırıldı, yerine silme butonu eklendi**: `lib/hooks/useOutfits.ts`'e yeni `useDeleteOutfit()` — `outfits` tablosunda zaten var olan "deletable by owner" RLS policy'sini kullanıyor, migration gerekmedi. `outfit_items`/`outfit_wears` FK'leri `on delete cascade` olduğu için ilişkili satırlar otomatik temizleniyor, `pair_outfit_id` (kombin çifti bağı) `on delete set null` olduğu için partner kombini bağımsız kalıyor (mevcut, zaten belgelenen davranış). `app/(tabs)/kombinlerim.tsx`'teki `handleQuickWear`/`useMarkWorn` kaldırıldı, yerine `showConfirm` ile onay alan `handleDeleteOutfit` — bu, arşivlemekten (geri getirilebilir) farklı olarak KALICI bir silme.
 
 Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` sırasıyla temiz geçti, `dist/` silindi. Yeni migration yok (mevcut RLS policy'ler yeterliydi), saf client-side değişiklik olduğu için canlı Supabase testi gerekmedi — özel hatırlatıcıların cihazda gerçekten heads-up bildirim olarak düştüğü bir sonraki testte doğrulanmalı (aynı Android kanal mekanizmasını kullanıyor, bilinen/test edilmiş boru hattı).
+
+## İki Küçük Düzeltme: Profil Scroll + Premium Tablo Yeşil Tik (2026-07-23 devamı)
+Kullanıcı "Çıkış Yap" bölümünün anonim olmayan hesapta bile kaybolmasının nedenini kendi teşhis etti: `app/(tabs)/profil.tsx`'te hiç `ScrollView` yoktu — menü + tema kartı + çıkış/hesap-silme bölümü ekran boyunu aşınca (küçük ekran veya kalabalık menüde) altta kalan kısım kaydırılamıyor, görünmez oluyordu. Düzeltme: tüm içerik (hesap kartından çıkış/hesap-silme butonlarına kadar) `ScrollView` içine alındı.
+
+Ayrıca `app/premium.tsx`'teki özellik tablosunda "Premium" sütunundaki onay tiki rengi altın (`#B8860B`) yerine yeşile (`#16A34A`, "Ücretsiz" sütunundaki tikle aynı renk) çevrildi — kullanıcı isteği.
+
+Abonelik bitiş tarihinin görünmemesi bir bug değildi: `busecivelek08@gmail.com` için `subscription_expires_at` `null` set edilmişti (= süresiz Premium, `isPremiumActive()` mantığında kasıtlı), kullanıcı bunun yerine 1 yıllık bir süre vermeyi tercih etti, kendisi Supabase'den güncelleyecek — kod tarafında zaten `subscription_expires_at` doluysa tarihi doğru gösteriyordu (`app/premium.tsx`), değişiklik gerekmedi.
+
+Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` temiz geçti, `dist/` silindi.
