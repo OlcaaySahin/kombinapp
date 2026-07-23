@@ -2,13 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
+import { isPremiumActive } from '@/lib/premium';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 export type PartnershipState =
   | { status: 'none' }
   | { status: 'pending_outgoing'; id: string; partnerName: string | null }
   | { status: 'pending_incoming'; id: string; partnerName: string | null }
-  | { status: 'accepted'; id: string; partnerId: string; partnerName: string | null; partnerGender: string | null };
+  | {
+      status: 'accepted';
+      id: string;
+      partnerId: string;
+      partnerName: string | null;
+      partnerGender: string | null;
+      partnerIsPremium: boolean;
+    };
 
 type RawPartnershipRow = {
   id: string;
@@ -38,13 +46,20 @@ export function usePartnership() {
       const otherId = row.requester_id === userId ? row.partner_id : row.requester_id;
       const { data: otherProfile } = await supabase
         .from('profiles')
-        .select('display_name, gender')
+        .select('display_name, gender, subscription_tier, subscription_expires_at')
         .eq('id', otherId)
         .maybeSingle();
       const partnerName = otherProfile?.display_name ?? null;
 
       if (row.status === 'accepted') {
-        return { status: 'accepted', id: row.id, partnerId: otherId, partnerName, partnerGender: otherProfile?.gender ?? null };
+        return {
+          status: 'accepted',
+          id: row.id,
+          partnerId: otherId,
+          partnerName,
+          partnerGender: otherProfile?.gender ?? null,
+          partnerIsPremium: isPremiumActive(otherProfile),
+        };
       }
       if (row.requester_id === userId) {
         return { status: 'pending_outgoing', id: row.id, partnerName };

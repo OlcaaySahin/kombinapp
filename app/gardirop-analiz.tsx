@@ -1,13 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TopWornOutfitRows } from '@/components/ui/TopWornOutfitRows';
 import { UnwornItemThumbs } from '@/components/ui/UnwornItemThumbs';
 import { getCategory } from '@/constants/categories';
 import { closestColorName, namedColorHex } from '@/lib/colorNames';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import { useWornOutfits, type WearEventData } from '@/lib/hooks/useOutfits';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { isPremiumActive } from '@/lib/premium';
+import { useAuthStore } from '@/lib/stores/authStore';
 import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
 
 // Renk dağılımı bilinçli olarak DÜZ View'lerle oranlı yatay bar (react-native-svg pasta
@@ -16,6 +21,9 @@ import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
 type ColorSlice = { name: string; count: number; hex: string };
 
 export default function GardiropAnalizScreen() {
+  const userId = useAuthStore((state) => state.userId);
+  const { data: profile } = useProfile(userId);
+  const isPremium = isPremiumActive(profile);
   const { data: items, isLoading: itemsLoading } = useItems();
   const worn = useWornOutfits();
 
@@ -53,13 +61,26 @@ export default function GardiropAnalizScreen() {
           Envanterinin renk dağılımı, en çok giydiğin kombinler ve hiç giymediklerin.
         </Text>
 
-        {isLoading && (
+        {!isPremium && (
+          <View className="items-center gap-3 rounded-2xl bg-amber-400/10 px-6 py-10">
+            <Ionicons name="lock-closed" size={32} color="#B8860B" />
+            <Text className="text-center font-body-semibold text-base text-gray-800 dark:text-gray-200">
+              Detaylı Gardırop Analizi Premium'da
+            </Text>
+            <Text className="mb-2 text-center font-body text-sm text-gray-500 dark:text-gray-400">
+              Renk/kategori dağılımı, en çok giydiklerin ve hiç giymediklerin için Premium'a geç.
+            </Text>
+            <PrimaryButton label="Premium'a Geç" onPress={() => router.push('/premium')} />
+          </View>
+        )}
+
+        {isPremium && isLoading && (
           <View className="items-center py-10">
             <ActivityIndicator color="#3461FD" />
           </View>
         )}
 
-        {!isLoading && itemList.length === 0 && (
+        {isPremium && !isLoading && itemList.length === 0 && (
           <View className="items-center px-6 py-10">
             <Ionicons name="shirt-outline" size={40} color="#9BA1A6" />
             <Text className="mt-3 text-center font-body text-sm text-gray-500 dark:text-gray-400">
@@ -68,7 +89,7 @@ export default function GardiropAnalizScreen() {
           </View>
         )}
 
-        {!isLoading && itemList.length > 0 && (
+        {isPremium && !isLoading && itemList.length > 0 && (
           <>
             <SectionTitle icon="color-palette-outline" title="Renk Dağılımı" />
             <View className="mb-3">

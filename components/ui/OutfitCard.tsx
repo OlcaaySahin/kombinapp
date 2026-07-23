@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 
 import { getCategory, type CategorySlot } from '@/constants/categories';
+import { PremiumBadge } from '@/components/ui/PremiumBadge';
 import { StarRating } from '@/components/ui/StarRating';
 import { buildOutfitPreviewUrl } from '@/lib/outfitPreview';
 
@@ -28,6 +29,7 @@ export function OutfitCard({
   onRate,
   onReplaceItem,
   genderIcon,
+  ownerIsPremium = false,
   previewEligible = false,
 }: {
   outfit: OutfitCardData;
@@ -35,6 +37,8 @@ export function OutfitCard({
   onReplaceItem?: (itemId: string) => void;
   /** Kombinin kimin (kendi/partner) gardırobundan olduğunu gösteren rozet — Kombinlerim'de kullanılıyor. */
   genderIcon?: 'kadın' | 'erkek' | null;
+  /** Kombinin sahibi (kendi/partner) Premium mı — cinsiyet rozetinin yanına küçük bir yıldız rozeti ekler. */
+  ownerIsPremium?: boolean;
   /**
    * Kullanıcı kararı (2026-07-19): AI önizleme sadece istek listesi (henüz sahip
    * olunmayan) ürün içeren ya da manuel oluşturulmuş kombinlerde anlamlı — tamamen
@@ -74,6 +78,7 @@ export function OutfitCard({
               />
             </View>
           )}
+          {ownerIsPremium && <PremiumBadge variant="icon" />}
           {previewEligible && (
             <Pressable
               onPress={togglePreview}

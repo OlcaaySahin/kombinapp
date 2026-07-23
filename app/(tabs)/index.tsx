@@ -31,6 +31,8 @@ import { generateRandomOutfit, inferTakiType } from '@/lib/outfitGenerator';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PartnerNoMatchError, requestPartnerOutfit } from '@/lib/partnerOutfit';
 import { useWishlistItems, type DbWishlistItem } from '@/lib/hooks/useWishlist';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { isPremiumActive } from '@/lib/premium';
 import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { topWornOutfits, unwornItems } from '@/lib/wardrobeInsights';
@@ -63,6 +65,8 @@ type Source = 'ai_generated' | 'dice';
 
 export default function AnaSayfaScreen() {
   const userId = useAuthStore((state) => state.userId);
+  const { data: profile } = useProfile(userId);
+  const isPremium = isPremiumActive(profile);
   const { data: items, refetch: refetchItems, isRefetching: itemsRefetching } = useItems();
   // Arşivlenmemiş ürünler — kombin havuzlarının varsayılanı. Arşivli ürünler sadece
   // soru ekranındaki "Arşivdekileri de dahil et" işaretlenirse havuza girer (zar asla).
@@ -384,6 +388,38 @@ export default function AnaSayfaScreen() {
     rateOutfit.mutate({ outfitId: savedOutfitId, rating: value });
   }
 
+  /** Bavul Hazırla Premium'da (2026-07-21 kullanıcı kararı) — kilitli-teaser desen. */
+  function handleBavulPress() {
+    if (!isPremium) {
+      showConfirm(
+        "Bavul Hazırla Premium'da",
+        'Seyahat için kapsül gardırop önerisi alabilmen için Premium\'a geçmen gerekiyor.',
+        () => router.push('/premium'),
+        "Premium'a Geç"
+      );
+      return;
+    }
+    router.push('/bavul-hazirla');
+  }
+
+  /**
+   * Kullanıcı kararı (2026-07-21): buton Premium olmayanlarda da GÖRÜNÜR kalsın (gizlenmesin) —
+   * tıklayınca kilitli olduğunu net bir şekilde söyleyip Premium'a yönlendirsin (teaser deseni,
+   * "Premium'a Yükselt" menüsündeki gibi tamamen gizlemek yerine merak/farkındalık yaratıyor).
+   */
+  function handlePartnerOutfitPress() {
+    if (!isPremium) {
+      showConfirm(
+        'Bu özellik Premium\'da',
+        'Partnerine uyumlu kombin önerebilmek için Premium\'a geçmen gerekiyor.',
+        () => router.push('/premium'),
+        "Premium'a Geç"
+      );
+      return;
+    }
+    generatePartnerOutfit();
+  }
+
   async function generatePartnerOutfit(relaxed = false) {
     if (!generatedItems) return;
     const requestVersion = outfitVersionRef.current;
@@ -533,7 +569,7 @@ export default function AnaSayfaScreen() {
               setIncludeWishlist(true);
               setScreen('questions');
             }}
-            onBavulPress={() => router.push('/bavul-hazirla')}
+            onBavulPress={handleBavulPress}
             onManualPress={() => router.push('/manuel-kombin')}
             activeItems={activeItems}
             likedOutfits={likedOutfits.data ?? []}
@@ -683,10 +719,10 @@ export default function AnaSayfaScreen() {
 
             {hasPartner && !partnerOutfitCardData && (
               <Pressable
-                onPress={() => generatePartnerOutfit()}
+                onPress={handlePartnerOutfitPress}
                 disabled={partnerGenerating}
                 className="flex-row items-center justify-center gap-2 rounded-2xl border border-primary py-4">
-                <Ionicons name="heart-outline" size={18} color="#3461FD" />
+                <Ionicons name={isPremium ? 'heart-outline' : 'lock-closed-outline'} size={18} color="#3461FD" />
                 <Text className="font-heading text-base text-primary">
                   {partnerGenerating ? 'Oluşturuluyor...' : 'Partnerime Uyumlu Kombin Öner'}
                 </Text>

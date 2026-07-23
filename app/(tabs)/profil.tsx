@@ -9,9 +9,11 @@ import { showAlert, showConfirm } from '@/lib/alert';
 import { deleteAccount, signOut } from '@/lib/auth';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { isPremiumActive } from '@/lib/premium';
 import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { getThemePreference, setThemePreference, type ThemePreference } from '@/lib/theme';
+import { PremiumBadge } from '@/components/ui/PremiumBadge';
 
 type MenuItem = {
   icon: ComponentProps<typeof Ionicons>['name'];
@@ -24,7 +26,8 @@ type MenuItem = {
     | '/arsivlerim'
     | '/ana-sayfa-tasarimi'
     | '/gizlilik-politikasi'
-    | '/geri-bildirim';
+    | '/geri-bildirim'
+    | '/premium';
   comingSoonMessage?: string;
 };
 
@@ -34,21 +37,23 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ComponentPro
   { value: 'dark', label: 'Koyu', icon: 'moon-outline' },
 ];
 
-const MENU_ITEMS: MenuItem[] = [
-  { icon: 'person-outline', label: 'Hesap Bilgileri', route: '/profile-edit' },
-  { icon: 'people-outline', label: 'Partner Eşleştirme', route: '/partner-eslesme' },
-  {
-    icon: 'star-outline',
-    label: "Premium'a Yükselt",
-    comingSoonMessage: 'Premium üyelik yakında burada olacak.',
-  },
-  { icon: 'grid-outline', label: 'Ana Sayfa Tasarımı', route: '/ana-sayfa-tasarimi' },
-  { icon: 'archive-outline', label: 'Arşivlerim', route: '/arsivlerim' },
-  { icon: 'notifications-outline', label: 'Bildirimler', route: '/bildirimler' },
-  { icon: 'help-circle-outline', label: 'Yardım', route: '/yardim' },
-  { icon: 'chatbox-ellipses-outline', label: 'Geri Bildirim Gönder', route: '/geri-bildirim' },
-  { icon: 'shield-checkmark-outline', label: 'Gizlilik Politikası', route: '/gizlilik-politikasi' },
-];
+function buildMenuItems(isPremium: boolean): MenuItem[] {
+  return [
+    { icon: 'person-outline', label: 'Hesap Bilgileri', route: '/profile-edit' },
+    { icon: 'people-outline', label: 'Partner Eşleştirme', route: '/partner-eslesme' },
+    {
+      icon: 'star-outline',
+      label: isPremium ? 'Premium Üyeliğim' : "Premium'a Yükselt",
+      route: '/premium',
+    },
+    { icon: 'grid-outline', label: 'Ana Sayfa Tasarımı', route: '/ana-sayfa-tasarimi' },
+    { icon: 'archive-outline', label: 'Arşivlerim', route: '/arsivlerim' },
+    { icon: 'notifications-outline', label: 'Bildirimler', route: '/bildirimler' },
+    { icon: 'help-circle-outline', label: 'Yardım', route: '/yardim' },
+    { icon: 'chatbox-ellipses-outline', label: 'Geri Bildirim Gönder', route: '/geri-bildirim' },
+    { icon: 'shield-checkmark-outline', label: 'Gizlilik Politikası', route: '/gizlilik-politikasi' },
+  ];
+}
 
 export default function ProfilScreen() {
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
@@ -61,6 +66,8 @@ export default function ProfilScreen() {
   const hasPendingPartnerRequest = partnership?.status === 'pending_incoming';
   // İsim kaydedilmişse başlıkta isim, altta e-posta; isim yoksa eskisi gibi e-posta başlıkta.
   const displayName = profile?.display_name?.trim() || null;
+  const isPremium = isPremiumActive(profile);
+  const menuItems = buildMenuItems(isPremium);
   const [themePref, setThemePref] = useState<ThemePreference>('system');
 
   useEffect(() => {
@@ -152,18 +159,21 @@ export default function ProfilScreen() {
             )}
           </View>
           <View className="ml-4 flex-1">
-            <Text className="font-body-semibold text-base text-gray-900 dark:text-white">
-              {displayName ?? email}
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="font-body-semibold text-base text-gray-900 dark:text-white">
+                {displayName ?? email}
+              </Text>
+              {isPremium && <PremiumBadge />}
+            </View>
             <Text className="font-body text-sm text-gray-500 dark:text-gray-400">
-              {displayName ? email : 'Ücretsiz Plan'}
+              {displayName ? email : isPremium ? 'Premium Plan' : 'Ücretsiz Plan'}
             </Text>
           </View>
         </View>
       )}
 
       <View className="mx-5 rounded-2xl bg-gray-50 dark:bg-gray-800">
-        {MENU_ITEMS.map((item, index) => (
+        {menuItems.map((item, index) => (
           <Pressable
             key={item.label}
             onPress={() =>
@@ -172,7 +182,7 @@ export default function ProfilScreen() {
                 : showAlert('Yakında', item.comingSoonMessage ?? 'Bu özellik yakında eklenecek.')
             }
             className={`flex-row items-center px-4 py-4 ${
-              index !== MENU_ITEMS.length - 1 ? 'border-b border-gray-200 dark:border-gray-700' : ''
+              index !== menuItems.length - 1 ? 'border-b border-gray-200 dark:border-gray-700' : ''
             }`}>
             <Ionicons name={item.icon} size={20} color="#687076" />
             <Text className="ml-3 flex-1 font-body text-gray-900 dark:text-gray-100">{item.label}</Text>

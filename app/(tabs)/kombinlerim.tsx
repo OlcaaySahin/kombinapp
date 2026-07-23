@@ -23,6 +23,7 @@ import {
 import { useDeletePackingList, usePackingLists, type DbPackingList } from '@/lib/hooks/usePackingLists';
 import { usePartnership } from '@/lib/hooks/usePartnership';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { isPremiumActive } from '@/lib/premium';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 type Tab = 'gecmis' | 'begenilen';
@@ -52,8 +53,10 @@ export default function KombinlerimScreen() {
   const { data: partnership } = usePartnership();
 
   const ownGenderIcon = toGenderIcon(profile?.gender);
+  const ownIsPremium = isPremiumActive(profile);
   const partnerGenderIcon =
     partnership?.status === 'accepted' ? toGenderIcon(partnership.partnerGender) : null;
+  const partnerIsPremium = partnership?.status === 'accepted' && partnership.partnerIsPremium;
 
   /** Kombinin item'ları kimin envanterindense (kendi/partner) o kişinin cinsiyet rozetini döndürür. */
   function genderIconFor(outfit: OutfitWithItems): 'kadın' | 'erkek' | null {
@@ -62,6 +65,15 @@ export default function KombinlerimScreen() {
     if (ownerId === userId) return ownGenderIcon;
     if (partnership?.status === 'accepted' && ownerId === partnership.partnerId) return partnerGenderIcon;
     return null;
+  }
+
+  /** Kombinin sahibi (kendi/partner) Premium mı — rozet göstermek için. */
+  function isPremiumFor(outfit: OutfitWithItems): boolean {
+    const ownerId = outfit.items[0]?.user_id;
+    if (!ownerId) return false;
+    if (ownerId === userId) return ownIsPremium;
+    if (partnership?.status === 'accepted' && ownerId === partnership.partnerId) return partnerIsPremium;
+    return false;
   }
 
   // Geçmiş eylem menüsündeki "Kombini Arşivle" için: seçili giydim kaydının kombin id'si.
@@ -192,6 +204,7 @@ export default function KombinlerimScreen() {
           }}
           onRate={(value) => rateOutfit.mutate({ outfitId: outfit.id, rating: value })}
           genderIcon={genderIconFor(outfit)}
+          ownerIsPremium={isPremiumFor(outfit)}
           previewEligible={outfit.generation_source === 'manual'}
         />
         <View className="mt-2 flex-row gap-2">

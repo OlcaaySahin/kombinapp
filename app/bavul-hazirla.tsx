@@ -17,6 +17,8 @@ import {
   type PackingDayOutfitRecord,
 } from '@/lib/hooks/usePackingLists';
 import { requestPackingList } from '@/lib/packing';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { isPremiumActive } from '@/lib/premium';
 import { captureException } from '@/lib/sentry';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -60,6 +62,8 @@ function averageRating(days: EditableDay[]): number | null {
 export default function BavulHazirlaScreen() {
   const { packingListId } = useLocalSearchParams<{ packingListId?: string }>();
   const userId = useAuthStore((state) => state.userId);
+  const { data: profile } = useProfile(userId);
+  const isPremium = isPremiumActive(profile);
   const { data: items } = useItems();
   const savedPlanQuery = usePackingList(packingListId ?? null);
   const createPackingList = useCreatePackingList();
@@ -260,6 +264,21 @@ export default function BavulHazirlaScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!isPremium) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center gap-3 bg-white px-8 dark:bg-[#151718]">
+        <Ionicons name="lock-closed" size={32} color="#B8860B" />
+        <Text className="text-center font-body-semibold text-base text-gray-800 dark:text-gray-200">
+          Bavul Hazırla Premium'da
+        </Text>
+        <Text className="mb-2 text-center font-body text-sm text-gray-500 dark:text-gray-400">
+          Seyahat için kapsül gardırop önerisi alabilmen için Premium'a geçmen gerekiyor.
+        </Text>
+        <PrimaryButton label="Premium'a Geç" onPress={() => router.push('/premium')} />
+      </SafeAreaView>
+    );
   }
 
   if (isViewingSaved && savedPlanQuery.isLoading) {
