@@ -390,7 +390,7 @@ function YogunPanelLayout({
           {topWorn.length > 0 && (
             <View className="flex-1">
               <Text className="mb-2 font-body-semibold text-xs text-gray-700 dark:text-gray-300">En Çok Giydiklerin</Text>
-              <TopWornOutfitRows entries={topWorn.slice(0, 2)} />
+              <TopWornOutfitRows entries={topWorn.slice(0, 2)} compact />
             </View>
           )}
           {neverWorn.length > 0 && (

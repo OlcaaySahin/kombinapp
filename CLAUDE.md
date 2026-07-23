@@ -852,3 +852,12 @@ Ayrıca `app/premium.tsx`'teki özellik tablosunda "Premium" sütunundaki onay t
 Abonelik bitiş tarihinin görünmemesi bir bug değildi: `busecivelek08@gmail.com` için `subscription_expires_at` `null` set edilmişti (= süresiz Premium, `isPremiumActive()` mantığında kasıtlı), kullanıcı bunun yerine 1 yıllık bir süre vermeyi tercih etti, kendisi Supabase'den güncelleyecek — kod tarafında zaten `subscription_expires_at` doluysa tarihi doğru gösteriyordu (`app/premium.tsx`), değişiklik gerekmedi.
 
 Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` temiz geçti, `dist/` silindi.
+
+## Bug: Yoğun Panel'de "En Çok Giydiklerin" Rozeti Komşu Sütuna Taşıyordu (2026-07-23 devamı)
+Kullanıcı ekran görüntüsüyle bildirdi: Ana Sayfa'nın "Yoğun Panel" tasarım varyantında (5 varyanttan biri), "En Çok Giydiklerin" ile "Hiç Giymediklerin" yan yana iki sütunda gösteriliyor — sol sütundaki sayaç rozeti ("N kez") sağ sütuna taşıyor/çakışıyordu.
+
+**Kök neden**: `components/ui/TopWornOutfitRows.tsx` tam-genişlik varsayımıyla yazılmıştı (4 küpür + `flex-1` isim metni + sayaç rozeti) — Ana Sayfa'nın diğer varyantlarında ve Gardırop Analizi'nde tam genişlikte sorunsuz çalışıyor. Ama Yoğun Panel bunu `UnwornItemThumbs` ile yarı-genişlikte (`flex-1` iki sütun) kullanıyor; dar sütunda 4 sabit-boyutlu küpür + rozet zaten sütun genişliğini aşıyordu, `flex-1` metin sıfıra küçülse bile taşma engellenmiyordu (RN varsayılan olarak taşan içeriği kırpmıyor). `UnwornItemThumbs` (sağ sütun) etkilenmedi çünkü zaten yatay `ScrollView` içinde — kendi kendini kırpıyor.
+
+**Düzeltme**: `TopWornOutfitRows`'a `compact?: boolean` prop'u eklendi — compact modda isim metni hiç gösterilmiyor (zaten dar sütunda okunaksız olurdu, tam bilgi "Detaylı gardırop analizi"nde var) ve küpür sayısı 4'ten 3'e, boyutu 40px'ten 32px'e küçültülüyor. `HomeIdleContent.tsx`'teki Yoğun Panel çağrısına `compact` eklendi, diğer iki tam-genişlik çağrı noktası (Sade, ve Gardırop Analizi'ndeki kullanım) değişmedi.
+
+Doğrulama: `npx tsc --noEmit` → `npx jest --watchAll=false` (9/9) → `npx expo export -p web` temiz geçti, `dist/` silindi. Saf UI/layout değişikliği, cihazda bir sonraki testte görsel olarak doğrulanmalı.
