@@ -253,6 +253,21 @@ export function useArchiveOutfit() {
   });
 }
 
+/** Kombini kalıcı olarak siler (arşivlemekten farklı — geri getirilemez). Cascade FK sayesinde
+ * outfit_items/outfit_wears satırları da otomatik silinir, pair_outfit_id varsa null'a düşer. */
+export function useDeleteOutfit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (outfitId: string) => {
+      const { error } = await supabase.from('outfits').delete().eq('id', outfitId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outfits'] });
+    },
+  });
+}
+
 export function useToggleLike() {
   const queryClient = useQueryClient();
   return useMutation({

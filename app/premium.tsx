@@ -110,25 +110,27 @@ export default function PremiumScreen() {
                   </Text>
                 )}
               </View>
+              {/* Premium kullanıcıda karşılaştırmaya gerek yok (zaten hepsine sahip) — sadece
+                  tek bir onay tiki sütunu, "Ücretsiz" sütunu ve X işaretleri gösterilmiyor. */}
+              {!isPremium && (
+                <View className="w-14 items-center">
+                  <Ionicons
+                    name={feature.free ? 'checkmark-circle' : 'close-circle-outline'}
+                    size={18}
+                    color={feature.free ? '#16A34A' : '#D1D5DB'}
+                  />
+                </View>
+              )}
               <View className="w-14 items-center">
-                <Ionicons
-                  name={feature.free ? 'checkmark-circle' : 'close-circle-outline'}
-                  size={18}
-                  color={feature.free ? '#16A34A' : '#D1D5DB'}
-                />
-              </View>
-              <View className="w-14 items-center">
-                <Ionicons
-                  name={feature.premium ? 'checkmark-circle' : 'close-circle-outline'}
-                  size={18}
-                  color={feature.premium ? '#B8860B' : '#D1D5DB'}
-                />
+                <Ionicons name="checkmark-circle" size={18} color="#B8860B" />
               </View>
             </View>
           ))}
           <View className="flex-row px-4 pb-3 pt-1">
             <Text className="flex-1" />
-            <Text className="w-14 text-center font-body-medium text-[10px] text-gray-400">Ücretsiz</Text>
+            {!isPremium && (
+              <Text className="w-14 text-center font-body-medium text-[10px] text-gray-400">Ücretsiz</Text>
+            )}
             <Text className="w-14 text-center font-body-medium text-[10px]" style={{ color: '#B8860B' }}>
               Premium
             </Text>

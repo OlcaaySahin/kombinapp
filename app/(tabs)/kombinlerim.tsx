@@ -12,9 +12,9 @@ import { showAlert, showConfirm } from '@/lib/alert';
 import { useItems, type DbItem } from '@/lib/hooks/useItems';
 import {
   useArchiveOutfit,
+  useDeleteOutfit,
   useDeleteWearEvent,
   useLikedOutfits,
-  useMarkWorn,
   useRateOutfit,
   useWornOutfits,
   type OutfitWithItems,
@@ -44,7 +44,7 @@ export default function KombinlerimScreen() {
   const deletePackingList = useDeletePackingList();
   const deleteWearEvent = useDeleteWearEvent();
   const archiveOutfit = useArchiveOutfit();
-  const markWorn = useMarkWorn();
+  const deleteOutfit = useDeleteOutfit();
   const [bavulSheetId, setBavulSheetId] = useState<string | null>(null);
   const [wearSheetId, setWearSheetId] = useState<string | null>(null);
   const { data: inventory } = useItems();
@@ -177,15 +177,18 @@ export default function KombinlerimScreen() {
     );
   }
 
-  /** Fotoğraf/not eklemeden hızlıca "bugün giydim" kaydı düşer — kullanıcı isteği (2026-07-20):
-   *  giydiği bir kombini tekrar giyerken form ekranına gitmeden tek dokunuşla işaretleyebilsin. */
-  function handleQuickWear(outfitId: string) {
-    markWorn.mutate(
-      { outfitId },
-      {
-        onSuccess: () => showAlert('Giydim!', 'Bugün giydiğin olarak kaydedildi.'),
-        onError: (error) => showAlert('Olmadı', error instanceof Error ? error.message : String(error)),
-      }
+  /** Kombini kalıcı olarak siler — kullanıcı isteği (2026-07-23): "hızlı giydim" butonu yerine
+   *  Beğenilenler'de doğrudan silme, onay diyaloğuyla. Arşivlemekten farklı: geri dönüşü yok. */
+  function handleDeleteOutfit(outfitId: string) {
+    showConfirm(
+      'Kombini Sil',
+      'Bu kombin kalıcı olarak silinecek, geri getirilemez. Devam etmek istiyor musun?',
+      () => {
+        deleteOutfit.mutate(outfitId, {
+          onError: (error) => showAlert('Silinemedi', error instanceof Error ? error.message : String(error)),
+        });
+      },
+      'Sil'
     );
   }
 
@@ -215,9 +218,9 @@ export default function KombinlerimScreen() {
             <Text className="font-heading text-sm text-primary">Giydim olarak işaretle</Text>
           </Pressable>
           <Pressable
-            onPress={() => handleQuickWear(outfit.id)}
-            className="w-12 items-center justify-center rounded-2xl border border-primary">
-            <Ionicons name="flash-outline" size={18} color="#3461FD" />
+            onPress={() => handleDeleteOutfit(outfit.id)}
+            className="w-12 items-center justify-center rounded-2xl border border-red-200 dark:border-red-900">
+            <Ionicons name="trash-outline" size={18} color="#EF4444" />
           </Pressable>
           <Pressable
             onPress={() => router.push({ pathname: '/kombin-paylas', params: { outfitId: outfit.id } })}

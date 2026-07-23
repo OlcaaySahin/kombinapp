@@ -103,29 +103,6 @@ export async function scheduleDailyReminder(time: string): Promise<boolean> {
   }
 }
 
-/**
- * Teşhis amaçlı: 10 saniye sonrasına tek seferlik bir bildirim kurar. Kullanıcı butona
- * basıp uygulamayı arka plana alarak sistem tepsisine bildirim düşüp düşmediğini test eder
- * — günlük hatırlatıcının saatini beklemeden zamanlama boru hattını doğrulamanın tek yolu.
- */
-export async function sendTestNotification(): Promise<boolean> {
-  const Notifications = loadNotifications();
-  if (!Notifications) return false;
-  try {
-    await ensureAndroidChannel(Notifications);
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Test bildirimi 🔔',
-        body: 'Bunu görüyorsan bildirimler çalışıyor demektir.',
-      },
-      trigger: { channelId: ANDROID_CHANNEL_ID, seconds: 10 },
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function cancelDailyReminder(): Promise<void> {
   const Notifications = loadNotifications();
   if (!Notifications) return;
@@ -133,6 +110,104 @@ export async function cancelDailyReminder(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(REMINDER_NOTIFICATION_ID);
   } catch {
     // zamanlanmış bildirim hiç yoksa da sorun değil
+  }
+}
+
+// ---------- Özel (kullanıcı tanımlı) hatırlatıcılar ----------
+// Kullanıcı isteği (2026-07-23): sabit "Bugün ne giysem?" hatırlatıcısının yanına, kendi
+// saatini ve metnini girebileceği birden fazla hatırlatıcı ekleyebilsin. Her biri günlük
+// tekrarlı (repeats: true) — aynı mekanizma, sadece içerik ve saat kullanıcıdan geliyor.
+
+export type CustomReminder = { id: string; time: string; text: string };
+
+const CUSTOM_REMINDERS_KEY = 'kombin_custom_reminders';
+
+function customReminderNotificationId(id: string): string {
+  return `ozel-hatirlatici-${id}`;
+}
+
+export async function getCustomReminders(): Promise<CustomReminder[]> {
+  try {
+    const raw = await AsyncStorage.getItem(CUSTOM_REMINDERS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as CustomReminder[];
+  } catch {
+    return [];
+  }
+}
+
+async function saveCustomReminders(reminders: CustomReminder[]): Promise<void> {
+  await AsyncStorage.setItem(CUSTOM_REMINDERS_KEY, JSON.stringify(reminders));
+}
+
+/** "HH:MM" formatını doğrular — 24 saatlik, 0-23 saat / 0-59 dakika. */
+function parseTime(time: string): { hour: number; minute: number } | null {
+  const [hourPart, minutePart] = time.split(':');
+  const hour = Number(hourPart);
+  const minute = Number(minutePart ?? '0');
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return null;
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+  return { hour, minute };
+}
+
+/** Yeni bir özel hatırlatıcı kurar ve kalıcı listeye ekler. Geçersiz saatte ya da native
+ * modül yoksa null döner. */
+export async function addCustomReminder(time: string, text: string): Promise<CustomReminder | null> {
+  const parsed = parseTime(time);
+  if (!parsed || !text.trim()) return null;
+  const Notifications = loadNotifications();
+  if (!Notifications) return null;
+  const reminder: CustomReminder = { id: `${Date.now()}`, time, text: text.trim() };
+  try {
+    await ensureAndroidChannel(Notifications);
+    await Notifications.scheduleNotificationAsync({
+      identifier: customReminderNotificationId(reminder.id),
+      content: { title: 'Look', body: reminder.text },
+      trigger: { channelId: ANDROID_CHANNEL_ID, hour: parsed.hour, minute: parsed.minute, repeats: true },
+    });
+  } catch {
+    return null;
+  }
+  const current = await getCustomReminders();
+  const next = [...current, reminder];
+  await saveCustomReminders(next);
+  return reminder;
+}
+
+export async function removeCustomReminder(id: string): Promise<void> {
+  const Notifications = loadNotifications();
+  if (Notifications) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(customReminderNotificationId(id));
+    } catch {
+      // zamanlanmış bildirim hiç yoksa da sorun değil
+    }
+  }
+  const current = await getCustomReminders();
+  await saveCustomReminders(current.filter((reminder) => reminder.id !== id));
+}
+
+/** Yeniden kurulum/yeni build sonrası OS tarafındaki zamanlama kaybolur ama liste AsyncStorage'da
+ * yaşar — syncReminderFromPreferences ile aynı ilkeyle (izin İSTEMEDEN) hepsini yeniden kurar. */
+async function syncCustomRemindersFromPreferences(): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  const permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted) return;
+  const reminders = await getCustomReminders();
+  await ensureAndroidChannel(Notifications);
+  for (const reminder of reminders) {
+    const parsed = parseTime(reminder.time);
+    if (!parsed) continue;
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: customReminderNotificationId(reminder.id),
+        content: { title: 'Look', body: reminder.text },
+        trigger: { channelId: ANDROID_CHANNEL_ID, hour: parsed.hour, minute: parsed.minute, repeats: true },
+      });
+    } catch {
+      // tek bir hatırlatıcının kurulamaması diğerlerini engellemesin
+    }
   }
 }
 
@@ -149,12 +224,14 @@ export async function syncReminderFromPreferences(): Promise<void> {
       AsyncStorage.getItem(REMINDER_ENABLED_KEY),
       AsyncStorage.getItem(REMINDER_TIME_KEY),
     ]);
-    if (enabled !== 'true') return;
-    const Notifications = loadNotifications();
-    if (!Notifications) return;
-    const permission = await Notifications.getPermissionsAsync();
-    if (!permission.granted) return;
-    await scheduleDailyReminder(time ?? DEFAULT_REMINDER_TIME);
+    if (enabled === 'true') {
+      const Notifications = loadNotifications();
+      if (Notifications) {
+        const permission = await Notifications.getPermissionsAsync();
+        if (permission.granted) await scheduleDailyReminder(time ?? DEFAULT_REMINDER_TIME);
+      }
+    }
+    await syncCustomRemindersFromPreferences();
   } catch {
     // bildirim senkronu hiçbir zaman uygulama açılışını engellememeli
   }
