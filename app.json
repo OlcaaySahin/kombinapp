@@ -36,6 +36,15 @@
         {
           "locationWhenInUsePermission": "Hava durumuna göre kombin önerebilmek için konumunu kullanabiliriz."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
       ]
     ],
     "experiments": {
