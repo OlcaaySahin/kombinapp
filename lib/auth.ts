@@ -7,17 +7,22 @@ import {
 import type { Session } from '@supabase/supabase-js';
 
 import { queryClient } from './queryClient';
+import { syncPurchasesUser } from './purchases';
 import { supabase } from './supabase';
 import { useAuthStore } from './stores/authStore';
 
 let listenerRegistered = false;
 
 function syncSession(session: Session | null) {
+  const userId = session?.user.id ?? null;
+  const isAnonymous = session?.user.is_anonymous ?? true;
   useAuthStore.getState().setSession({
-    userId: session?.user.id ?? null,
-    isAnonymous: session?.user.is_anonymous ?? true,
+    userId,
+    isAnonymous,
     email: session?.user.email ?? null,
   });
+  // Fire-and-forget: RevenueCat kullanıcısı (app_user_id = auth.uid()) oturumla hep aynı kalsın.
+  void syncPurchasesUser(userId, isAnonymous);
 }
 
 export async function bootstrapSession() {
