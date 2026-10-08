@@ -14,6 +14,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const WEBHOOK_AUTH = Deno.env.get('REVENUECAT_WEBHOOK_AUTH') ?? '';
+// TRANSFER olaylarında güncel durumu RevenueCat'ten sormak için (v2 REST API, SADECE sunucuda).
+const RC_SECRET_API_KEY = Deno.env.get('REVENUECAT_SECRET_API_KEY') ?? '';
+const RC_PROJECT_ID = Deno.env.get('REVENUECAT_PROJECT_ID') ?? 'proj51677e04';
 
 // RevenueCat panelindeki entitlement identifier'ı (lib/purchases.ts → PREMIUM_ENTITLEMENT,
 // panelde "Premium"). Webhook tarafında büyük/küçük harf duyarsız karşılaştırılır.
@@ -58,10 +61,34 @@ function safeEqual(a: string, b: string): boolean {
 type RevenueCatEvent = {
   type?: string;
   app_user_id?: string;
-  original_app_user_id?: string;
   entitlement_ids?: string[] | null;
   expiration_at_ms?: number | null;
+  transferred_from?: string[] | null;
+  transferred_to?: string[] | null;
 };
+
+type PremiumState = { active: boolean; expiresMs: number | null };
+
+/**
+ * RevenueCat'ten (v2 API) bir kullanıcının GÜNCEL Premium durumunu sorar. Şu an projede tek
+ * entitlement ("Premium") olduğu için aktif herhangi bir entitlement Premium sayılır.
+ * Müşteri RevenueCat'te yoksa (404) Premium yok demektir. Başka bir hata → fırlatır
+ * (webhook 5xx döner, RevenueCat olayı yeniden dener).
+ */
+async function fetchPremiumState(userId: string): Promise<PremiumState> {
+  const response = await fetch(
+    `https://api.revenuecat.com/v2/projects/${RC_PROJECT_ID}/customers/${encodeURIComponent(userId)}/active_entitlements`,
+    { headers: { Authorization: `Bearer ${RC_SECRET_API_KEY}` } }
+  );
+  if (response.status === 404) return { active: false, expiresMs: null };
+  if (!response.ok) throw new Error(`RevenueCat API ${response.status}`);
+  const body = (await response.json()) as { items?: { expires_at?: number | null }[] };
+  const items = body.items ?? [];
+  if (items.length === 0) return { active: false, expiresMs: null };
+  // expires_at null → süresiz (lifetime/promosyon) entitlement.
+  if (items.some((item) => item.expires_at == null)) return { active: true, expiresMs: null };
+  return { active: true, expiresMs: Math.max(...items.map((item) => item.expires_at as number)) };
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -85,6 +112,42 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Missing event' }, 400);
   }
 
+  // TRANSFER: bir abonelik (geri yükleme ile) bir hesaptan diğerine taşındı. Olayda bitiş tarihi
+  // yok; iki tarafın GÜNCEL durumunu RevenueCat'ten sorup yazıyoruz — böylece tek abonelik iki
+  // hesabı birden Premium yapmaz (eski hesap free'ye, yeni hesap premium'a döner).
+  // Not: RevenueCat aboneliği olmayan, elle verilmiş Premium'lar (SQL) böyle bir transfere
+  // karışırsa free'ye döner — elle verilen hesaplar RevenueCat'e hiç tanıtılmadığı için nadir.
+  if (event.type === 'TRANSFER') {
+    const ids = [...(event.transferred_from ?? []), ...(event.transferred_to ?? [])].filter((id) =>
+      UUID_PATTERN.test(id)
+    );
+    if (ids.length === 0) {
+      return jsonResponse({ ok: true, ignored: 'transfer without uuid users' });
+    }
+    if (!RC_SECRET_API_KEY) {
+      console.error('REVENUECAT_SECRET_API_KEY tanımlı değil — TRANSFER işlenemedi');
+      return jsonResponse({ error: 'Server misconfigured' }, 500);
+    }
+    const transferAdminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    try {
+      for (const id of new Set(ids)) {
+        const state = await fetchPremiumState(id);
+        const { error } = await transferAdminClient
+          .from('profiles')
+          .update({
+            subscription_tier: state.active ? 'premium' : 'free',
+            subscription_expires_at: state.expiresMs ? new Date(state.expiresMs).toISOString() : null,
+          })
+          .eq('id', id);
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('TRANSFER sync failed', error);
+      return jsonResponse({ error: 'Transfer sync failed' }, 500);
+    }
+    return jsonResponse({ ok: true, type: 'TRANSFER', synced: ids.length });
+  }
+
   // RevenueCat'in "Send test event" butonu ve ilgilenmediğimiz türler: 200 dön (retry olmasın).
   if (!ACCESS_EVENT_TYPES.has(event.type)) {
     return jsonResponse({ ok: true, ignored: `event type ${event.type}` });
@@ -98,9 +161,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, ignored: 'different entitlement' });
   }
 
-  const userId = [event.app_user_id, event.original_app_user_id].find(
-    (id) => typeof id === 'string' && UUID_PATTERN.test(id)
-  );
+  // SADECE app_user_id: original_app_user_id hesap geçişi/alias sonrası ESKİ bir hesabı
+  // gösterebilir ve Premium'u yanlış kişiye yazdırırdı.
+  const userId =
+    typeof event.app_user_id === 'string' && UUID_PATTERN.test(event.app_user_id) ? event.app_user_id : null;
   if (!userId) {
     // Anonim RevenueCat kimliği (`$RCAnonymousID:...`) — bizde anonim kullanıcı satın alamaz.
     return jsonResponse({ ok: true, ignored: 'non-uuid app_user_id' });
