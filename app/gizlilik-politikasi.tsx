@@ -37,7 +37,7 @@ const SECTIONS: Section[] = [
   {
     title: '7. Veri Saklama Süresi',
     body:
-      'Verilerin, hesabını silene kadar saklanır. Hesabını sildiğinde envanterin, kombinlerin, istek listen, bavul planların ve partnerlik bağın kalıcı olarak ve geri dönüşü olmayacak şekilde silinir.',
+      'Verilerin, hesabını silene kadar saklanır. Hesabını sildiğinde envanterin, kombinlerin, istek listen, bavul planların, partnerlik bağın ve yüklediğin tüm fotoğraflar (ürün, giydim ve profil resmi) kalıcı olarak ve geri dönüşü olmayacak şekilde silinir. Premium aboneliğin varsa, hesabı silmek aboneliği iptal etmez; Google Play\'den ayrıca iptal etmelisin.',
   },
   {
     title: '8. İletişim',
