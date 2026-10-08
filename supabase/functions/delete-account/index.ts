@@ -87,29 +87,44 @@ async function deleteReferencedFiles(
     if (cached !== undefined) return cached;
     let deletable = false;
     if (UUID_PATTERN.test(folder)) {
-      const { data } = await adminClient.auth.admin.getUserById(folder);
-      deletable = !data?.user;
+      const { data, error } = await adminClient.auth.admin.getUserById(folder);
+      if (error) {
+        // FAIL-CLOSED: sadece açık bir "kullanıcı yok" cevabında silmeye izin ver. Geçici bir
+        // hata/ağ sorunu "kullanıcı yok" sayılırsa CANLI bir kullanıcının dosyası silinirdi —
+        // diğer her hatada işlemi durdur (kullanıcı aynı işlemi tekrar deneyebilir).
+        if (error.code !== 'user_not_found') throw new Error(`kullanıcı doğrulanamadı: ${error.message}`);
+        deletable = true;
+      } else {
+        deletable = !data?.user;
+      }
     }
     folderDeletable.set(folder, deletable);
     return deletable;
   }
 
-  const pathsByBucket = new Map<string, string[]>();
-  for (const url of urls) {
-    const match = PUBLIC_URL_PATTERN.exec(url);
-    if (!match || !STORAGE_BUCKETS.includes(match[1])) continue;
-    const path = decodeURIComponent(match[2].split('?')[0]);
-    if (!(await canDeleteFromFolder(path.split('/')[0]))) continue;
-    const paths = pathsByBucket.get(match[1]) ?? [];
-    paths.push(path);
-    pathsByBucket.set(match[1], paths);
-  }
-
-  for (const [bucket, paths] of pathsByBucket) {
-    for (let i = 0; i < paths.length; i += STORAGE_PAGE_SIZE) {
-      const { error } = await adminClient.storage.from(bucket).remove(paths.slice(i, i + STORAGE_PAGE_SIZE));
-      if (error) return error.message;
+  try {
+    const pathsByBucket = new Map<string, string[]>();
+    for (const url of urls) {
+      // Defans: URL bizim Supabase projemize ait olmalı (başka bir host'a ait URL'leri yok say).
+      if (!url.startsWith(`${SUPABASE_URL}/storage/v1/object/public/`)) continue;
+      const match = PUBLIC_URL_PATTERN.exec(url);
+      if (!match || !STORAGE_BUCKETS.includes(match[1])) continue;
+      const path = decodeURIComponent(match[2].split('?')[0]);
+      if (path.split('/').includes('..')) continue;
+      if (!(await canDeleteFromFolder(path.split('/')[0]))) continue;
+      const paths = pathsByBucket.get(match[1]) ?? [];
+      paths.push(path);
+      pathsByBucket.set(match[1], paths);
     }
+
+    for (const [bucket, paths] of pathsByBucket) {
+      for (let i = 0; i < paths.length; i += STORAGE_PAGE_SIZE) {
+        const { error } = await adminClient.storage.from(bucket).remove(paths.slice(i, i + STORAGE_PAGE_SIZE));
+        if (error) return error.message;
+      }
+    }
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
   return null;
 }
