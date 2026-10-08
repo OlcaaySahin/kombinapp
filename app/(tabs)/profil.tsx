@@ -101,9 +101,14 @@ export default function ProfilScreen() {
 
   /** Google Play zorunluluğu (2023): hesap silme uygulama içinden erişilebilir olmalı. */
   function handleDeleteAccountPress() {
+    // Hesabı silmek Google Play aboneliğini İPTAL ETMEZ — kullanıcı farkında olmazsa ücretlendirme
+    // sürebilir, bu yüzden aktif Premium'u olana açıkça söylüyoruz.
+    const subscriptionWarning = isPremium
+      ? ' Aktif Premium aboneliğin hesabını silmekle iptal OLMAZ; ücretlendirilmemek için Google Play > Abonelikler bölümünden ayrıca iptal etmelisin.'
+      : '';
     showConfirm(
-      'Hesabını Sil',
-      'Bu işlem GERİ ALINAMAZ: envanterin, kombinlerin, istek listen, bavulların ve partnerlik bağın kalıcı olarak silinir. Devam etmek istediğine emin misin?',
+      isAnonymous ? 'Tüm Verilerimi Sil' : 'Hesabını Sil',
+      `Bu işlem GERİ ALINAMAZ: envanterin, kombinlerin, istek listen, bavulların, partnerlik bağın ve yüklediğin tüm fotoğraflar kalıcı olarak silinir.${subscriptionWarning} Devam etmek istediğine emin misin?`,
       () => {
         showConfirm(
           'Son Onay',
@@ -112,7 +117,7 @@ export default function ProfilScreen() {
             setDeletingAccount(true);
             try {
               await deleteAccount();
-              showAlert('Hesabın silindi', 'Tüm verilerin kalıcı olarak silindi.');
+              showAlert(isAnonymous ? 'Verilerin silindi' : 'Hesabın silindi', 'Tüm verilerin kalıcı olarak silindi.');
             } catch (error) {
               console.error('Hesap silinemedi:', error);
               captureException(error);
@@ -226,27 +231,31 @@ export default function ProfilScreen() {
       </View>
 
       {!isAnonymous && (
-        <>
-          <Pressable
-            onPress={handleSignOutPress}
-            disabled={signingOut}
-            className="mx-5 mt-4 flex-row items-center justify-center gap-2 rounded-2xl py-4">
-            <Ionicons name="log-out-outline" size={18} color="#E5484D" />
-            <Text className="font-body-semibold text-sm text-red-500">
-              {signingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap / Hesap Değiştir'}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={handleDeleteAccountPress}
-            disabled={deletingAccount}
-            className="mx-5 flex-row items-center justify-center gap-2 rounded-2xl py-2">
-            <Ionicons name="trash-outline" size={15} color="#9BA1A6" />
-            <Text className="font-body text-xs text-gray-400 dark:text-gray-500">
-              {deletingAccount ? 'Hesap siliniyor...' : 'Hesabımı Sil'}
-            </Text>
-          </Pressable>
-        </>
+        <Pressable
+          onPress={handleSignOutPress}
+          disabled={signingOut}
+          className="mx-5 mt-4 flex-row items-center justify-center gap-2 rounded-2xl py-4">
+          <Ionicons name="log-out-outline" size={18} color="#E5484D" />
+          <Text className="font-body-semibold text-sm text-red-500">
+            {signingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap / Hesap Değiştir'}
+          </Text>
+        </Pressable>
       )}
+      {/* Google Play: hesap/veri silme uygulama içinden erişilebilir olmalı — anonim kullanıcı da
+          (sunucuda gerçek bir auth kaydı ve verisi var) silebilmeli. */}
+      <Pressable
+        onPress={handleDeleteAccountPress}
+        disabled={deletingAccount}
+        className={`mx-5 flex-row items-center justify-center gap-2 rounded-2xl py-2 ${isAnonymous ? 'mt-4' : ''}`}>
+        <Ionicons name="trash-outline" size={15} color="#9BA1A6" />
+        <Text className="font-body text-xs text-gray-400 dark:text-gray-500">
+          {deletingAccount
+            ? 'Siliniyor...'
+            : isAnonymous
+              ? 'Tüm Verilerimi Sil'
+              : 'Hesabımı Sil'}
+        </Text>
+      </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

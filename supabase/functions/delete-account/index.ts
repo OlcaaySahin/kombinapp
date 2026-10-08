@@ -41,6 +41,79 @@ async function deleteUserFiles(
   return null;
 }
 
+/**
+ * `migrate-anonymous-data` ürün/istek listesi satırlarını yeni hesaba taşır ama fotoğraf
+ * DOSYALARI eski anonim kullanıcının klasöründe kalır — yani bir kullanıcının görselleri kendi
+ * klasörü dışında da durabilir. Bu yüzden klasörün yanında, kullanıcının KAYITLARININ işaret
+ * ettiği dosyaları da (public URL'den bucket/yol çıkararak) siliyoruz. Hata varsa mesajı döner.
+ */
+const PUBLIC_URL_PATTERN = /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function deleteReferencedFiles(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string
+): Promise<string | null> {
+  const urls: string[] = [];
+  const collect = (rows: Record<string, unknown>[] | null, column: string) => {
+    for (const row of rows ?? []) {
+      const value = row[column];
+      if (typeof value === 'string' && value) urls.push(value);
+    }
+  };
+
+  const [items, wishlist, wears, profile] = await Promise.all([
+    adminClient.from('items').select('image_url').eq('user_id', userId),
+    adminClient.from('wishlist_items').select('image_url').eq('user_id', userId),
+    adminClient.from('outfit_wears').select('photo_url, outfits!inner(user_id)').eq('outfits.user_id', userId),
+    adminClient.from('profiles').select('avatar_url').eq('id', userId),
+  ]);
+  for (const result of [items, wishlist, wears, profile]) {
+    if (result.error) return result.error.message;
+  }
+  collect(items.data, 'image_url');
+  collect(wishlist.data, 'image_url');
+  collect(wears.data, 'photo_url');
+  collect(profile.data, 'avatar_url');
+
+  // GÜVENLİK: image_url kullanıcının yazabildiği bir metin — başkasının fotoğraf URL'sini yazıp
+  // hesabını silen biri o fotoğrafı da sildirebilirdi (partner kombinlerinde diğer kişinin görsel
+  // URL'leri zaten görünüyor). Bu yüzden sadece (1) kullanıcının kendi klasörü ve (2) sahibi
+  // ARTIK VAR OLMAYAN klasörler (taşınan anonim hesabın dosyaları) silinebilir.
+  const folderDeletable = new Map<string, boolean>();
+  async function canDeleteFromFolder(folder: string): Promise<boolean> {
+    if (folder === userId) return true;
+    const cached = folderDeletable.get(folder);
+    if (cached !== undefined) return cached;
+    let deletable = false;
+    if (UUID_PATTERN.test(folder)) {
+      const { data } = await adminClient.auth.admin.getUserById(folder);
+      deletable = !data?.user;
+    }
+    folderDeletable.set(folder, deletable);
+    return deletable;
+  }
+
+  const pathsByBucket = new Map<string, string[]>();
+  for (const url of urls) {
+    const match = PUBLIC_URL_PATTERN.exec(url);
+    if (!match || !STORAGE_BUCKETS.includes(match[1])) continue;
+    const path = decodeURIComponent(match[2].split('?')[0]);
+    if (!(await canDeleteFromFolder(path.split('/')[0]))) continue;
+    const paths = pathsByBucket.get(match[1]) ?? [];
+    paths.push(path);
+    pathsByBucket.set(match[1], paths);
+  }
+
+  for (const [bucket, paths] of pathsByBucket) {
+    for (let i = 0; i < paths.length; i += STORAGE_PAGE_SIZE) {
+      const { error } = await adminClient.storage.from(bucket).remove(paths.slice(i, i + STORAGE_PAGE_SIZE));
+      if (error) return error.message;
+    }
+  }
+  return null;
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -82,6 +155,10 @@ Deno.serve(async (req: Request) => {
   // için (gizlilik politikası, Play/KVKK) dosyalar da silinmeli. Hesabı silmeden ÖNCE yapılır:
   // hesap gittikten sonra kullanıcının oturumu geçersiz olur, başarısız bir temizlik bir daha
   // denenemezdi; şimdi hata olursa 500 döner ve kullanıcı aynı işlemi tekrar deneyebilir.
+  const referencedError = await deleteReferencedFiles(adminClient, userId);
+  if (referencedError) {
+    return jsonResponse({ error: `kayıtlı dosyalar silinemedi: ${referencedError}` }, 500);
+  }
   for (const bucket of STORAGE_BUCKETS) {
     const storageError = await deleteUserFiles(adminClient, bucket, userId);
     if (storageError) {
