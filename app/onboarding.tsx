@@ -17,7 +17,7 @@ type Step = {
 const STEPS: Step[] = [
   {
     icon: 'sparkles-outline',
-    title: "Kombin App'e Hoş Geldin",
+    title: "Look'a Hoş Geldin",
     description:
       'Dolabındaki kıyafetlerle akıllı kombin önerileri alacaksın. Nasıl çalıştığını birkaç kartla gösterelim.',
   },
